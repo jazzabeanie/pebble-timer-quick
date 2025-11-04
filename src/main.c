@@ -217,7 +217,7 @@ static void prv_app_timer_callback(void *data) {
   layer_mark_dirty(main_data.layer);
   // schedule next call
   main_data.app_timer = NULL;
-  if (main_data.control_mode == ControlModeCounting) {
+  if (main_data.control_mode == ControlModeCounting || main_data.control_mode == ControlModeNew) {
     uint32_t duration = timer_get_value_ms() % MSEC_IN_SEC;
     if (timer_is_chrono()) {
       duration = MSEC_IN_SEC - duration;
@@ -246,6 +246,8 @@ static void prv_initialize(void) {
   // set initial states
   main_data.control_mode = ControlModeNew;
   timer_reset();
+
+  timer_toggle_play_pause();
 
   // initialize window
   main_data.window = window_create();
