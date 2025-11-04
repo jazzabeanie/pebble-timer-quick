@@ -244,18 +244,8 @@ static void prv_initialize(void) {
   // load timer
   timer_persist_read();
   // set initial states
-  if (timer_is_paused()) {
-    // get time parts
-    uint16_t hr, min, sec;
-    timer_get_time_parts(&hr, &min, &sec);
-    if (hr) {
-      main_data.control_mode = ControlModeEditHr;
-    } else {
-      main_data.control_mode = ControlModeEditMin;
-    }
-  } else {
-    main_data.control_mode = ControlModeCounting;
-  }
+  main_data.control_mode = ControlModeNew;
+  timer_reset();
 
   // initialize window
   main_data.window = window_create();

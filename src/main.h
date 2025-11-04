@@ -14,6 +14,7 @@
 
 // Current control mode
 typedef enum {
+  ControlModeNew,
   ControlModeEditHr,
   ControlModeEditMin,
   ControlModeEditSec,
