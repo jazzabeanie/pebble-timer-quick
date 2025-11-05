@@ -10,7 +10,18 @@ stopwatch mode.
 
 ## Building and testing
 
-Not sure how do to this yet. Here are some resources:
+
+- install SDK almost according to https://developer.repebble.com/sdk/
+  - install node
+  - `sudo apt install libsdl1.2debian libfdt1`
+  - `brew install uv`
+- create virtual env `conda create --prefix conda-env python=3.10` or activate it with `conda activate conda-env`
+- `uv pip install pebble-tool`
+- `pebble sdk install latest`
+- `pebble build`
+- `pebble install --emulator basalt`
+
+Other resources that might be helpful if the above fails:
 
 - https://www.reddit.com/r/pebble/comments/1ih3umk/current_pebble_development_options/
 - [Rebble hackathon VM](https://rebble.io/hackathon-002/vm/)

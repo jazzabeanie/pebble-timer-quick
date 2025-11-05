@@ -143,6 +143,8 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
       main_data.control_mode = ControlModeEditSec;
       timer_toggle_play_pause();
       break;
+    case ControlModeNew:
+      break;
   }
   // refresh
   drawing_update();
