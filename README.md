@@ -16,3 +16,4 @@ Not sure how do to this yet. Here are some resources:
 - [Rebble hackathon VM](https://rebble.io/hackathon-002/vm/)
 - I can't seem to find the option to enable the developer connection mode in the app on iOS
 - https://github.com/richinfante/rebbletool
+- https://developer.repebble.com/sdk/cloud
