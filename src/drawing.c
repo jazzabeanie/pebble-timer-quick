@@ -26,7 +26,7 @@
 #define MAIN_TEXT_BOUNDS_EDIT GRect(-MAIN_TEXT_CIRCLE_RADIUS_EDIT, \
  -MAIN_TEXT_CIRCLE_RADIUS_EDIT / 2, MAIN_TEXT_CIRCLE_RADIUS_EDIT * 2, MAIN_TEXT_CIRCLE_RADIUS_EDIT)
 // Main Text
-#define TEXT_FIELD_COUNT 5
+#define TEXT_FIELD_COUNT 6
 #define TEXT_FIELD_EDIT_SPACING 7
 #define TEXT_FIELD_ANI_DURATION 140
 // Focus Layer
@@ -123,7 +123,9 @@ static void prv_render_header_text(GContext *ctx, GRect bounds) {
   bounds.size.h = CIRCLE_RADIUS / 2;
   // draw text
   char *buff;
-  if (timer_is_chrono()) {
+  if (main_get_control_mode() == ControlModeNew) {
+    buff = "New";
+  } else if (timer_is_chrono()) {
     buff = "Chrono";
   } else {
     buff = "Timer";
@@ -164,22 +166,36 @@ static void prv_render_footer_text(GContext *ctx, GRect bounds) {
 static void prv_main_text_update_state(Layer *layer) {
   // get properties
   GRect bounds = layer_get_bounds(layer);
-  bool edit_mode = main_get_control_mode() != ControlModeCounting;
+  // bool edit_mode = main_get_control_mode() != ControlModeCounting;
+  bool edit_mode = 0;
   // calculate time parts
   uint16_t hr, min, sec;
   timer_get_time_parts(&hr, &min, &sec);
   // convert to strings
   char buff[TEXT_FIELD_COUNT][4] = {{'\0'}};
-  if (hr) {
-    snprintf(buff[0], sizeof(buff[0]), edit_mode ? "%02d" : "%d", hr);
+  if (main_get_control_mode() == ControlModeNew) {
+    snprintf(buff[0], sizeof(buff[0]), "-");
   }
-  snprintf(buff[1], sizeof(buff[1]), "%s", hr && !edit_mode ? ":" : "\0");
-  snprintf(buff[2], sizeof(buff[2]), (hr || edit_mode) ? "%02d" : "%d", min);
-  snprintf(buff[3], sizeof(buff[3]), "%s", edit_mode ? "\0" : ":");
-  snprintf(buff[4], sizeof(buff[4]), "%02d", sec);
+  if (hr) {
+    snprintf(buff[1], sizeof(buff[1]), edit_mode ? "%02d" : "%d", hr);
+  }
+  // snprintf(buff[1], sizeof(buff[1]), edit_mode ? "%02d" : "%d", 99);
+  snprintf(buff[2], sizeof(buff[2]), "%s", hr && !edit_mode ? ":" : "\0");
+  snprintf(buff[3], sizeof(buff[3]), (hr || edit_mode) ? "%02d" : "%d", min);
+  snprintf(buff[4], sizeof(buff[4]), "%s", edit_mode ? "\0" : ":");
+  snprintf(buff[5], sizeof(buff[5]), "%02d", sec);
+
+  int current_mode = main_get_control_mode();
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "Render Mode: %d | Buffers: [%s][%s][%s][%s][%s][%s] (prv_main_text_update_state)",
+          current_mode,
+          buff[0], buff[1], buff[2], buff[3], buff[4], buff[5]);
+
   // calculate new sizes for all text elements
-  char tot_buff[8];
-  snprintf(tot_buff, sizeof(tot_buff), "%s%s%s%s%s", buff[0], buff[1], buff[2], buff[3], buff[4]);
+  char tot_buff[12];
+  snprintf(tot_buff, sizeof(tot_buff), "%s%s%s%s%s%s", buff[0], buff[1], buff[2], buff[3], buff[4], buff[5]);
+  
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "tot_buff: %s (prv_main_text_update_state)", tot_buff);
+
   uint16_t font_size = text_render_get_max_font_size(tot_buff, edit_mode ? MAIN_TEXT_BOUNDS_EDIT :
     MAIN_TEXT_BOUNDS);
   // calculate new size for each text element
@@ -209,7 +225,7 @@ static void prv_main_text_update_state(Layer *layer) {
   }
 
   // update the focus layers
-  prv_focus_layer_update_state(layer, field_bounds[0], field_bounds[2], field_bounds[4]);
+  prv_focus_layer_update_state(layer, field_bounds[1], field_bounds[3], field_bounds[5]);
 }
 
 // Draw main text onto drawing context
@@ -218,15 +234,26 @@ static void prv_render_main_text(GContext *ctx, GRect bounds) {
   uint16_t hr, min, sec;
   timer_get_time_parts(&hr, &min, &sec);
   // convert to strings
-  bool edit_mode = main_get_control_mode() != ControlModeCounting;
+  // bool edit_mode = main_get_control_mode() != ControlModeCounting;
+  bool edit_mode = 0;
   char buff[TEXT_FIELD_COUNT][4] = {{'\0'}};
-  if (hr) {
-    snprintf(buff[0], sizeof(buff[0]), edit_mode ? "%02d" : "%d", hr);
+  if (main_get_control_mode() == ControlModeNew) {
+    snprintf(buff[0], sizeof(buff[0]), "-");
   }
-  snprintf(buff[1], sizeof(buff[1]), "%s", hr && !edit_mode ? ":" : "\0");
-  snprintf(buff[2], sizeof(buff[2]), (hr || edit_mode) ? "%02d" : "%d", min);
-  snprintf(buff[3], sizeof(buff[3]), "%s", edit_mode ? "\0" : ":");
-  snprintf(buff[4], sizeof(buff[4]), "%02d", sec);
+  if (hr) {
+    snprintf(buff[1], sizeof(buff[1]), edit_mode ? "%02d" : "%d", hr);
+  }
+  //snprintf(buff[1], sizeof(buff[1]), edit_mode ? "%02d" : "%d", 99);
+  snprintf(buff[2], sizeof(buff[2]), "%s", hr && !edit_mode ? ":" : "\0");
+  snprintf(buff[3], sizeof(buff[3]), (hr || edit_mode) ? "%02d" : "%d", min);
+  snprintf(buff[4], sizeof(buff[4]), "%s", edit_mode ? "\0" : ":");
+  snprintf(buff[5], sizeof(buff[5]), "%02d", sec);
+
+  int current_mode = main_get_control_mode();
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "Render Mode: %d | Buffers: [%s][%s][%s][%s][%s][%s]",
+          current_mode,
+          buff[0], buff[1], buff[2], buff[3], buff[4], buff[5]);
+
   // draw the main text elements in their respective bounds
   for (uint8_t ii = 0; ii < TEXT_FIELD_COUNT; ii++) {
     text_render_draw_scalable_text(ctx, buff[ii], drawing_data.text_fields[ii]);
@@ -327,11 +354,11 @@ void drawing_start_bounce_animation(bool upward) {
   // only animate the position of one focus layer, stacking gives appearance of stretching
   GRect *txt_rect;
   if (main_get_control_mode() == ControlModeEditHr) {
-    txt_rect = &drawing_data.text_fields[0];
+    txt_rect = &drawing_data.text_fields[1];
   } else if (main_get_control_mode() == ControlModeEditMin) {
-    txt_rect = &drawing_data.text_fields[2];
+    txt_rect = &drawing_data.text_fields[3];
   } else {
-    txt_rect = &drawing_data.text_fields[4];
+    txt_rect = &drawing_data.text_fields[5];
   }
   // animate text
   GRect rect_to = (*txt_rect);
@@ -342,11 +369,11 @@ void drawing_start_bounce_animation(bool upward) {
   animation_grect_start(txt_rect, rect_to, FOCUS_BOUNCE_ANI_SETTLE_DURATION,
     FOCUS_BOUNCE_ANI_DURATION, CurveSinEaseOut);
   // get focus layer desired bounds
-  GRect focus_bounds = drawing_data.text_fields[0];
+  GRect focus_bounds = drawing_data.text_fields[1];
   if (main_get_control_mode() == ControlModeEditMin) {
-    focus_bounds = drawing_data.text_fields[2];
+    focus_bounds = drawing_data.text_fields[3];
   } else if (main_get_control_mode() == ControlModeEditSec){
-    focus_bounds = drawing_data.text_fields[4];
+    focus_bounds = drawing_data.text_fields[5];
   }
   focus_bounds.origin.y = drawing_data.text_fields[3].origin.y;
   focus_bounds = grect_inset(focus_bounds, GEdgeInsets1(-FOCUS_FIELD_BORDER));
