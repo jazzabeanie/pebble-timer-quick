@@ -6,7 +6,7 @@
 // some string at the largest size that will fit inside a certain rectangle.
 // All text in this library have half-size kerning on both sides of letters.
 //
-// @author Eric D. Phillips
+// @author Eric D. Phillips and Jared Johnston
 // @bug No known bugs
 
 #include "text_render.h"
@@ -61,9 +61,11 @@ static Character LECO_9 = {'9', 178, 12, {{0, 255}, {178, 255}, {178, 0}, {0, 0}
                                           {128, 205}, {0, 205}}};
 static Character LECO_C = {':', 50, 4, {{0, 50}, {50, 50}, {50, 100}, {0, 100}}};
 static Character LECO_P = {'.', 50, 4, {{0, 205}, {50, 205}, {50, 255}, {0, 255}}};
+static Character LECO_DASH = {'-', 100, 4, {{0, 100}, {100, 100}, {100, 150}, {0, 150}}};
 
 static Character *LECO_CHARS[] = {&LECO_0, &LECO_1, &LECO_2, &LECO_3, &LECO_4, &LECO_5,
-                                  &LECO_6, &LECO_7, &LECO_8, &LECO_9, &LECO_C, &LECO_P};
+                                  &LECO_6, &LECO_7, &LECO_8, &LECO_9, &LECO_C, &LECO_P,
+                                  &LECO_DASH};
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -129,6 +131,7 @@ GRect text_render_get_content_bounds(char *buff, uint16_t font_size) {
     // find that character in the array of data
     for (uint8_t jj = 0; jj < ARRAY_LENGTH(LECO_CHARS); jj++) {
       if (LECO_CHARS[jj]->character == buff[ii]) {
+        APP_LOG(APP_LOG_LEVEL_DEBUG, "Adding char: '%c', width: %d", buff[ii], (int)LECO_CHARS[jj]->char_width);
         // add the width of that character to the total width
         total_width += LECO_CHARS[jj]->char_width + CHARACTER_DEFINITION_KERNING;
         break;
@@ -142,6 +145,7 @@ GRect text_render_get_content_bounds(char *buff, uint16_t font_size) {
 
 // Gets the maximum font size of a certain text string within a certain bounds
 uint16_t text_render_get_max_font_size(char *buff, GRect bounds) {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "buff: %s (text_render_get_max_font_size)", buff);
   // get the unscaled size of the rendered string
   GRect unscaled_bounds = text_render_get_content_bounds(buff, CHARACTER_DEFINITION_HEIGHT);
   // calculate the maximum font size which stays within this rectangle

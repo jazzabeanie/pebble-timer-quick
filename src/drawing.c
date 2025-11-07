@@ -198,6 +198,8 @@ static void prv_main_text_update_state(Layer *layer) {
 
   uint16_t font_size = text_render_get_max_font_size(tot_buff, edit_mode ? MAIN_TEXT_BOUNDS_EDIT :
     MAIN_TEXT_BOUNDS);
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "font_size: %u (prv_main_text_update_state)", font_size);
+
   // calculate new size for each text element
   GRect total_bounds = GRectZero;
   GRect field_bounds[TEXT_FIELD_COUNT];
