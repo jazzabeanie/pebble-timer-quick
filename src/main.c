@@ -15,6 +15,8 @@
 
 // Main constants
 #define BUTTON_HOLD_REPEAT_MS 100
+#define UP_BUTTON_INCREMENT_MS MSEC_IN_SEC * 20
+#define DOWN_BUTTON_INCREMENT_MS MSEC_IN_SEC
 
 // Main data structure
 static struct {
@@ -62,6 +64,7 @@ static void prv_layer_update_proc_handler(Layer *layer, GContext *ctx) {
 
 // Back click handler
 static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "Back button pressed");
   // cancel vibrations
   vibes_cancel();
   // get time parts
@@ -81,35 +84,37 @@ static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 
 // Up click handler
 static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "Up button pressed");
   // rewind timer if clicked while timer is going off
   if (main_timer_rewind() || main_data.control_mode == ControlModeCounting) {
     return;
   }
   // increment timer
-  int64_t increment;
-  if (main_data.control_mode == ControlModeEditHr) {
-    increment = MSEC_IN_HR;
-  } else if (main_data.control_mode == ControlModeEditMin) {
-    increment = MSEC_IN_MIN;
-  } else {
-    increment = MSEC_IN_SEC;
-  }
+  int64_t increment = UP_BUTTON_INCREMENT_MS;
+  // int64_t increment;
+  // if (main_data.control_mode == ControlModeEditHr) {
+  //   increment = MSEC_IN_HR;
+  // } else if (main_data.control_mode == ControlModeEditMin) {
+  //   increment = MSEC_IN_MIN;
+  // } else {
+  //   increment = MSEC_IN_SEC;
+  // }
   // get starting time components
   uint16_t o_hr, o_min, o_sec;
   timer_get_time_parts(&o_hr, &o_min, &o_sec);
   // increment timer
   timer_increment(increment);
   // compare final time parts and switch into edit hr mode
-  uint16_t n_hr, n_min, n_sec;
-  timer_get_time_parts(&n_hr, &n_min, &n_sec);
-  if (o_min > n_min && !o_hr) {
-    timer_increment(MSEC_IN_HR);
-    main_data.control_mode = ControlModeEditHr;
-  }
-  // check if switched out of ControlModeEditHr
-  if (timer_get_value_ms() / MSEC_IN_HR == 0 && main_data.control_mode == ControlModeEditHr) {
-    main_data.control_mode = ControlModeEditMin;
-  }
+  // uint16_t n_hr, n_min, n_sec;
+  // timer_get_time_parts(&n_hr, &n_min, &n_sec);
+  // if (o_min > n_min && !o_hr) {
+  //   timer_increment(MSEC_IN_HR);
+  //   main_data.control_mode = ControlModeEditHr;
+  // }
+  // // check if switched out of ControlModeEditHr
+  // if (timer_get_value_ms() / MSEC_IN_HR == 0 && main_data.control_mode == ControlModeEditHr) {
+  //   main_data.control_mode = ControlModeEditMin;
+  // }
   // animate and refresh
   if (!click_recognizer_is_repeating(recognizer)) {
     drawing_start_bounce_animation(true);
@@ -120,6 +125,7 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 
 // Select click handler
 static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "Select button pressed");
   // rewind timer if clicked while timer is going off
   if (main_timer_rewind()) {
     return;
@@ -171,6 +177,7 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
 
 // Down click handler
 static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "Down button pressed");
   // rewind timer if clicked while timer is going off
   if (main_timer_rewind() || main_data.control_mode == ControlModeCounting) {
     return;

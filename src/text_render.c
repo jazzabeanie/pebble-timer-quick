@@ -131,7 +131,7 @@ GRect text_render_get_content_bounds(char *buff, uint16_t font_size) {
     // find that character in the array of data
     for (uint8_t jj = 0; jj < ARRAY_LENGTH(LECO_CHARS); jj++) {
       if (LECO_CHARS[jj]->character == buff[ii]) {
-        APP_LOG(APP_LOG_LEVEL_DEBUG, "Adding char: '%c', width: %d", buff[ii], (int)LECO_CHARS[jj]->char_width);
+        // APP_LOG(APP_LOG_LEVEL_DEBUG, "Adding char: '%c', width: %d", buff[ii], (int)LECO_CHARS[jj]->char_width);
         // add the width of that character to the total width
         total_width += LECO_CHARS[jj]->char_width + CHARACTER_DEFINITION_KERNING;
         break;
@@ -145,7 +145,7 @@ GRect text_render_get_content_bounds(char *buff, uint16_t font_size) {
 
 // Gets the maximum font size of a certain text string within a certain bounds
 uint16_t text_render_get_max_font_size(char *buff, GRect bounds) {
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "buff: %s (text_render_get_max_font_size)", buff);
+  // APP_LOG(APP_LOG_LEVEL_DEBUG, "buff: %s (text_render_get_max_font_size)", buff);
   // get the unscaled size of the rendered string
   GRect unscaled_bounds = text_render_get_content_bounds(buff, CHARACTER_DEFINITION_HEIGHT);
   // calculate the maximum font size which stays within this rectangle

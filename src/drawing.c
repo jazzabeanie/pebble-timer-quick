@@ -186,19 +186,19 @@ static void prv_main_text_update_state(Layer *layer) {
   snprintf(buff[5], sizeof(buff[5]), "%02d", sec);
 
   int current_mode = main_get_control_mode();
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "Render Mode: %d | Buffers: [%s][%s][%s][%s][%s][%s] (prv_main_text_update_state)",
-          current_mode,
-          buff[0], buff[1], buff[2], buff[3], buff[4], buff[5]);
+  // APP_LOG(APP_LOG_LEVEL_DEBUG, "Render Mode: %d | Buffers: [%s][%s][%s][%s][%s][%s] (prv_main_text_update_state)",
+  //         current_mode,
+  //         buff[0], buff[1], buff[2], buff[3], buff[4], buff[5]);
 
   // calculate new sizes for all text elements
   char tot_buff[12];
   snprintf(tot_buff, sizeof(tot_buff), "%s%s%s%s%s%s", buff[0], buff[1], buff[2], buff[3], buff[4], buff[5]);
   
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "tot_buff: %s (prv_main_text_update_state)", tot_buff);
+  // APP_LOG(APP_LOG_LEVEL_DEBUG, "tot_buff: %s (prv_main_text_update_state)", tot_buff);
 
   uint16_t font_size = text_render_get_max_font_size(tot_buff, edit_mode ? MAIN_TEXT_BOUNDS_EDIT :
     MAIN_TEXT_BOUNDS);
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "font_size: %u (prv_main_text_update_state)", font_size);
+  // APP_LOG(APP_LOG_LEVEL_DEBUG, "font_size: %u (prv_main_text_update_state)", font_size);
 
   // calculate new size for each text element
   GRect total_bounds = GRectZero;
@@ -252,9 +252,9 @@ static void prv_render_main_text(GContext *ctx, GRect bounds) {
   snprintf(buff[5], sizeof(buff[5]), "%02d", sec);
 
   int current_mode = main_get_control_mode();
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "Render Mode: %d | Buffers: [%s][%s][%s][%s][%s][%s]",
-          current_mode,
-          buff[0], buff[1], buff[2], buff[3], buff[4], buff[5]);
+  // APP_LOG(APP_LOG_LEVEL_DEBUG, "Render Mode: %d | Buffers: [%s][%s][%s][%s][%s][%s]",
+  //         current_mode,
+  //         buff[0], buff[1], buff[2], buff[3], buff[4], buff[5]);
 
   // draw the main text elements in their respective bounds
   for (uint8_t ii = 0; ii < TEXT_FIELD_COUNT; ii++) {
