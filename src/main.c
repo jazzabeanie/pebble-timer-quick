@@ -266,11 +266,17 @@ static void prv_initialize(void) {
   wakeup_cancel_all();
   // load timer
   timer_persist_read();
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "Timer data: length_ms=%lld, start_ms=%lld, elapsed=%d, can_vibrate=%d",
+          timer_data.length_ms, timer_data.start_ms, timer_data.elapsed, timer_data.can_vibrate);
   // set initial states
-  main_data.control_mode = ControlModeNew;
-  timer_reset();
+  if (timer_data.length_ms) {
+    main_data.control_mode = ControlModeCounting;
+  } else {
+    main_data.control_mode = ControlModeNew;
+    timer_reset();
+    timer_toggle_play_pause();
+  }
 
-  timer_toggle_play_pause();
 
   // initialize window
   main_data.window = window_create();
