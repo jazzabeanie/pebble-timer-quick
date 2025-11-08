@@ -96,31 +96,40 @@ void timer_check_elapsed(void) {
 // Increment timer value currently being edited
 void timer_increment(int64_t increment) {
   // if in paused stopwatch mode, rewind to previous time
-  if (timer_is_chrono() && timer_data.start_ms) {
-    timer_rewind();
-    return;
-  }
+  // JJ: actually it just checks if timer_is_chrono and it's active. I think
+  // it's assumed to be paused if this code is running
+  // if (timer_is_chrono() && timer_data.start_ms) {
+  //   timer_rewind();
+  //   return;
+  // }
   // identify increment class
-  int64_t interval;
-  if (abs(increment) < MSEC_IN_MIN) {
-    interval = MSEC_IN_MIN;
-  } else if (abs(increment) < MSEC_IN_HR) {
-    interval = MSEC_IN_HR;
-  } else {
-    interval = MSEC_IN_HR * 100;
-  }
+  // int64_t interval;
+  // if (abs(increment) < MSEC_IN_MIN) {
+  //   interval = MSEC_IN_MIN;
+  // } else if (abs(increment) < MSEC_IN_HR) {
+  //   interval = MSEC_IN_HR;
+  // } else {
+  //   interval = MSEC_IN_HR * 100;
+  // }
   // calculate new time by incrementing with wrapping
-  int64_t ls_bit = (timer_data.length_ms + timer_data.start_ms) % interval;
-  int64_t step = (ls_bit + interval + increment) % interval - ls_bit;
-  if (timer_data.start_ms) {
-    timer_data.start_ms += step;
-    if (timer_data.start_ms > 0) {
-      timer_data.length_ms += timer_data.start_ms;
-      timer_data.start_ms = 0;
-    }
-  } else {
-    timer_data.length_ms += step;
-  }
+  // int64_t ls_bit = (timer_data.length_ms + timer_data.start_ms) % interval;
+  // int64_t ls_bit = (timer_data.length_ms + timer_data.start_ms) % interval;
+  // int64_t step = (ls_bit + interval + increment) % interval - ls_bit;
+  // if (timer_data.start_ms) {
+  //   timer_data.start_ms += step;
+  //   if (timer_data.start_ms > 0) {
+  //     timer_data.length_ms += timer_data.start_ms;
+  //     timer_data.start_ms = 0;
+  //   }
+  // } else {
+  //   timer_data.length_ms += step;
+  // }
+  // timer_data.length_ms += step;
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "in timer_increment, timer_data.start_ms = %lld", timer_data.start_ms);
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "in timer_increment, timer_data.length_ms = %lld", timer_data.length_ms);
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "in timer_increment, increment = %lld", increment);
+  timer_data.length_ms += increment;
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "in timer_increment, new timer_data.length_ms = %lld", timer_data.length_ms);
   // if at zero, remove any leftover milliseconds
   if (timer_get_value_ms() < MSEC_IN_SEC) {
     timer_reset();

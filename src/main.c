@@ -100,8 +100,8 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   //   increment = MSEC_IN_SEC;
   // }
   // get starting time components
-  uint16_t o_hr, o_min, o_sec;
-  timer_get_time_parts(&o_hr, &o_min, &o_sec);
+  // uint16_t o_hr, o_min, o_sec;
+  // timer_get_time_parts(&o_hr, &o_min, &o_sec);
   // increment timer
   timer_increment(increment);
   // compare final time parts and switch into edit hr mode
