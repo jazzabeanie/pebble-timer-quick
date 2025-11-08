@@ -16,6 +16,7 @@
 // Main constants
 #define BUTTON_HOLD_REPEAT_MS 100
 #define UP_BUTTON_INCREMENT_MS MSEC_IN_SEC * 20
+#define SELECT_BUTTON_INCREMENT_MS MSEC_IN_SEC * 5
 #define DOWN_BUTTON_INCREMENT_MS MSEC_IN_SEC
 
 // Main data structure
@@ -131,6 +132,7 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     return;
   }
   // change timer mode
+  int64_t increment = SELECT_BUTTON_INCREMENT_MS;
   switch (main_data.control_mode) {
     case ControlModeEditHr:
       main_data.control_mode = ControlModeEditMin;
@@ -150,6 +152,7 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
       timer_toggle_play_pause();
       break;
     case ControlModeNew:
+      timer_increment(increment);
       break;
   }
   // refresh
@@ -183,19 +186,20 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     return;
   }
   // increment timer
-  int64_t increment;
-  if (main_data.control_mode == ControlModeEditHr) {
-    increment = -MSEC_IN_HR;
-  } else if (main_data.control_mode == ControlModeEditMin) {
-    increment = -MSEC_IN_MIN;
-  } else {
-    increment = -MSEC_IN_SEC;
-  }
+  int64_t increment = DOWN_BUTTON_INCREMENT_MS;
+  // int64_t increment;
+  // if (main_data.control_mode == ControlModeEditHr) {
+  //   increment = -MSEC_IN_HR;
+  // } else if (main_data.control_mode == ControlModeEditMin) {
+  //   increment = -MSEC_IN_MIN;
+  // } else {
+  //   increment = -MSEC_IN_SEC;
+  // }
   timer_increment(increment);
   // check if switched out of ControlModeEditHr
-  if (timer_get_value_ms() / MSEC_IN_HR == 0 && main_data.control_mode == ControlModeEditHr) {
-    main_data.control_mode = ControlModeEditMin;
-  }
+  // if (timer_get_value_ms() / MSEC_IN_HR == 0 && main_data.control_mode == ControlModeEditHr) {
+  //   main_data.control_mode = ControlModeEditMin;
+  // }
   // animate and refresh
   if (!click_recognizer_is_repeating(recognizer)) {
     drawing_start_bounce_animation(false);
