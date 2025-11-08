@@ -227,7 +227,7 @@ static void prv_main_text_update_state(Layer *layer) {
   }
 
   // update the focus layers
-  prv_focus_layer_update_state(layer, field_bounds[1], field_bounds[3], field_bounds[5]);
+  // prv_focus_layer_update_state(layer, field_bounds[1], field_bounds[3], field_bounds[5]);
 }
 
 // Draw main text onto drawing context
@@ -421,7 +421,7 @@ void drawing_render(Layer *layer, GContext *ctx) {
   graphics_context_set_fill_color(ctx, drawing_data.mid_color);
   graphics_fill_circle(ctx, grect_center_point(&bounds), CIRCLE_RADIUS);
   // draw focus layer
-  prv_render_focus_layer(ctx);
+  // prv_render_focus_layer(ctx);
   // draw main text (drawn as filled and stroked path)
   graphics_context_set_stroke_color(ctx, drawing_data.fore_color);
   graphics_context_set_fill_color(ctx, drawing_data.fore_color);
