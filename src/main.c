@@ -211,14 +211,18 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 // Click configuration provider
 static void prv_click_config_provider(void *ctx) {
   window_single_click_subscribe(BUTTON_ID_BACK, prv_back_click_handler);
-  window_single_repeating_click_subscribe(BUTTON_ID_UP, BUTTON_HOLD_REPEAT_MS,
-    prv_up_click_handler);  // TODO: make a new function that handles the long press
+  window_single_click_subscribe(BUTTON_ID_UP, prv_up_click_handler);
+  // window_single_repeating_click_subscribe(BUTTON_ID_UP, BUTTON_HOLD_REPEAT_MS,
+  //   prv_up_click_handler);
+  // TODO: make a new function that handles the long up press
   window_single_click_subscribe(BUTTON_ID_SELECT, prv_select_click_handler);
   window_raw_click_subscribe(BUTTON_ID_SELECT, prv_select_raw_click_handler, NULL, NULL);
   window_long_click_subscribe(BUTTON_ID_SELECT, BUTTON_HOLD_RESET_MS, prv_select_long_click_handler,
     NULL);
-  window_single_repeating_click_subscribe(BUTTON_ID_DOWN, BUTTON_HOLD_REPEAT_MS,  // TODO: make a new function that handles the long press
-    prv_down_click_handler);
+  window_single_click_subscribe(BUTTON_ID_DOWN, prv_down_click_handler);
+  // window_single_repeating_click_subscribe(BUTTON_ID_DOWN, BUTTON_HOLD_REPEAT_MS,
+  //   prv_down_click_handler);
+  // TODO: make a new function that handles the long down press
 }
 
 // AppTimer callback
