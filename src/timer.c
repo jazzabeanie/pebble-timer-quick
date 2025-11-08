@@ -26,12 +26,6 @@ static const VibePattern vibe_pattern = {
 };
 
 // Main data structure
-typedef struct {
-  int64_t     length_ms;      //< Length of timer in milliseconds
-  int64_t     start_ms;       //< The start epoch of the timer in milliseconds
-  bool        elapsed;        //< Used to start the vibration if first time as elapsed
-  bool        can_vibrate;    //< Flag used to tell when the timer has completed
-} Timer;
 Timer timer_data;
 
 

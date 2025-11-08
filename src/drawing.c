@@ -239,7 +239,7 @@ static void prv_render_main_text(GContext *ctx, GRect bounds) {
   // bool edit_mode = main_get_control_mode() != ControlModeCounting;
   bool edit_mode = 0;
   char buff[TEXT_FIELD_COUNT][4] = {{'\0'}};
-  if (main_get_control_mode() == ControlModeNew) {
+  if (main_get_control_mode() == ControlModeNew && timer_data.length_ms == 0) {
     snprintf(buff[0], sizeof(buff[0]), "-");
   }
   if (hr) {
