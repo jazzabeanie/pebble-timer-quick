@@ -124,6 +124,11 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   layer_mark_dirty(main_data.layer);
 }
 
+// Up long click handler
+static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "Up long press");
+}
+
 // Select click handler
 static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Select button pressed");
@@ -208,21 +213,22 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   layer_mark_dirty(main_data.layer);
 }
 
+// Down long click handler
+static void prv_down_long_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "Down long press");
+}
+
 // Click configuration provider
 static void prv_click_config_provider(void *ctx) {
   window_single_click_subscribe(BUTTON_ID_BACK, prv_back_click_handler);
   window_single_click_subscribe(BUTTON_ID_UP, prv_up_click_handler);
-  // window_single_repeating_click_subscribe(BUTTON_ID_UP, BUTTON_HOLD_REPEAT_MS,
-  //   prv_up_click_handler);
-  // TODO: make a new function that handles the long up press
+  window_long_click_subscribe(BUTTON_ID_UP, BUTTON_HOLD_RESET_MS, prv_up_long_click_handler, NULL);
   window_single_click_subscribe(BUTTON_ID_SELECT, prv_select_click_handler);
   window_raw_click_subscribe(BUTTON_ID_SELECT, prv_select_raw_click_handler, NULL, NULL);
   window_long_click_subscribe(BUTTON_ID_SELECT, BUTTON_HOLD_RESET_MS, prv_select_long_click_handler,
     NULL);
   window_single_click_subscribe(BUTTON_ID_DOWN, prv_down_click_handler);
-  // window_single_repeating_click_subscribe(BUTTON_ID_DOWN, BUTTON_HOLD_REPEAT_MS,
-  //   prv_down_click_handler);
-  // TODO: make a new function that handles the long down press
+  window_long_click_subscribe(BUTTON_ID_DOWN, BUTTON_HOLD_RESET_MS, prv_down_long_click_handler, NULL);
 }
 
 // AppTimer callback
