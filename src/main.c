@@ -85,7 +85,7 @@ static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 
 // Up click handler
 static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "Up button pressed");
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "Up button handler");
   // rewind timer if clicked while timer is going off
   if (main_timer_rewind() || main_data.control_mode == ControlModeCounting) {
     return;
