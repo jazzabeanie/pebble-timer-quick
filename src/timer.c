@@ -155,7 +155,8 @@ void timer_rewind(void) {
 // Reset the timer to zero
 void timer_reset(void) {
   timer_data.length_ms = 0;
-  timer_data.start_ms = 0;
+  // timer_data.start_ms = 0;  // other code infers the timer is paused by start_ms = 0
+  timer_data.start_ms = epoch();
   // disable vibration
   timer_data.can_vibrate = false;
 }

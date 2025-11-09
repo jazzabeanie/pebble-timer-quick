@@ -176,8 +176,8 @@ static void prv_select_raw_click_handler(ClickRecognizerRef recognizer, void *ct
 
 // Select long click handler
 static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *ctx) {
-  main_data.control_mode = ControlModeEditMin;
   timer_reset();
+  main_data.control_mode = ControlModeNew;
   // animate and refresh
   drawing_update();
   layer_mark_dirty(main_data.layer);
@@ -274,7 +274,6 @@ static void prv_initialize(void) {
   } else {
     main_data.control_mode = ControlModeNew;
     timer_reset();
-    timer_toggle_play_pause();
   }
 
 
