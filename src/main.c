@@ -15,9 +15,10 @@
 
 // Main constants
 #define BUTTON_HOLD_REPEAT_MS 100
-#define UP_BUTTON_INCREMENT_MS MSEC_IN_SEC * 20
-#define SELECT_BUTTON_INCREMENT_MS MSEC_IN_SEC * 5
-#define DOWN_BUTTON_INCREMENT_MS MSEC_IN_SEC
+#define UP_BUTTON_INCREMENT_MS MSEC_IN_MIN * 20
+#define SELECT_BUTTON_INCREMENT_MS MSEC_IN_MIN * 5
+#define DOWN_BUTTON_INCREMENT_MS MSEC_IN_MIN
+#define NEW_EXPIRE_TIME_MS 5000
 
 // Main data structure
 static struct {
@@ -53,7 +54,7 @@ static void prv_reset_new_expire_timer(void) {
     app_timer_cancel(main_data.new_expire_timer);
   }
   // create new timer
-  main_data.new_expire_timer = app_timer_register(5000, prv_new_expire_callback, NULL);
+  main_data.new_expire_timer = app_timer_register(NEW_EXPIRE_TIME_MS, prv_new_expire_callback, NULL);
 }
 
 // Rewind timer if button is clicked to stop vibration
