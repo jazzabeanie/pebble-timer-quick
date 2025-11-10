@@ -40,7 +40,7 @@ static bool main_timer_rewind(void) {
   // check if timer is vibrating
   if (timer_is_vibrating()) {
     vibes_cancel();
-    main_data.control_mode = ControlModeEditSec;
+    // main_data.control_mode = ControlModeNew;  // TODO:  FIXME: make the first press just silence the vibration, but continue counting
     timer_rewind();
     drawing_update();
     return true;
@@ -68,16 +68,8 @@ static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Back button pressed");
   // cancel vibrations
   vibes_cancel();
-  // get time parts
-  uint16_t hr, min, sec;
-  timer_get_time_parts(&hr, &min, &sec);
-  // change control mode
-  if ((hr && main_data.control_mode == ControlModeEditMin) ||
-      main_data.control_mode == ControlModeEditSec) {
-    main_data.control_mode--;
-  } else {
-    window_stack_pop(true);
-  }
+  // quit app
+  window_stack_pop(true);
   // refresh
   drawing_update();
   layer_mark_dirty(main_data.layer);
