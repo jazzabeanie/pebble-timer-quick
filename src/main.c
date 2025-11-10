@@ -30,11 +30,31 @@ static struct {
 
 // Function declarations
 static void prv_app_timer_callback(void *data);
+static void prv_new_expire_callback(void *data);
+static void prv_reset_new_expire_timer(void);
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Private Functions
 //
+
+// Callback for when the new timer expires
+static void prv_new_expire_callback(void *data) {
+  main_data.new_expire_timer = NULL;
+  if (main_data.control_mode == ControlModeNew) {
+    main_data.control_mode = ControlModeCounting;
+  }
+}
+
+// Reset the new expire timer
+static void prv_reset_new_expire_timer(void) {
+  // cancel previous timer
+  if (main_data.new_expire_timer) {
+    app_timer_cancel(main_data.new_expire_timer);
+  }
+  // create new timer
+  main_data.new_expire_timer = app_timer_register(5000, prv_new_expire_callback, NULL);
+}
 
 // Rewind timer if button is clicked to stop vibration
 static bool main_timer_rewind(void) {
@@ -66,6 +86,7 @@ static void prv_layer_update_proc_handler(Layer *layer, GContext *ctx) {
 
 // Back click handler
 static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  prv_reset_new_expire_timer();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Back button pressed");
   // cancel vibrations
   vibes_cancel();
@@ -79,6 +100,7 @@ static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 
 // Up click handler
 static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  prv_reset_new_expire_timer();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Up button handler");
   // rewind timer if clicked while timer is going off
   if (main_timer_rewind() || main_data.control_mode == ControlModeCounting) {
@@ -98,11 +120,13 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 
 // Up long click handler
 static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  prv_reset_new_expire_timer();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Up long press");
 }
 
 // Select click handler
 static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  prv_reset_new_expire_timer();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Select button pressed");
   // rewind timer if clicked while timer is going off
   if (main_timer_rewind()) {
@@ -133,6 +157,7 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 
 // Select raw click handler
 static void prv_select_raw_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  prv_reset_new_expire_timer();
   // stop vibration
   vibes_cancel();
   // animate and refresh
@@ -142,6 +167,7 @@ static void prv_select_raw_click_handler(ClickRecognizerRef recognizer, void *ct
 
 // Select long click handler
 static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  prv_reset_new_expire_timer();
   timer_reset();
   main_data.control_mode = ControlModeNew;
   // animate and refresh
@@ -151,6 +177,7 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
 
 // Down click handler
 static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  prv_reset_new_expire_timer();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Down button pressed");
   // rewind timer if clicked while timer is going off
   if (main_timer_rewind() || main_data.control_mode == ControlModeCounting) {
@@ -169,6 +196,7 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 
 // Down long click handler
 static void prv_down_long_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  prv_reset_new_expire_timer();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Down long press");
 }
 
@@ -229,6 +257,7 @@ static void prv_initialize(void) {
     main_data.control_mode = ControlModeNew;
     timer_reset();
   }
+  prv_reset_new_expire_timer();
 
 
   // initialize window
