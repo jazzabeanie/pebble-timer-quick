@@ -133,7 +133,7 @@ static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) 
 static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Select button pressed");
   // rewind timer if clicked while timer is going off
-  if (main_timer_rewind()) {
+  if (main_timer_rewind() || main_data.control_mode == ControlModeCounting) {
     return;
   }
   // change timer mode
