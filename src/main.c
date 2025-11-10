@@ -25,6 +25,7 @@ static struct {
   Layer       *layer;       //< The base layer on which everything will be drawn
   ControlMode control_mode; //< The current control mode of the timer
   AppTimer    *app_timer;   //< The AppTimer to keep the screen refreshing
+  AppTimer   *new_expire_timer; //< Moves to counting mode if a button is not pressed in the given time
 } main_data;
 
 // Function declarations
