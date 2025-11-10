@@ -1,9 +1,9 @@
 {
   "uuid": "17bf83aa-88a9-459a-a6e5-60aa60e1dc07",
-  "shortName": "Timer+",
-  "longName": "Timer+",
-  "companyName": "Ycleptic Studios",
-  "versionLabel": "4.2",
+  "shortName": "QuickTimer",
+  "longName": "QuickTimer",
+  "companyName": "Caveman Escapades",
+  "versionLabel": "0.1",
   "sdkVersion": "3",
   "targetPlatforms": ["aplite", "basalt", "chalk", "diorite"],
   "watchapp": {
