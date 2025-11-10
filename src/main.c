@@ -68,6 +68,7 @@ static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Back button pressed");
   // cancel vibrations
   vibes_cancel();
+  // TODO: also stop the complete animation
   // quit app
   window_stack_pop(true);
   // refresh
@@ -84,30 +85,8 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   }
   // increment timer
   int64_t increment = UP_BUTTON_INCREMENT_MS;
-  // int64_t increment;
-  // if (main_data.control_mode == ControlModeEditHr) {
-  //   increment = MSEC_IN_HR;
-  // } else if (main_data.control_mode == ControlModeEditMin) {
-  //   increment = MSEC_IN_MIN;
-  // } else {
-  //   increment = MSEC_IN_SEC;
-  // }
-  // get starting time components
-  // uint16_t o_hr, o_min, o_sec;
-  // timer_get_time_parts(&o_hr, &o_min, &o_sec);
   // increment timer
   timer_increment(increment);
-  // compare final time parts and switch into edit hr mode
-  // uint16_t n_hr, n_min, n_sec;
-  // timer_get_time_parts(&n_hr, &n_min, &n_sec);
-  // if (o_min > n_min && !o_hr) {
-  //   timer_increment(MSEC_IN_HR);
-  //   main_data.control_mode = ControlModeEditHr;
-  // }
-  // // check if switched out of ControlModeEditHr
-  // if (timer_get_value_ms() / MSEC_IN_HR == 0 && main_data.control_mode == ControlModeEditHr) {
-  //   main_data.control_mode = ControlModeEditMin;
-  // }
   // animate and refresh
   if (!click_recognizer_is_repeating(recognizer)) {
     drawing_start_bounce_animation(true);
@@ -134,20 +113,12 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   int64_t increment = SELECT_BUTTON_INCREMENT_MS;
   switch (main_data.control_mode) {
     case ControlModeEditHr:
-      main_data.control_mode = ControlModeEditMin;
       break;
     case ControlModeEditMin:
-      main_data.control_mode = ControlModeEditSec;
       break;
     case ControlModeEditSec:
-      main_data.control_mode = ControlModeCounting;
-      timer_toggle_play_pause();
-      if (!main_data.app_timer) {
-        prv_app_timer_callback(NULL);
-      }
       break;
     case ControlModeCounting:
-      main_data.control_mode = ControlModeEditSec;
       timer_toggle_play_pause();
       break;
     case ControlModeNew:
@@ -186,19 +157,7 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   }
   // increment timer
   int64_t increment = DOWN_BUTTON_INCREMENT_MS;
-  // int64_t increment;
-  // if (main_data.control_mode == ControlModeEditHr) {
-  //   increment = -MSEC_IN_HR;
-  // } else if (main_data.control_mode == ControlModeEditMin) {
-  //   increment = -MSEC_IN_MIN;
-  // } else {
-  //   increment = -MSEC_IN_SEC;
-  // }
   timer_increment(increment);
-  // check if switched out of ControlModeEditHr
-  // if (timer_get_value_ms() / MSEC_IN_HR == 0 && main_data.control_mode == ControlModeEditHr) {
-  //   main_data.control_mode = ControlModeEditMin;
-  // }
   // animate and refresh
   if (!click_recognizer_is_repeating(recognizer)) {
     drawing_start_bounce_animation(false);
