@@ -196,7 +196,7 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 static void prv_down_long_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Down long press");
   // Reset timer
-  timer_reset();
+  timer_data.reset_on_init = true;
   // quit app
   window_stack_pop(true);
 }
@@ -251,6 +251,12 @@ static void prv_initialize(void) {
   timer_persist_read();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Timer data: length_ms=%lld, start_ms=%lld, elapsed=%d, can_vibrate=%d",
           timer_data.length_ms, timer_data.start_ms, timer_data.elapsed, timer_data.can_vibrate);
+  // Check if timer needs to be reset from a previous long press
+  if (timer_data.reset_on_init) {
+    timer_reset();
+    timer_data.reset_on_init = false;
+    // main_data.control_mode = ControlModeNew;  // TODO: Do I need this?
+  }
   // set initial states
   if (timer_data.length_ms) {
     // A timer was set (counting down), so resume in counting mode
