@@ -3,8 +3,8 @@
 //
 // Contains the higher level logic code
 //
-// @author Eric D. Phillips
-// @date August 27, 2015
+// @author Eric D. Phillips & Jared Johnston
+// @date November 11, 2025
 // @bugs No known bugs
 
 #include <pebble.h>
