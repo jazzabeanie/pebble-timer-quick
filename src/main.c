@@ -112,9 +112,9 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   // increment timer
   timer_increment(increment);
   // animate and refresh
-  if (!click_recognizer_is_repeating(recognizer)) {
-    drawing_start_bounce_animation(true);
-  }
+  // if (!click_recognizer_is_repeating(recognizer)) {
+  //   drawing_start_bounce_animation(true);
+  // }
   drawing_update();
   layer_mark_dirty(main_data.layer);
 }
@@ -188,9 +188,9 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   int64_t increment = DOWN_BUTTON_INCREMENT_MS;
   timer_increment(increment);
   // animate and refresh
-  if (!click_recognizer_is_repeating(recognizer)) {
-    drawing_start_bounce_animation(false);
-  }
+  // if (!click_recognizer_is_repeating(recognizer)) {
+  //   drawing_start_bounce_animation(false);
+  // }
   drawing_update();
   layer_mark_dirty(main_data.layer);
 }
