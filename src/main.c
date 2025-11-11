@@ -104,15 +104,6 @@ static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   }
 }
 
-// Back long click handler
-static void prv_back_long_click_handler(ClickRecognizerRef recognizer, void *ctx) {
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "Back long press");
-  // Reset timer
-  timer_reset();
-  // quit app
-  window_stack_pop(true);
-}
-
 // Up click handler
 static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_reset_new_expire_timer();
@@ -203,14 +194,16 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 
 // Down long click handler
 static void prv_down_long_click_handler(ClickRecognizerRef recognizer, void *ctx) {
-  prv_reset_new_expire_timer();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Down long press");
+  // Reset timer
+  timer_reset();
+  // quit app
+  window_stack_pop(true);
 }
 
 // Click configuration provider
 static void prv_click_config_provider(void *ctx) {
   window_single_click_subscribe(BUTTON_ID_BACK, prv_back_click_handler);
-  window_long_click_subscribe(BUTTON_ID_BACK, BUTTON_HOLD_RESET_MS, prv_back_long_click_handler, NULL);
   window_single_click_subscribe(BUTTON_ID_UP, prv_up_click_handler);
   window_long_click_subscribe(BUTTON_ID_UP, BUTTON_HOLD_RESET_MS, prv_up_long_click_handler, NULL);
   window_single_click_subscribe(BUTTON_ID_SELECT, prv_select_click_handler);
