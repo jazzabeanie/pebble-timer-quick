@@ -18,6 +18,7 @@
 #define UP_BUTTON_INCREMENT_MS MSEC_IN_MIN * 20
 #define SELECT_BUTTON_INCREMENT_MS MSEC_IN_MIN * 5
 #define DOWN_BUTTON_INCREMENT_MS MSEC_IN_MIN
+#define BACK_BUTTON_INCREMENT_MS MSEC_IN_MIN * 60
 #define NEW_EXPIRE_TIME_MS 5000
 
 // Main data structure
@@ -89,14 +90,27 @@ static void prv_layer_update_proc_handler(Layer *layer, GContext *ctx) {
 static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_reset_new_expire_timer();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Back button pressed");
-  // cancel vibrations
-  vibes_cancel();
-  // TODO: also stop the complete animation
+  if (main_data.control_mode == ControlModeNew) {
+    // increment timer by 1 hour
+    timer_increment(BACK_BUTTON_INCREMENT_MS);
+    drawing_update();
+    layer_mark_dirty(main_data.layer);
+  } else {
+    // cancel vibrations
+    vibes_cancel();
+    // TODO: also stop the complete animation
+    // quit app
+    window_stack_pop(true);
+  }
+}
+
+// Back long click handler
+static void prv_back_long_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "Back long press");
+  // Reset timer
+  timer_reset();
   // quit app
   window_stack_pop(true);
-  // refresh
-  drawing_update();
-  layer_mark_dirty(main_data.layer);
 }
 
 // Up click handler
@@ -196,6 +210,7 @@ static void prv_down_long_click_handler(ClickRecognizerRef recognizer, void *ctx
 // Click configuration provider
 static void prv_click_config_provider(void *ctx) {
   window_single_click_subscribe(BUTTON_ID_BACK, prv_back_click_handler);
+  window_long_click_subscribe(BUTTON_ID_BACK, BUTTON_HOLD_RESET_MS, prv_back_long_click_handler, NULL);
   window_single_click_subscribe(BUTTON_ID_UP, prv_up_click_handler);
   window_long_click_subscribe(BUTTON_ID_UP, BUTTON_HOLD_RESET_MS, prv_up_long_click_handler, NULL);
   window_single_click_subscribe(BUTTON_ID_SELECT, prv_select_click_handler);
