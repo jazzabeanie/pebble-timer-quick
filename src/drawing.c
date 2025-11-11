@@ -63,53 +63,6 @@ static struct {
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// Focus Layer
-//
-
-// Update focus layer drawing state
-static void prv_focus_layer_update_state(Layer *layer, GRect hr_bounds, GRect min_bounds,
-                                         GRect sec_bounds) {
-  // get properties
-  GRect bounds = layer_get_bounds(layer);
-  // check current control mode
-  if (main_get_control_mode() == ControlModeCounting) {
-    // calculate the bounds for the focus layer off the screen
-    bounds.origin.x = bounds.size.w;
-    bounds.origin.y = bounds.size.h / 2 - sec_bounds.size.h / 4;
-    bounds.size.w = sec_bounds.size.w;
-    bounds.size.h = sec_bounds.size.h / 2;
-    // animate the focus layer
-    animation_grect_start(&drawing_data.focus_field, bounds, FOCUS_FIELD_ANI_DURATION, 0,
-      CurveSinEaseOut);
-  } else {
-    // get final bounds when in editing mode
-    if (main_get_control_mode() == ControlModeEditHr) {
-      bounds = hr_bounds;
-    } else if (main_get_control_mode() == ControlModeEditMin) {
-      bounds = min_bounds;
-    } else {
-      bounds = sec_bounds;
-    }
-    // add border
-    bounds = grect_inset(bounds, GEdgeInsets1(-FOCUS_FIELD_BORDER));
-    // animate the focus field to those bounds
-    animation_grect_start(&drawing_data.focus_field, bounds, FOCUS_FIELD_ANI_DURATION, 0,
-      CurveSinEaseOut);
-  }
-}
-
-// Draw the focus layer
-static void prv_render_focus_layer(GContext *ctx) {
-#ifdef PBL_BW
-  graphics_fill_rect_grey(ctx, drawing_data.focus_field);
-#else
-  graphics_context_set_fill_color(ctx, drawing_data.ring_color);
-  graphics_fill_rect(ctx, drawing_data.focus_field, 0, GCornerNone);
-#endif
-}
-
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
 // Sub Texts
 //
 
@@ -226,8 +179,6 @@ static void prv_main_text_update_state(Layer *layer) {
       TEXT_FIELD_ANI_DURATION, 0, CurveSinEaseOut);
   }
 
-  // update the focus layers
-  // prv_focus_layer_update_state(layer, field_bounds[1], field_bounds[3], field_bounds[5]);
 }
 
 // Draw main text onto drawing context
@@ -350,46 +301,6 @@ static void prv_update_draw_state(Layer *layer) {
 // API Implementation
 //
 
-// Create bounce animation for focus layer
-void drawing_start_bounce_animation(bool upward) {
-  // get the currently selected elements
-  // only animate the position of one focus layer, stacking gives appearance of stretching
-  GRect *txt_rect;
-  if (main_get_control_mode() == ControlModeEditHr) {
-    txt_rect = &drawing_data.text_fields[1];
-  } else if (main_get_control_mode() == ControlModeEditMin) {
-    txt_rect = &drawing_data.text_fields[3];
-  } else {
-    txt_rect = &drawing_data.text_fields[5];
-  }
-  // animate text
-  GRect rect_to = (*txt_rect);
-  rect_to.origin.y = drawing_data.text_fields[1].origin.y;
-  rect_to.origin.y += (upward ? -1 : 1) * FOCUS_BOUNCE_ANI_HEIGHT;
-  animation_grect_start(txt_rect, rect_to, FOCUS_BOUNCE_ANI_DURATION, 0, CurveSinEaseIn);
-  rect_to.origin.y = drawing_data.text_fields[1].origin.y;
-  animation_grect_start(txt_rect, rect_to, FOCUS_BOUNCE_ANI_SETTLE_DURATION,
-    FOCUS_BOUNCE_ANI_DURATION, CurveSinEaseOut);
-  // get focus layer desired bounds
-  GRect focus_bounds = drawing_data.text_fields[1];
-  if (main_get_control_mode() == ControlModeEditMin) {
-    focus_bounds = drawing_data.text_fields[3];
-  } else if (main_get_control_mode() == ControlModeEditSec){
-    focus_bounds = drawing_data.text_fields[5];
-  }
-  focus_bounds.origin.y = drawing_data.text_fields[3].origin.y;
-  focus_bounds = grect_inset(focus_bounds, GEdgeInsets1(-FOCUS_FIELD_BORDER));
-  // animate focus layer
-  rect_to = focus_bounds;
-  rect_to.origin.y += (upward ? -1 : 0) * FOCUS_BOUNCE_ANI_HEIGHT;
-  rect_to.size.h += FOCUS_BOUNCE_ANI_HEIGHT;
-  animation_grect_start(&drawing_data.focus_field, rect_to, FOCUS_BOUNCE_ANI_DURATION,
-    FOCUS_BOUNCE_ANI_DURATION, CurveSinEaseIn);
-  // return to original position
-  animation_grect_start(&drawing_data.focus_field, focus_bounds, FOCUS_BOUNCE_ANI_SETTLE_DURATION,
-    FOCUS_BOUNCE_ANI_DURATION * 2, CurveSinEaseOut);
-}
-
 // Create reset animation for focus layer
 void drawing_start_reset_animation(void) {
   // create shrunken focus bounds and animate to new bounds
@@ -420,8 +331,6 @@ void drawing_render(Layer *layer, GContext *ctx) {
   // draw main circle
   graphics_context_set_fill_color(ctx, drawing_data.mid_color);
   graphics_fill_circle(ctx, grect_center_point(&bounds), CIRCLE_RADIUS);
-  // draw focus layer
-  // prv_render_focus_layer(ctx);
   // draw main text (drawn as filled and stroked path)
   graphics_context_set_stroke_color(ctx, drawing_data.fore_color);
   graphics_context_set_fill_color(ctx, drawing_data.fore_color);
