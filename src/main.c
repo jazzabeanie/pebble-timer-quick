@@ -106,8 +106,18 @@ static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_reset_new_expire_timer();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Up button handler");
-  // rewind timer if clicked while timer is going off
-  if (prv_handle_alarm() || main_data.control_mode == ControlModeCounting) {
+  if (timer_is_vibrating()) {
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "Up button: Repeating timer.");
+    vibes_cancel();  // Stop the alarm vibration
+    timer_rewind();  // Rewind the timer to its original value (this also pauses it)
+    timer_toggle_play_pause();
+    drawing_update();
+    layer_mark_dirty(main_data.layer);
+    return;
+  }
+
+  // If timer is counting (but not vibrating), do nothing.
+  if (main_data.control_mode == ControlModeCounting) {
     return;
   }
   // increment timer
