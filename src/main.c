@@ -59,12 +59,10 @@ static void prv_reset_new_expire_timer(void) {
 }
 
 // Rewind timer if button is clicked to stop vibration
-static bool main_timer_rewind(void) {
+static bool prv_handle_alarm(void) {
   // check if timer is vibrating
   if (timer_is_vibrating()) {
     vibes_cancel();
-    // main_data.control_mode = ControlModeNew;  // TODO:  FIXME: make the first press just silence the vibration, but continue counting
-    timer_rewind();
     drawing_update();
     return true;
   }
@@ -109,7 +107,7 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_reset_new_expire_timer();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Up button handler");
   // rewind timer if clicked while timer is going off
-  if (main_timer_rewind() || main_data.control_mode == ControlModeCounting) {
+  if (prv_handle_alarm() || main_data.control_mode == ControlModeCounting) {
     return;
   }
   // increment timer
@@ -131,7 +129,7 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_reset_new_expire_timer();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Select button pressed");
   // rewind timer if clicked while timer is going off
-  if (main_timer_rewind()) {
+  if (prv_handle_alarm()) {
     return;
   } else if (main_data.control_mode == ControlModeCounting) {
     timer_toggle_play_pause();
@@ -182,7 +180,7 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_reset_new_expire_timer();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Down button pressed");
   // rewind timer if clicked while timer is going off
-  if (main_timer_rewind() || main_data.control_mode == ControlModeCounting) {
+  if (prv_handle_alarm() || main_data.control_mode == ControlModeCounting) {
     return;
   }
   // increment timer

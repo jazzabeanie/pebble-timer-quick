@@ -145,7 +145,7 @@ void timer_toggle_play_pause(void) {
 
 //! Rewind the timer back to its original value
 void timer_rewind(void) {
-  timer_data.start_ms = 0;
+  timer_data.start_ms = 0;  // this also pauses the timer
   // enable vibration
   if (timer_data.length_ms) {
     timer_data.can_vibrate = true;
