@@ -75,13 +75,25 @@ static void prv_render_header_text(GContext *ctx, GRect bounds) {
   bounds.size.w = CIRCLE_RADIUS * 2;
   bounds.size.h = CIRCLE_RADIUS / 2;
   // draw text
+  static char s_time_buffer[16]; // Buffer for formatted time
   char *buff;
   if (main_get_control_mode() == ControlModeNew) {
     buff = "New";
   } else if (timer_is_chrono()) {
-    buff = "Chrono";
+    // Calculate and format the total timer length
+    int64_t total_ms = timer_data.base_length_ms;
+    int64_t total_seconds = total_ms / 1000;
+    int hours = total_seconds / 3600;
+    int minutes = (total_seconds % 3600) / 60;
+    int seconds = total_seconds % 60;
+
+    if (hours > 0) {
+        snprintf(s_time_buffer, sizeof(s_time_buffer), "%02d:%02d:%02d-->", hours, minutes, seconds);
+    } else {
+        snprintf(s_time_buffer, sizeof(s_time_buffer), "%02d:%02d-->", minutes, seconds);
+    }
+    buff = s_time_buffer;
   } else {
-    char s_time_buffer[16]; // Buffer for formatted time
     // Calculate and format the total timer length
     int64_t total_ms = timer_get_length_ms();
     int64_t total_seconds = total_ms / 1000;
