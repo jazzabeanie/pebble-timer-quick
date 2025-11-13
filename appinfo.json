@@ -16,6 +16,11 @@
         "type": "png",
         "name": "IMAGE_ICON",
         "menuIcon": true
+      },
+      {
+        "file": "images/repeat.png",
+        "type": "png",
+        "name": "IMAGE_REPEAT_ICON"
       }
     ]
   }

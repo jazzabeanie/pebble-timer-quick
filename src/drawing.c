@@ -59,6 +59,7 @@ static struct {
   GColor      mid_color;          //< Color of center
   GColor      ring_color;         //< Color of ring
   GColor      back_color;         //< Color behind ring
+  GBitmap     *reset_icon;        //< The reset icon to show when the timer is vibrating
 } drawing_data;
 
 
@@ -364,6 +365,12 @@ void drawing_render(Layer *layer, GContext *ctx) {
   graphics_context_set_text_color(ctx, drawing_data.fore_color);
   prv_render_header_text(ctx, bounds);
   prv_render_footer_text(ctx, bounds);
+  // draw reset icon
+  if (timer_is_vibrating()) {
+    graphics_context_set_compositing_mode(ctx, GCompOpSet);
+    graphics_draw_bitmap_in_rect(ctx, drawing_data.reset_icon,
+      (GRect){ .origin = GPoint(115, 10), .size = GSize(24, 24) });
+  }
 }
 
 // Update the drawing states and recalculate everythings positions
@@ -400,11 +407,14 @@ void drawing_initialize(Layer *layer) {
   drawing_data.mid_color = PBL_IF_COLOR_ELSE(GColorMintGreen, GColorWhite);
   drawing_data.ring_color = PBL_IF_COLOR_ELSE(GColorGreen, GColorWhite);
   drawing_data.back_color = PBL_IF_COLOR_ELSE(GColorDarkGray, GColorBlack);
+  // load the reset icon
+  drawing_data.reset_icon = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_REPEAT_ICON);
   // set animation update callback
   animation_register_update_callback(&prv_animation_update_callback);
 }
 
 // Destroy the singleton drawing data
 void drawing_terminate(void) {
+  gbitmap_destroy(drawing_data.reset_icon);
   animation_stop_all();
 }
