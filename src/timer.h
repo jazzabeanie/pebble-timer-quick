@@ -14,6 +14,7 @@
 typedef struct {
   int64_t     length_ms;      //< Length of timer in milliseconds
   int64_t     start_ms;       //< The start epoch of the timer in milliseconds
+  int64_t     base_length_ms; //< Used to track the original timer value (for later repeating).
   bool        elapsed;        //< Used to start the vibration if first time as elapsed
   bool        can_vibrate;    //< Flag used to tell when the timer has completed
   bool        reset_on_init;  //< Flag to indicate if the timer should be reset on next initialization

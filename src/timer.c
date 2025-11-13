@@ -11,12 +11,14 @@
 #include "timer.h"
 #include "utility.h"
 
-#define PERSIST_VERSION 2
+#define PERSIST_VERSION 3
 #define PERSIST_VERSION_KEY 4342896
-#define PERSIST_TIMER_KEY 58734
+#define PERSIST_TIMER_KEY_V2_DATA 58734
+#define PERSIST_TIMER_KEY 58735
 #define VIBRATION_LENGTH_MS 20000
 // legacy persistent storage
-#define PERSIST_TIMER_KEY_V2 3456
+#define PERSIST_TIMER_KEY_V1_LEGACY 3456
+// TODO: I think I can remove V2 and V3 once I have updated my app to all devices
 
 // Vibration sequence
 static const uint32_t vibe_sequence[] = {150, 200, 300};
@@ -155,6 +157,7 @@ void timer_rewind(void) {
 // Reset the timer to zero
 void timer_reset(void) {
   timer_data.length_ms = 0;
+  timer_data.base_length_ms = 0;
   // timer_data.start_ms = 0;  // other code infers the timer is paused by start_ms = 0
   timer_data.start_ms = epoch();
   // disable vibration
@@ -163,25 +166,42 @@ void timer_reset(void) {
 
 // Save the timer to persistent storage
 void timer_persist_store(void) {
-  // write out current persistent data version for potential future reference
+// write out current persistent data version
   persist_write_int(PERSIST_VERSION_KEY, PERSIST_VERSION);
+  // Always write to the new V3 key
   persist_write_data(PERSIST_TIMER_KEY, &timer_data, sizeof(timer_data));
+
+  // TODO: can I remove this code once all devices have been update?
+  // Clean up old keys if they still exist
+  if (persist_exists(PERSIST_TIMER_KEY_V2_DATA)) {
+    persist_delete(PERSIST_TIMER_KEY_V2_DATA);
+  }
+  if (persist_exists(PERSIST_TIMER_KEY_V1_LEGACY)) {
+    persist_delete(PERSIST_TIMER_KEY_V1_LEGACY);
+  }
 }
 
 // Read the timer from persistent storage
 void timer_persist_read(void) {
-  // read legacy version
-  if (persist_exists(PERSIST_TIMER_KEY_V2)) {
-    persist_delete(PERSIST_TIMER_KEY_V2);
-    if (launch_reason() == APP_LAUNCH_WAKEUP) {
-      timer_increment(5000);
-      timer_toggle_play_pause();
-    }
+  // --- Destructive Update Logic ---
+  // 1. If the old V2 key exists, delete it.
+  if (persist_exists(PERSIST_TIMER_KEY_V2_DATA)) {
+    APP_LOG(APP_LOG_LEVEL_INFO, "Deleting old V2 data.");
+    persist_delete(PERSIST_TIMER_KEY_V2_DATA);
   }
-  // read current version
+  // 2. If the old V1 key exists, delete it.
+  if (persist_exists(PERSIST_TIMER_KEY_V1_LEGACY)) {
+    APP_LOG(APP_LOG_LEVEL_INFO, "Deleting old V1 data.");
+    persist_delete(PERSIST_TIMER_KEY_V1_LEGACY);
+  }
+
+  // TODO: can I remove deleting old key code once all devices have been updated?
+  // --- Now, just try to load the new (V3) data ---
   if (persist_exists(PERSIST_TIMER_KEY)) {
+    // User has run the new app before, load their new V3 data
     persist_read_data(PERSIST_TIMER_KEY, &timer_data, sizeof(timer_data));
   } else {
+    // First time running V3 (or no data saved), reset to default
     timer_reset();
   }
 }

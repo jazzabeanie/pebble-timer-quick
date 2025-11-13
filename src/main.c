@@ -44,6 +44,14 @@ static void prv_reset_new_expire_timer(void);
 static void prv_new_expire_callback(void *data) {
   main_data.new_expire_timer = NULL;
   if (main_data.control_mode == ControlModeNew) {
+    // Store the "base" duration in the persistent struct
+    if (timer_data.length_ms > 0) {
+      timer_data.base_length_ms = timer_data.length_ms;
+    } else {
+      // It's a stopwatch (chrono), no base duration
+      timer_data.base_length_ms = 0;
+    }
+
     main_data.control_mode = ControlModeCounting;
   }
 }
@@ -108,11 +116,19 @@ static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_reset_new_expire_timer();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Up button handler");
-  if (timer_is_vibrating()) {
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "Up button: Repeating timer.");
-    vibes_cancel();  // Stop the alarm vibration
-    timer_rewind();  // Rewind the timer to its original value (this also pauses it)
-    timer_toggle_play_pause();
+ if (timer_is_vibrating()) {
+    // Check if we have a "base" duration to add
+    if (timer_data.base_length_ms > 0) {
+      APP_LOG(APP_LOG_LEVEL_DEBUG, "Up button: Extending timer by %lld ms.", timer_data.base_length_ms);
+      vibes_cancel(); // Stop the alarm vibration
+      timer_increment(timer_data.base_length_ms); // Add the base duration
+    } else {
+      APP_LOG(APP_LOG_LEVEL_DEBUG, "ERROR: timer_is_vibrating() returns true, but timer_data.base_length_ms <= 0. How can this be?");
+      // vibes_cancel();  
+      // timer_rewind();  
+      // timer_toggle_play_pause();
+    }
+
     drawing_update();
     layer_mark_dirty(main_data.layer);
     return;
