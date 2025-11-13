@@ -62,7 +62,8 @@ static void prv_reset_new_expire_timer(void) {
 static bool prv_handle_alarm(void) {
   // check if timer is vibrating
   if (timer_is_vibrating()) {
-    vibes_cancel();
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "Cancelling vibration");
+    vibes_cancel();  // FIXME: this doesn't seem to work
     drawing_update();
     return true;
   }
@@ -138,11 +139,10 @@ static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) 
 static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_reset_new_expire_timer();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Select button pressed");
-  // rewind timer if clicked while timer is going off
   if (prv_handle_alarm()) {
     return;
   } else if (main_data.control_mode == ControlModeCounting) {
-    timer_toggle_play_pause();
+    timer_toggle_play_pause();  // FIXME
   }
   // change timer mode
   int64_t increment = SELECT_BUTTON_INCREMENT_MS;
