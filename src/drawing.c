@@ -81,7 +81,20 @@ static void prv_render_header_text(GContext *ctx, GRect bounds) {
   } else if (timer_is_chrono()) {
     buff = "Chrono";
   } else {
-    buff = "Timer";
+    char s_time_buffer[16]; // Buffer for formatted time
+    // Calculate and format the total timer length
+    int64_t total_ms = timer_get_length_ms();
+    int64_t total_seconds = total_ms / 1000;
+    int hours = total_seconds / 3600;
+    int minutes = (total_seconds % 3600) / 60;
+    int seconds = total_seconds % 60;
+
+    if (hours > 0) {
+        snprintf(s_time_buffer, sizeof(s_time_buffer), "%02d:%02d:%02d", hours, minutes, seconds);
+    } else {
+        snprintf(s_time_buffer, sizeof(s_time_buffer), "%02d:%02d", minutes, seconds);
+    }
+    buff = s_time_buffer;
   }
   graphics_draw_text(ctx, buff, fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD), bounds,
     GTextOverflowModeFill, GTextAlignmentCenter, NULL);

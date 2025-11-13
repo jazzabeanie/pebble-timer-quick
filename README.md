@@ -44,6 +44,6 @@ Other resources that might be helpful if the above fails:
 
 ## Building instructions for LLMs
 
-After making code changes, build with
+After making code changes, do not active the conda environment. Just run build with
 `/home/jared/Workspace/pebble-timer-quick/conda-env/bin/pebble build`, then do
-nothing.
+nothing. Don't commit to git either
