@@ -63,7 +63,8 @@ static bool prv_handle_alarm(void) {
   // check if timer is vibrating
   if (timer_is_vibrating()) {
     APP_LOG(APP_LOG_LEVEL_DEBUG, "Cancelling vibration");
-    vibes_cancel();  // FIXME: this doesn't seem to work
+    timer_data.can_vibrate = false;
+    vibes_cancel();
     drawing_update();
     return true;
   }
@@ -189,15 +190,18 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
 static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_reset_new_expire_timer();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Down button pressed");
-  // rewind timer if clicked while timer is going off
-  if (prv_handle_alarm() || main_data.control_mode == ControlModeCounting) {
+  if (prv_handle_alarm()) {
     return;
   }
-  // increment timer
-  int64_t increment = DOWN_BUTTON_INCREMENT_MS;
-  timer_increment(increment);
-  drawing_update();
-  layer_mark_dirty(main_data.layer);
+  else if (main_data.control_mode == ControlModeCounting) {
+    return;
+  }
+  else if (main_data.control_mode == ControlModeNew) {
+    int64_t increment = DOWN_BUTTON_INCREMENT_MS;
+    timer_increment(increment);
+    drawing_update();
+    layer_mark_dirty(main_data.layer);
+  }
 }
 
 // Down long click handler

@@ -26,6 +26,14 @@ Once it's set up, just run:
 - `pebble build`
 - `pebble install --emulator basalt`
 
+If installing to the emulator fails:
+
+- build and install the pebble-demo, or some other project taht you know works
+- `pebble clean`
+- `uv pip install --upgrade --reinstall pebble-tool`
+- `rm -rf ~/.pebble-sdk`
+- `pebble sdk install latest`
+
 Other resources that might be helpful if the above fails:
 
 - https://www.reddit.com/r/pebble/comments/1ih3umk/current_pebble_development_options/
@@ -33,3 +41,9 @@ Other resources that might be helpful if the above fails:
 - I can't seem to find the option to enable the developer connection mode in the app on iOS
 - https://github.com/richinfante/rebbletool
 - https://developer.repebble.com/sdk/cloud
+
+## Building instructions for LLMs
+
+After making code changes, build with
+`/home/jared/Workspace/pebble-timer-quick/conda-env/bin/pebble build`, then do
+nothing.
