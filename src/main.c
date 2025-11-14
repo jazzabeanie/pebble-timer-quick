@@ -14,6 +14,8 @@
 #include "utility.h"
 
 // Main constants
+#define AUTO_BACKGROUND_TIMER_LENGTH_MS (MSEC_IN_MIN * 25)
+#define QUIT_DELAY_MS 7000
 #define BUTTON_HOLD_REPEAT_MS 100
 #define UP_BUTTON_INCREMENT_MS MSEC_IN_MIN * 20
 #define SELECT_BUTTON_INCREMENT_MS MSEC_IN_MIN * 5
@@ -28,17 +30,34 @@ static struct {
   ControlMode control_mode; //< The current control mode of the timer
   AppTimer    *app_timer;   //< The AppTimer to keep the screen refreshing
   AppTimer   *new_expire_timer; //< Moves to counting mode if a button is not pressed in the given time
+  AppTimer    *quit_timer;      //< The AppTimer to quit the app after a delay
 } main_data;
 
 // Function declarations
 static void prv_app_timer_callback(void *data);
 static void prv_new_expire_callback(void *data);
 static void prv_reset_new_expire_timer(void);
+static void prv_quit_callback(void *data);
+static void prv_cancel_quit_timer(void);
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Private Functions
 //
+
+// Callback to quit the app
+static void prv_quit_callback(void *data) {
+  main_data.quit_timer = NULL;
+  window_stack_pop(true);
+}
+
+// Cancel the quit timer
+static void prv_cancel_quit_timer(void) {
+  if (main_data.quit_timer) {
+    app_timer_cancel(main_data.quit_timer);
+    main_data.quit_timer = NULL;
+  }
+}
 
 // Callback for when the new timer expires
 static void prv_new_expire_callback(void *data) {
@@ -53,6 +72,11 @@ static void prv_new_expire_callback(void *data) {
     }
 
     main_data.control_mode = ControlModeCounting;
+
+    // Exit if timer is longer than 25 minutes, after a delay
+    if (timer_data.length_ms > AUTO_BACKGROUND_TIMER_LENGTH_MS) {
+      main_data.quit_timer = app_timer_register(QUIT_DELAY_MS, prv_quit_callback, NULL);
+    }
   }
 }
 
@@ -96,6 +120,7 @@ static void prv_layer_update_proc_handler(Layer *layer, GContext *ctx) {
 
 // Back click handler
 static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Back button pressed");
   if (main_data.control_mode == ControlModeNew) {
@@ -114,6 +139,7 @@ static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 
 // Up click handler
 static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Up button handler");
  if (timer_is_vibrating()) {
@@ -148,12 +174,14 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 
 // Up long click handler
 static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Up long press");
 }
 
 // Select click handler
 static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Select button pressed");
   if (prv_handle_alarm()) {
@@ -182,6 +210,7 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 
 // Select raw click handler
 static void prv_select_raw_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   // stop vibration
   vibes_cancel();
@@ -192,6 +221,7 @@ static void prv_select_raw_click_handler(ClickRecognizerRef recognizer, void *ct
 
 // Select long click handler
 static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   timer_reset();
   main_data.control_mode = ControlModeNew;
@@ -202,6 +232,7 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
 
 // Down click handler
 static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Down button pressed");
   if (prv_handle_alarm()) {
@@ -220,6 +251,7 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 
 // Down long click handler
 static void prv_down_long_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  prv_cancel_quit_timer();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Down long press");
   // Reset timer
   timer_data.reset_on_init = true;
