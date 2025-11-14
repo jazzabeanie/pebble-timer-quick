@@ -367,17 +367,9 @@ void drawing_render(Layer *layer, GContext *ctx) {
   prv_render_footer_text(ctx, bounds);
   // draw reset icon
   if (timer_is_vibrating()) {
-    // Set the correct compositing mode
-#ifdef PBL_BW
-    // On B&W, use GCompOpOr. This treats black pixels (0) as
-    // transparent and draws white pixels (1).
-    // This assumes your icon resource is WHITE on a BLACK background.
-    graphics_context_set_compositing_mode(ctx, GCompOpOr);
-#else
-    // On Color, GCompOpSet respects the PNG's alpha (transparency) channel.
+    // GCompOpSet respects the PNG's alpha (transparency) channel.
     // This assumes your icon resource is a PNG with a transparent background.
     graphics_context_set_compositing_mode(ctx, GCompOpSet);
-#endif
 
     // Draw the bitmap
     graphics_draw_bitmap_in_rect(ctx, drawing_data.reset_icon,
