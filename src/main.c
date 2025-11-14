@@ -158,8 +158,6 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Select button pressed");
   if (prv_handle_alarm()) {
     return;
-  } else if (main_data.control_mode == ControlModeCounting) {
-    timer_toggle_play_pause();  // FIXME
   }
   // change timer mode
   int64_t increment = SELECT_BUTTON_INCREMENT_MS;
