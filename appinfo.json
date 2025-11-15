@@ -18,6 +18,21 @@
         "menuIcon": true
       },
       {
+        "file": "images/music_icon_pause_15.png",
+        "type": "png",
+        "name": "IMAGE_PAUSE_ICON"
+      },
+      {
+        "file": "images/music_icon_play.png",
+        "type": "png",
+        "name": "IMAGE_PLAY_ICON"
+      },
+      {
+        "file": "images/music_icon_volume_down.png",
+        "type": "png",
+        "name": "IMAGE_VOL_DOWN_ICON"
+      },
+      {
         "file": "images/repeat.png",
         "type": "png",
         "name": "IMAGE_REPEAT_ICON"

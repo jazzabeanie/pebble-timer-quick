@@ -60,6 +60,7 @@ static struct {
   GColor      ring_color;         //< Color of ring
   GColor      back_color;         //< Color behind ring
   GBitmap     *reset_icon;        //< The reset icon to show when the timer is vibrating
+  GBitmap     *pause_icon;        //< The pause icon to show when the timer is vibrating
 } drawing_data;
 
 
@@ -365,15 +366,29 @@ void drawing_render(Layer *layer, GContext *ctx) {
   graphics_context_set_text_color(ctx, drawing_data.fore_color);
   prv_render_header_text(ctx, bounds);
   prv_render_footer_text(ctx, bounds);
-  // draw reset icon
   if (timer_is_vibrating()) {
     // GCompOpSet respects the PNG's alpha (transparency) channel.
     // This assumes your icon resource is a PNG with a transparent background.
     graphics_context_set_compositing_mode(ctx, GCompOpSet);
 
-    // Draw the bitmap
-    graphics_draw_bitmap_in_rect(ctx, drawing_data.reset_icon,
-        (GRect){ .origin = GPoint(115, 10), .size = GSize(24, 24) });
+    // Calculate platform-agnostic icon positions
+    const GSize icon_size = GSize(24, 24);
+    const int16_t icon_padding_right = 5; // 5px from right edge
+    const int16_t icon_x_right = bounds.size.w - icon_size.w - icon_padding_right;
+    const GSize middle_icon_size = GSize(15, 15);
+    const int16_t middle_icon_padding_right = 2; // 5px from right edge
+    const int16_t middle_icon_x_right = bounds.size.w - middle_icon_size.w - middle_icon_padding_right;
+
+    // Draw the reset icon (top right)
+    const int16_t reset_icon_y = 10; // 10px from top edge
+    GRect reset_rect = GRect(icon_x_right, reset_icon_y, icon_size.w, icon_size.h);
+    graphics_draw_bitmap_in_rect(ctx, drawing_data.reset_icon, reset_rect);
+
+    // Draw the pause icon (middle right)
+    // This calculates the Y coordinate to be perfectly centered vertically
+    const int16_t pause_icon_y = (bounds.size.h - middle_icon_size.h) / 2;
+    GRect pause_rect = GRect(middle_icon_x_right, pause_icon_y, middle_icon_size.w, middle_icon_size.h);
+    graphics_draw_bitmap_in_rect(ctx, drawing_data.pause_icon, pause_rect);
 
     // Set the mode back to default (Set) so it doesn't
     // affect other drawing operations.
@@ -417,6 +432,7 @@ void drawing_initialize(Layer *layer) {
   drawing_data.back_color = PBL_IF_COLOR_ELSE(GColorDarkGray, GColorBlack);
   // load the reset icon
   drawing_data.reset_icon = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_REPEAT_ICON);
+  drawing_data.pause_icon = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_PAUSE_ICON);
   // set animation update callback
   animation_register_update_callback(&prv_animation_update_callback);
 }
