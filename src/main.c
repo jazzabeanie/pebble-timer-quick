@@ -185,6 +185,9 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_reset_new_expire_timer();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Select button pressed");
   if (prv_handle_alarm()) {
+    if (main_data.control_mode == ControlModeCounting) {
+      timer_toggle_play_pause();
+    }
     return;
   }
   // change timer mode
