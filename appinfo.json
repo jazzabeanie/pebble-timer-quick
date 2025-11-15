@@ -28,9 +28,9 @@
         "name": "IMAGE_PLAY_ICON"
       },
       {
-        "file": "images/music_icon_volume_down.png",
+        "file": "images/music_icon_silence.png",
         "type": "png",
-        "name": "IMAGE_VOL_DOWN_ICON"
+        "name": "IMAGE_SILENCE_ICON"
       },
       {
         "file": "images/repeat.png",

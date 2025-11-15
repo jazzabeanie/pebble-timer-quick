@@ -61,6 +61,7 @@ static struct {
   GColor      back_color;         //< Color behind ring
   GBitmap     *reset_icon;        //< The reset icon to show when the timer is vibrating
   GBitmap     *pause_icon;        //< The pause icon to show when the timer is vibrating
+  GBitmap     *silence_icon;      //< The silence icon to show when the timer is vibrating
 } drawing_data;
 
 
@@ -372,16 +373,16 @@ void drawing_render(Layer *layer, GContext *ctx) {
     graphics_context_set_compositing_mode(ctx, GCompOpSet);
 
     // Calculate platform-agnostic icon positions
-    const GSize icon_size = GSize(24, 24);
-    const int16_t icon_padding_right = 5; // 5px from right edge
+    const GSize icon_size = GSize(25, 25);
+    const int16_t icon_padding_right = 5;
+    const int16_t icon_padding_top = 10;
     const int16_t icon_x_right = bounds.size.w - icon_size.w - icon_padding_right;
     const GSize middle_icon_size = GSize(15, 15);
-    const int16_t middle_icon_padding_right = 2; // 5px from right edge
+    const int16_t middle_icon_padding_right = 2;
     const int16_t middle_icon_x_right = bounds.size.w - middle_icon_size.w - middle_icon_padding_right;
 
     // Draw the reset icon (top right)
-    const int16_t reset_icon_y = 10; // 10px from top edge
-    GRect reset_rect = GRect(icon_x_right, reset_icon_y, icon_size.w, icon_size.h);
+    GRect reset_rect = GRect(icon_x_right, icon_padding_top, icon_size.w, icon_size.h);
     graphics_draw_bitmap_in_rect(ctx, drawing_data.reset_icon, reset_rect);
 
     // Draw the pause icon (middle right)
@@ -389,6 +390,12 @@ void drawing_render(Layer *layer, GContext *ctx) {
     const int16_t pause_icon_y = (bounds.size.h - middle_icon_size.h) / 2;
     GRect pause_rect = GRect(middle_icon_x_right, pause_icon_y, middle_icon_size.w, middle_icon_size.h);
     graphics_draw_bitmap_in_rect(ctx, drawing_data.pause_icon, pause_rect);
+
+    // Draw the silence icon (bottom right)
+    const int16_t silence_icon_x = (bounds.size.w - middle_icon_size.w) - icon_padding_right;
+    const int16_t silence_icon_y = (bounds.size.h - middle_icon_size.h) - icon_padding_top - 5;  // FIXME: improve this icon and the placement
+    GRect silence_rect = GRect(icon_x_right, silence_icon_y, icon_size.w, icon_size.h);
+    graphics_draw_bitmap_in_rect(ctx, drawing_data.silence_icon, silence_rect);
 
     // Set the mode back to default (Set) so it doesn't
     // affect other drawing operations.
@@ -433,6 +440,7 @@ void drawing_initialize(Layer *layer) {
   // load the reset icon
   drawing_data.reset_icon = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_REPEAT_ICON);
   drawing_data.pause_icon = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_PAUSE_ICON);
+  drawing_data.silence_icon = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_SILENCE_ICON);
   // set animation update callback
   animation_register_update_callback(&prv_animation_update_callback);
 }
