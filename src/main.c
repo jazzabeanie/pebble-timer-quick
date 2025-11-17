@@ -160,8 +160,11 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     return;
   }
 
-  // If timer is counting (but not vibrating), do nothing.
+  // If timer is counting (but not vibrating), go to edit mode.
   if (main_data.control_mode == ControlModeCounting) {
+    main_data.control_mode = ControlModeNew;
+    drawing_update();
+    layer_mark_dirty(main_data.layer);
     return;
   }
   // increment timer
