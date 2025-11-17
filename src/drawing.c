@@ -82,7 +82,11 @@ static void prv_render_header_text(GContext *ctx, GRect bounds) {
   static char s_time_buffer[16]; // Buffer for formatted time
   char *buff;
   if (main_get_control_mode() == ControlModeNew) {
-    buff = "New";
+    if (main_is_editing_existing_timer()) {
+      buff = "Edit";
+    } else {
+      buff = "New";
+    }
   } else if (timer_is_chrono()) {
     // Calculate and format the total timer length
     int64_t total_ms = timer_get_length_ms();

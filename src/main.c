@@ -30,9 +30,10 @@ static struct {
   Layer       *layer;       //< The base layer on which everything will be drawn
   ControlMode control_mode; //< The current control mode of the timer
   AppTimer    *app_timer;   //< The AppTimer to keep the screen refreshing
-  AppTimer   *new_expire_timer; //< Moves to counting mode if a button is not pressed in the given time
-  AppTimer    *quit_timer;      //< The AppTimer to quit the app after a delay
-} main_data;
+    AppTimer    *new_expire_timer; //< Moves to counting mode if a button is not pressed in the given time
+    AppTimer    *quit_timer;      //< The AppTimer to quit the app after a delay
+    bool        is_editing_existing_timer; //< True if the app is in ControlModeNew for editing an existing timer
+  } main_data;
 
 // Function declarations
 static void prv_app_timer_callback(void *data);
@@ -113,6 +114,11 @@ ControlMode main_get_control_mode(void) {
   return main_data.control_mode;
 }
 
+// Get whether the app is currently editing an existing timer
+bool main_is_editing_existing_timer(void) {
+  return main_data.is_editing_existing_timer;
+}
+
 // Background layer update procedure
 static void prv_layer_update_proc_handler(Layer *layer, GContext *ctx) {
   // render the timer's visuals
@@ -163,6 +169,7 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   // If timer is counting (but not vibrating), go to edit mode.
   if (main_data.control_mode == ControlModeCounting) {
     main_data.control_mode = ControlModeNew;
+    main_data.is_editing_existing_timer = true;
     drawing_update();
     layer_mark_dirty(main_data.layer);
     return;
@@ -231,6 +238,7 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
   prv_reset_new_expire_timer();
   timer_reset();
   main_data.control_mode = ControlModeNew;
+  main_data.is_editing_existing_timer = false;
   // animate and refresh
   drawing_update();
   layer_mark_dirty(main_data.layer);
@@ -325,16 +333,20 @@ static void prv_initialize(void) {
     main_data.control_mode = ControlModeNew;
     timer_reset();
     timer_data.reset_on_init = false;
+    main_data.is_editing_existing_timer = false;
   } else if (timer_data.length_ms) {
     // A timer was set (counting down), so resume in counting mode
     main_data.control_mode = ControlModeCounting;
+    main_data.is_editing_existing_timer = false;
   } else if (timer_is_chrono()) {
     // Chrono mode was active (counting up), so resume in counting mode
     main_data.control_mode = ControlModeCounting;
+    main_data.is_editing_existing_timer = false;
   } else {
     // No timer was set and it wasn't in chrono mode, so start fresh
     main_data.control_mode = ControlModeNew;
     timer_reset();
+    main_data.is_editing_existing_timer = false;
   }
   prv_reset_new_expire_timer();
 

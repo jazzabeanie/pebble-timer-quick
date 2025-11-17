@@ -24,3 +24,7 @@ typedef enum {
 //! Get the current control mode of the app
 //! @return The current ControlMode
 ControlMode main_get_control_mode(void);
+
+//! Get whether the app is currently editing an existing timer
+//! @return True if editing an existing timer, false otherwise
+bool main_is_editing_existing_timer(void);
