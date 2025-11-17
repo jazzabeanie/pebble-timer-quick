@@ -36,6 +36,11 @@
         "file": "images/repeat.png",
         "type": "png",
         "name": "IMAGE_REPEAT_ICON"
+      },
+      {
+        "file": "images/action_bar_icon_snooze.png",
+        "type": "png",
+        "name": "IMAGE_SNOOZE_ICON"
       }
     ]
   }

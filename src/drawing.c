@@ -62,6 +62,7 @@ static struct {
   GBitmap     *reset_icon;        //< The reset icon to show when the timer is vibrating
   GBitmap     *pause_icon;        //< The pause icon to show when the timer is vibrating
   GBitmap     *silence_icon;      //< The silence icon to show when the timer is vibrating
+  GBitmap     *snooze_icon;       //< The snooze icon to show when the timer is vibrating
 } drawing_data;
 
 
@@ -381,6 +382,12 @@ void drawing_render(Layer *layer, GContext *ctx) {
     GRect silence_rect = GRect(icon_padding_right, icon_padding_top, icon_size.w, icon_size.h);
     graphics_draw_bitmap_in_rect(ctx, drawing_data.silence_icon, silence_rect);
 
+    // Draw the snooze icon (bottom right)
+    const int16_t icon_padding_bottom = 10;
+    const int16_t snooze_icon_y = bounds.size.h - icon_size.h - icon_padding_bottom;
+    GRect snooze_rect = GRect(icon_x_right, snooze_icon_y, icon_size.w, icon_size.h);
+    graphics_draw_bitmap_in_rect(ctx, drawing_data.snooze_icon, snooze_rect);
+
     // Set the mode back to default (Set) so it doesn't
     // affect other drawing operations.
     graphics_context_set_compositing_mode(ctx, GCompOpSet);
@@ -425,6 +432,7 @@ void drawing_initialize(Layer *layer) {
   drawing_data.reset_icon = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_REPEAT_ICON);
   drawing_data.pause_icon = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_PAUSE_ICON);
   drawing_data.silence_icon = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_SILENCE_ICON);
+  drawing_data.snooze_icon = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_SNOOZE_ICON);
   // set animation update callback
   animation_register_update_callback(&prv_animation_update_callback);
 }
@@ -432,5 +440,8 @@ void drawing_initialize(Layer *layer) {
 // Destroy the singleton drawing data
 void drawing_terminate(void) {
   gbitmap_destroy(drawing_data.reset_icon);
+  gbitmap_destroy(drawing_data.pause_icon);
+  gbitmap_destroy(drawing_data.silence_icon);
+  gbitmap_destroy(drawing_data.snooze_icon);
   animation_stop_all();
 }
