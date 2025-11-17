@@ -182,7 +182,6 @@ static void prv_main_text_update_state(Layer *layer) {
   GRect field_bounds[TEXT_FIELD_COUNT];
   for (uint8_t ii = 0; ii < TEXT_FIELD_COUNT; ii++) {
     field_bounds[ii] = text_render_get_content_bounds(buff[ii], font_size);
-    // if in edit mode and some fields have content and this one is '\0', then pad it
     total_bounds.size.w += field_bounds[ii].size.w;
   }
   total_bounds.size.h = field_bounds[TEXT_FIELD_COUNT - 1].size.h;
@@ -378,10 +377,8 @@ void drawing_render(Layer *layer, GContext *ctx) {
     GRect pause_rect = GRect(middle_icon_x_right, pause_icon_y, middle_icon_size.w, middle_icon_size.h);
     graphics_draw_bitmap_in_rect(ctx, drawing_data.pause_icon, pause_rect);
 
-    // Draw the silence icon (bottom right)
-    const int16_t silence_icon_x = (bounds.size.w - middle_icon_size.w) - icon_padding_right;
-    const int16_t silence_icon_y = (bounds.size.h - middle_icon_size.h) - icon_padding_top - 5;  // FIXME: improve this icon and the placement
-    GRect silence_rect = GRect(icon_x_right, silence_icon_y, icon_size.w, icon_size.h);
+    // Draw the silence icon (top left)
+    GRect silence_rect = GRect(icon_padding_right, icon_padding_top, icon_size.w, icon_size.h);
     graphics_draw_bitmap_in_rect(ctx, drawing_data.silence_icon, silence_rect);
 
     // Set the mode back to default (Set) so it doesn't

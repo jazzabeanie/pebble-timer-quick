@@ -19,6 +19,7 @@
 #define BUTTON_HOLD_REPEAT_MS 100
 #define UP_BUTTON_INCREMENT_MS MSEC_IN_MIN * 20
 #define SELECT_BUTTON_INCREMENT_MS MSEC_IN_MIN * 5
+#define SNOOZE_INCREMENT_MS MSEC_IN_MIN * 5
 #define DOWN_BUTTON_INCREMENT_MS MSEC_IN_MIN
 #define BACK_BUTTON_INCREMENT_MS MSEC_IN_MIN * 60
 #define NEW_EXPIRE_TIME_MS MSEC_IN_SEC * 3
@@ -129,11 +130,10 @@ static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     drawing_update();
     layer_mark_dirty(main_data.layer);
   } else {
-    // cancel vibrations
-    vibes_cancel();
-    // TODO: also stop the complete animation
-    // quit app
-    window_stack_pop(true);
+    // silence the alarm, or quit if no alarm
+    if (!prv_handle_alarm()) {
+      window_stack_pop(true);
+    }
   }
 }
 
@@ -238,7 +238,11 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Down button pressed");
-  if (prv_handle_alarm()) {
+  if (timer_is_vibrating()) {
+    vibes_cancel();
+    timer_increment(SNOOZE_INCREMENT_MS);
+    drawing_update();
+    layer_mark_dirty(main_data.layer);
     return;
   }
   else if (main_data.control_mode == ControlModeCounting) {
