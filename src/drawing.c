@@ -147,8 +147,7 @@ static void prv_render_footer_text(GContext *ctx, GRect bounds) {
 static void prv_main_text_update_state(Layer *layer) {
   // get properties
   GRect bounds = layer_get_bounds(layer);
-  // bool edit_mode = main_get_control_mode() != ControlModeCounting;
-  bool edit_mode = 0;
+  bool edit_mode = main_get_control_mode() != ControlModeCounting;
   // calculate time parts
   uint16_t hr, min, sec;
   timer_get_time_parts(&hr, &min, &sec);
@@ -215,8 +214,7 @@ static void prv_render_main_text(GContext *ctx, GRect bounds) {
   uint16_t hr, min, sec;
   timer_get_time_parts(&hr, &min, &sec);
   // convert to strings
-  // bool edit_mode = main_get_control_mode() != ControlModeCounting;
-  bool edit_mode = 0;
+  bool edit_mode = main_get_control_mode() != ControlModeCounting;
   char buff[TEXT_FIELD_COUNT][4] = {{'\0'}};
   if (main_get_control_mode() == ControlModeNew && timer_data.length_ms == 0) {
     snprintf(buff[0], sizeof(buff[0]), "-");
