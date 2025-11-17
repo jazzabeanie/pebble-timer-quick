@@ -84,7 +84,7 @@ static void prv_render_header_text(GContext *ctx, GRect bounds) {
     buff = "New";
   } else if (timer_is_chrono()) {
     // Calculate and format the total timer length
-    int64_t total_ms = timer_data.base_length_ms;
+    int64_t total_ms = timer_get_length_ms();
     int64_t total_seconds = total_ms / 1000;
     int hours = total_seconds / 3600;
     int minutes = (total_seconds % 3600) / 60;
