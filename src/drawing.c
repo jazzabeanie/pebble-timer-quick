@@ -147,7 +147,6 @@ static void prv_render_footer_text(GContext *ctx, GRect bounds) {
 static void prv_main_text_update_state(Layer *layer) {
   // get properties
   GRect bounds = layer_get_bounds(layer);
-  bool edit_mode = main_get_control_mode() != ControlModeCounting;
   // calculate time parts
   uint16_t hr, min, sec;
   timer_get_time_parts(&hr, &min, &sec);
@@ -157,12 +156,11 @@ static void prv_main_text_update_state(Layer *layer) {
     snprintf(buff[0], sizeof(buff[0]), "-");
   }
   if (hr) {
-    snprintf(buff[1], sizeof(buff[1]), edit_mode ? "%02d" : "%d", hr);
+    snprintf(buff[1], sizeof(buff[1]), "%d", hr);
   }
-  // snprintf(buff[1], sizeof(buff[1]), edit_mode ? "%02d" : "%d", 99);
-  snprintf(buff[2], sizeof(buff[2]), "%s", hr && !edit_mode ? ":" : "\0");
-  snprintf(buff[3], sizeof(buff[3]), (hr || edit_mode) ? "%02d" : "%d", min);
-  snprintf(buff[4], sizeof(buff[4]), "%s", edit_mode ? "\0" : ":");
+  snprintf(buff[2], sizeof(buff[2]), "%s", hr ? ":" : "\0");
+  snprintf(buff[3], sizeof(buff[3]), hr ? "%02d" : "%d", min);
+  snprintf(buff[4], sizeof(buff[4]), ":");
   snprintf(buff[5], sizeof(buff[5]), "%02d", sec);
 
   int current_mode = main_get_control_mode();
@@ -176,8 +174,7 @@ static void prv_main_text_update_state(Layer *layer) {
   
   // APP_LOG(APP_LOG_LEVEL_DEBUG, "tot_buff: %s (prv_main_text_update_state)", tot_buff);
 
-  uint16_t font_size = text_render_get_max_font_size(tot_buff, edit_mode ? MAIN_TEXT_BOUNDS_EDIT :
-    MAIN_TEXT_BOUNDS);
+  uint16_t font_size = text_render_get_max_font_size(tot_buff, MAIN_TEXT_BOUNDS);
   // APP_LOG(APP_LOG_LEVEL_DEBUG, "font_size: %u (prv_main_text_update_state)", font_size);
 
   // calculate new size for each text element
@@ -186,9 +183,6 @@ static void prv_main_text_update_state(Layer *layer) {
   for (uint8_t ii = 0; ii < TEXT_FIELD_COUNT; ii++) {
     field_bounds[ii] = text_render_get_content_bounds(buff[ii], font_size);
     // if in edit mode and some fields have content and this one is '\0', then pad it
-    if (edit_mode && total_bounds.size.w && field_bounds[ii].size.w == 0) {
-      field_bounds[ii].size.w = TEXT_FIELD_EDIT_SPACING;
-    }
     total_bounds.size.w += field_bounds[ii].size.w;
   }
   total_bounds.size.h = field_bounds[TEXT_FIELD_COUNT - 1].size.h;
@@ -214,18 +208,16 @@ static void prv_render_main_text(GContext *ctx, GRect bounds) {
   uint16_t hr, min, sec;
   timer_get_time_parts(&hr, &min, &sec);
   // convert to strings
-  bool edit_mode = main_get_control_mode() != ControlModeCounting;
   char buff[TEXT_FIELD_COUNT][4] = {{'\0'}};
   if (main_get_control_mode() == ControlModeNew && timer_data.length_ms == 0) {
     snprintf(buff[0], sizeof(buff[0]), "-");
   }
   if (hr) {
-    snprintf(buff[1], sizeof(buff[1]), edit_mode ? "%02d" : "%d", hr);
+    snprintf(buff[1], sizeof(buff[1]), "%d", hr);
   }
-  //snprintf(buff[1], sizeof(buff[1]), edit_mode ? "%02d" : "%d", 99);
-  snprintf(buff[2], sizeof(buff[2]), "%s", hr && !edit_mode ? ":" : "\0");
-  snprintf(buff[3], sizeof(buff[3]), (hr || edit_mode) ? "%02d" : "%d", min);
-  snprintf(buff[4], sizeof(buff[4]), "%s", edit_mode ? "\0" : ":");
+  snprintf(buff[2], sizeof(buff[2]), "%s", hr ? ":" : "\0");
+  snprintf(buff[3], sizeof(buff[3]), hr ? "%02d" : "%d", min);
+  snprintf(buff[4], sizeof(buff[4]), ":");
   snprintf(buff[5], sizeof(buff[5]), "%02d", sec);
 
   int current_mode = main_get_control_mode();
@@ -290,12 +282,9 @@ static void prv_progress_ring_update(void) {
 // Compare two different TextStates, return true if conditions are met for a refresh
 static bool prv_text_state_compare(DrawState text_state_1, DrawState text_state_2) {
   return text_state_1.control_mode == text_state_2.control_mode && // if control modes are different
-         ((text_state_1.control_mode != ControlModeCounting &&     // if in edit mode
-           ((text_state_1.hr_digits && text_state_2.hr_digits) ||
-            (!text_state_1.hr_digits && !text_state_2.hr_digits))) ||
           (text_state_1.control_mode == ControlModeCounting &&     // if in counting mode
            text_state_1.hr_digits == text_state_2.hr_digits &&
-           text_state_1.min_digits == text_state_2.min_digits)) &&
+           text_state_1.min_digits == text_state_2.min_digits) &&
           text_state_2.hr_digits < 3; // on first start hr is set to 99 to force refresh
 }
 
