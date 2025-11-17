@@ -39,6 +39,7 @@ static struct {
     AppTimer    *quit_timer;      //< The AppTimer to quit the app after a delay
     bool        is_editing_existing_timer; //< True if the app is in ControlModeNew for editing an existing timer
     uint64_t    last_interaction_time;     //< Time of the last user interaction
+    bool        timer_length_modified_in_edit_mode; //< True if the timer's length has been modified while in ControlModeNew
   } main_data;
 
 // Function declarations
@@ -88,14 +89,24 @@ static void prv_cancel_quit_timer(void) {
 static void prv_new_expire_callback(void *data) {
   main_data.new_expire_timer = NULL;
   if (main_data.control_mode == ControlModeNew || main_data.control_mode == ControlModeEditSec) {
-    // Store the "base" duration in the persistent struct
-    if (timer_data.length_ms > 0) {
-      timer_data.base_length_ms = timer_data.length_ms;
-    } else {
-      // It's a stopwatch (chrono), no base duration
-      timer_data.base_length_ms = 0;
-    }
+    // previous code before merge:
+    //  // Store the "base" duration in the persistent struct
+    //  if (timer_data.length_ms > 0) {
+    //    timer_data.base_length_ms = timer_data.length_ms;
+    //  } else {
+    //    // It's a stopwatch (chrono), no base duration
+    //    timer_data.base_length_ms = 0;
+    //  }
 
+    // Store the "base" duration in the persistent struct
+    if (!main_data.is_editing_existing_timer || main_data.timer_length_modified_in_edit_mode) {
+      if (timer_data.length_ms > 0) {
+        timer_data.base_length_ms = timer_data.length_ms;
+      } else {
+        // It's a stopwatch (chrono), no base duration
+        timer_data.base_length_ms = 0;
+      }
+    }
     main_data.control_mode = ControlModeCounting;
 
     // Exit if timer is longer than 25 minutes, after a delay
@@ -171,19 +182,19 @@ static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   if (main_data.control_mode == ControlModeNew) {
     // increment timer by 1 hour
     prv_update_timer(BACK_BUTTON_INCREMENT_MS);
-    drawing_update();
-    layer_mark_dirty(main_data.layer);
+    main_data.timer_length_modified_in_edit_mode = true;
   } else if (main_data.control_mode == ControlModeEditSec) {
     // increment timer by 30 seconds
     prv_update_timer(BACK_BUTTON_INCREMENT_SEC_MS);
-    drawing_update();
-    layer_mark_dirty(main_data.layer);
+    main_data.timer_length_modified_in_edit_mode = true;
   } else {
     // silence the alarm, or quit if no alarm
     if (!prv_handle_alarm()) {
       window_stack_pop(true);
     }
   }
+  drawing_update();
+  layer_mark_dirty(main_data.layer);
 }
 
 // Up click handler
@@ -220,6 +231,7 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
       main_data.control_mode = ControlModeNew;
     }
     main_data.is_editing_existing_timer = true;
+    main_data.timer_length_modified_in_edit_mode = false;
     drawing_update();
     layer_mark_dirty(main_data.layer);
     return;
@@ -231,6 +243,7 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   }
   // increment timer
   prv_update_timer(increment);
+  main_data.timer_length_modified_in_edit_mode = true;
   drawing_update();
   layer_mark_dirty(main_data.layer);
 }
@@ -242,6 +255,12 @@ static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) 
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Up long press");
+  timer_data.is_repeating = !timer_data.is_repeating;
+  if (timer_data.is_repeating) {
+    timer_data.repeat_count = 10;
+  }
+  drawing_update();
+  layer_mark_dirty(main_data.layer);
 }
 
 // Select click handler
@@ -272,6 +291,7 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
       break;
     case ControlModeNew:
       prv_update_timer(increment);
+      main_data.timer_length_modified_in_edit_mode = true;
       break;
   }
   // refresh
@@ -320,6 +340,7 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
     main_data.control_mode = ControlModeNew;
     main_data.is_editing_existing_timer = false;
   }
+  main_data.timer_length_modified_in_edit_mode = false;
   // animate and refresh
   drawing_update();
   layer_mark_dirty(main_data.layer);
@@ -345,12 +366,14 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   else if (main_data.control_mode == ControlModeNew) {
     int64_t increment = DOWN_BUTTON_INCREMENT_MS;
     prv_update_timer(increment);
+    main_data.timer_length_modified_in_edit_mode = true;
     drawing_update();
     layer_mark_dirty(main_data.layer);
   }
   else if (main_data.control_mode == ControlModeEditSec) {
     int64_t increment = DOWN_BUTTON_INCREMENT_SEC_MS;
     prv_update_timer(increment);
+    main_data.timer_length_modified_in_edit_mode = true;
     drawing_update();
     layer_mark_dirty(main_data.layer);
   }
@@ -469,20 +492,24 @@ static void prv_initialize(void) {
     timer_data.reset_on_init = false;
     main_data.is_editing_existing_timer = false;
     vibes_short_pulse();
+    main_data.timer_length_modified_in_edit_mode = false;
   } else if (timer_data.length_ms) {
     // A timer was set (counting down), so resume in counting mode
     main_data.control_mode = ControlModeCounting;
     main_data.is_editing_existing_timer = false;
+    main_data.timer_length_modified_in_edit_mode = false;
   } else if (timer_is_chrono()) {
     // Chrono mode was active (counting up), so resume in counting mode
     main_data.control_mode = ControlModeCounting;
     main_data.is_editing_existing_timer = false;
+    main_data.timer_length_modified_in_edit_mode = false;
   } else {
     // No timer was set and it wasn't in chrono mode, so start fresh
     main_data.control_mode = ControlModeNew;
     timer_reset();
     main_data.is_editing_existing_timer = false;
     vibes_short_pulse();
+    main_data.timer_length_modified_in_edit_mode = false;
   }
   prv_reset_new_expire_timer();
 

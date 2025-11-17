@@ -80,6 +80,12 @@ bool timer_is_paused(void) {
 // Check if the timer is elapsed and vibrate if this is the first call after elapsing
 void timer_check_elapsed(void) {
   if (timer_is_chrono() && !timer_is_paused() && timer_data.can_vibrate) {
+    if (timer_data.is_repeating && timer_data.repeat_count > 0) {
+      timer_data.repeat_count--;
+      timer_increment(timer_data.base_length_ms);
+      vibes_long_pulse(); // Vibrate briefly on repeat
+      return;
+    }
     // stop vibration after certain duration
     if (timer_get_value_ms() > VIBRATION_LENGTH_MS) {
       timer_data.can_vibrate = false;
@@ -204,6 +210,8 @@ void timer_reset(void) {
   // disable vibration
   timer_data.can_vibrate = false;
   timer_data.auto_snooze_count = 0;
+  timer_data.is_repeating = false;
+  timer_data.repeat_count = 0;
 }
 
 // Save the timer to persistent storage

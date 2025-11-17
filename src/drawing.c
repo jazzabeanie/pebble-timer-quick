@@ -398,6 +398,18 @@ void drawing_render(Layer *layer, GContext *ctx) {
   graphics_context_set_text_color(ctx, drawing_data.fore_color);
   prv_render_header_text(ctx, bounds);
   prv_render_footer_text(ctx, bounds);
+
+  // Draw repeat counter
+  if (timer_data.is_repeating && timer_data.repeat_count > 0) {
+    char s_repeat_buffer[8];
+    snprintf(s_repeat_buffer, sizeof(s_repeat_buffer), "x%d", timer_data.repeat_count);
+    GRect repeat_bounds = GRect(bounds.size.w - 50, 0, 50, 20);
+    graphics_context_set_text_color(ctx, GColorWhite);
+    graphics_draw_text(ctx, s_repeat_buffer, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
+      repeat_bounds, GTextOverflowModeFill, GTextAlignmentRight, NULL);
+    graphics_context_set_text_color(ctx, drawing_data.fore_color);
+  }
+
   if (timer_is_vibrating()) {
     // GCompOpSet respects the PNG's alpha (transparency) channel.
     // This assumes your icon resource is a PNG with a transparent background.

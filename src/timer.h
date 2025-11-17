@@ -21,6 +21,8 @@ typedef struct {
   bool        can_vibrate;    //< Flag used to tell when the timer has completed
   bool        reset_on_init;  //< Flag to indicate if the timer should be reset on next initialization
   int8_t      auto_snooze_count; //< Count of how many times the timer has auto-snoozed
+  bool        is_repeating;   //< A flag to indicate that the timer is in repeat mode
+  uint8_t     repeat_count;   //< A counter to track the number of times the timer has repeated
 } Timer;
 extern Timer timer_data;
 
