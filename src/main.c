@@ -19,7 +19,6 @@
 #define BUTTON_HOLD_REPEAT_MS 100
 #define UP_BUTTON_INCREMENT_MS MSEC_IN_MIN * 20
 #define SELECT_BUTTON_INCREMENT_MS MSEC_IN_MIN * 5
-#define SNOOZE_INCREMENT_MS MSEC_IN_MIN * 5
 #define DOWN_BUTTON_INCREMENT_MS MSEC_IN_MIN
 #define BACK_BUTTON_INCREMENT_MS MSEC_IN_MIN * 60
 #define NEW_EXPIRE_TIME_MS MSEC_IN_SEC * 3
@@ -129,6 +128,7 @@ static void prv_layer_update_proc_handler(Layer *layer, GContext *ctx) {
 static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
+  timer_reset_auto_snooze();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Back button pressed");
   if (main_data.control_mode == ControlModeNew) {
     // increment timer by 1 hour
@@ -147,6 +147,7 @@ static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
+  timer_reset_auto_snooze();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Up button handler");
  if (timer_is_vibrating()) {
     // Check if we have a "base" duration to add
@@ -186,6 +187,7 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
+  timer_reset_auto_snooze();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Up long press");
 }
 
@@ -193,6 +195,7 @@ static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) 
 static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
+  timer_reset_auto_snooze();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Select button pressed");
   if (prv_handle_alarm()) {
     if (main_data.control_mode == ControlModeCounting) {
@@ -225,6 +228,7 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 static void prv_select_raw_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
+  timer_reset_auto_snooze();
   // stop vibration
   vibes_cancel();
   // animate and refresh
@@ -236,6 +240,7 @@ static void prv_select_raw_click_handler(ClickRecognizerRef recognizer, void *ct
 static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
+  timer_reset_auto_snooze();
   timer_reset();
   main_data.control_mode = ControlModeNew;
   main_data.is_editing_existing_timer = false;
@@ -248,6 +253,7 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
 static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
+  timer_reset_auto_snooze();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Down button pressed");
   if (timer_is_vibrating()) {
     vibes_cancel();
@@ -270,6 +276,7 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 // Down long click handler
 static void prv_down_long_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_cancel_quit_timer();
+  timer_reset_auto_snooze();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Down long press");
   // Reset timer
   timer_data.reset_on_init = true;

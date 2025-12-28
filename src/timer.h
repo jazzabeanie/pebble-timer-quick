@@ -9,6 +9,9 @@
 //! @bugs No known bugs
 
 #include <pebble.h>
+#include "utility.h"
+
+#define SNOOZE_INCREMENT_MS (MSEC_IN_MIN * 5)
 
 // Main data structure
 typedef struct {
@@ -18,6 +21,7 @@ typedef struct {
   bool        elapsed;        //< Used to start the vibration if first time as elapsed
   bool        can_vibrate;    //< Flag used to tell when the timer has completed
   bool        reset_on_init;  //< Flag to indicate if the timer should be reset on next initialization
+  int8_t      auto_snooze_count; //< Count of how many times the timer has auto-snoozed
 } Timer;
 extern Timer timer_data;
 
@@ -69,3 +73,6 @@ void timer_persist_store(void);
 
 //! Read the timer from persistent storage
 void timer_persist_read(void);
+
+//! Reset the auto snooze count
+void timer_reset_auto_snooze(void);
