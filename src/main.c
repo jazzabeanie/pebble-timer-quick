@@ -14,7 +14,7 @@
 #include "utility.h"
 
 // Main constants
-#define AUTO_BACKGROUND_TIMER_LENGTH_MS (MSEC_IN_MIN * 25)
+#define AUTO_BACKGROUND_TIMER_LENGTH_MS (MSEC_IN_MIN * 3)
 #define QUIT_DELAY_MS 7000
 #define BUTTON_HOLD_REPEAT_MS 100
 #define UP_BUTTON_INCREMENT_MS MSEC_IN_MIN * 20
@@ -350,6 +350,7 @@ static void prv_initialize(void) {
     timer_reset();
     timer_data.reset_on_init = false;
     main_data.is_editing_existing_timer = false;
+    vibes_short_pulse();
   } else if (timer_data.length_ms) {
     // A timer was set (counting down), so resume in counting mode
     main_data.control_mode = ControlModeCounting;
@@ -363,6 +364,7 @@ static void prv_initialize(void) {
     main_data.control_mode = ControlModeNew;
     timer_reset();
     main_data.is_editing_existing_timer = false;
+    vibes_short_pulse();
   }
   prv_reset_new_expire_timer();
 
