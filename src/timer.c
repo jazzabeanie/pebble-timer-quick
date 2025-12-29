@@ -145,10 +145,6 @@ void timer_increment(int64_t increment) {
 void timer_increment_chrono(int64_t increment) {
   // adjust start time to effectively add time to the stopwatch
   timer_data.start_ms -= increment;
-  // if at zero, remove any leftover milliseconds
-  if (timer_get_value_ms() < MSEC_IN_SEC) {
-    timer_reset();
-  }
 }
 
 // Toggle play pause state for timer
