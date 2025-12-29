@@ -58,6 +58,10 @@ void timer_check_elapsed(void);
 //! @param increment The amount to increment by
 void timer_increment(int64_t increment);
 
+//! Increment stopwatch (chrono) value currently being edited by adjusting start time
+//! @param increment The amount to increment by
+void timer_increment_chrono(int64_t increment);
+
 //! Toggle play pause state for timer
 void timer_toggle_play_pause(void);
 

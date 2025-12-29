@@ -141,6 +141,12 @@ void timer_increment(int64_t increment) {
   }
 }
 
+// Increment stopwatch (chrono) value currently being edited by adjusting start time
+void timer_increment_chrono(int64_t increment) {
+  // adjust start time to effectively add time to the stopwatch
+  timer_data.start_ms -= increment;
+}
+
 // Toggle play pause state for timer
 void timer_toggle_play_pause(void) {
   if (timer_data.start_ms > 0) {
