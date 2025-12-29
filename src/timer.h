@@ -9,7 +9,6 @@
 //! @bugs No known bugs
 
 #include <pebble.h>
-#include "utility.h"
 
 #define SNOOZE_INCREMENT_MS (MSEC_IN_MIN * 5)
 
