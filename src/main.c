@@ -46,6 +46,14 @@ static void prv_cancel_quit_timer(void);
 // Private Functions
 //
 
+// Helper to adjust increment for chrono mode
+static int64_t prv_get_adjusted_increment(int64_t increment) {
+  if (main_data.is_editing_existing_timer && timer_is_chrono()) {
+    return -increment;
+  }
+  return increment;
+}
+
 // Callback to quit the app
 static void prv_quit_callback(void *data) {
   main_data.quit_timer = NULL;
@@ -132,7 +140,7 @@ static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Back button pressed");
   if (main_data.control_mode == ControlModeNew) {
     // increment timer by 1 hour
-    timer_increment(BACK_BUTTON_INCREMENT_MS);
+    timer_increment(prv_get_adjusted_increment(BACK_BUTTON_INCREMENT_MS));
     drawing_update();
     layer_mark_dirty(main_data.layer);
   } else {
@@ -178,7 +186,7 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   // increment timer
   int64_t increment = UP_BUTTON_INCREMENT_MS;
   // increment timer
-  timer_increment(increment);
+  timer_increment(prv_get_adjusted_increment(increment));
   drawing_update();
   layer_mark_dirty(main_data.layer);
 }
@@ -216,7 +224,7 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
       timer_toggle_play_pause();
       break;
     case ControlModeNew:
-      timer_increment(increment);
+      timer_increment(prv_get_adjusted_increment(increment));
       break;
   }
   // refresh
@@ -267,7 +275,7 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   }
   else if (main_data.control_mode == ControlModeNew) {
     int64_t increment = DOWN_BUTTON_INCREMENT_MS;
-    timer_increment(increment);
+    timer_increment(prv_get_adjusted_increment(increment));
     drawing_update();
     layer_mark_dirty(main_data.layer);
   }
