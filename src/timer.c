@@ -14,8 +14,8 @@
 #define PERSIST_VERSION 3
 #define PERSIST_VERSION_KEY 4342896
 #define PERSIST_TIMER_KEY_V2_DATA 58734
-#define PERSIST_TIMER_KEY 58735
-#define VIBRATION_LENGTH_MS 20000
+#define PERSIST_TIMER_KEY 58736
+#define VIBRATION_LENGTH_MS 30000
 // legacy persistent storage
 #define PERSIST_TIMER_KEY_V1_LEGACY 3456
 // TODO: I think I can remove V2 and V3 once I have updated my app to all devices
@@ -83,9 +83,14 @@ void timer_check_elapsed(void) {
     // stop vibration after certain duration
     if (timer_get_value_ms() > VIBRATION_LENGTH_MS) {
       timer_data.can_vibrate = false;
+      if (timer_data.auto_snooze_count < 5) {
+        timer_data.auto_snooze_count++;
+        timer_increment(SNOOZE_INCREMENT_MS);
+      }
+    } else {
+      // vibrate
+      vibes_enqueue_custom_pattern(vibe_pattern);
     }
-    // vibrate
-    vibes_enqueue_custom_pattern(vibe_pattern);
   }
 }
 
@@ -162,6 +167,7 @@ void timer_reset(void) {
   timer_data.start_ms = epoch();
   // disable vibration
   timer_data.can_vibrate = false;
+  timer_data.auto_snooze_count = 0;
 }
 
 // Save the timer to persistent storage
@@ -179,6 +185,11 @@ void timer_persist_store(void) {
   if (persist_exists(PERSIST_TIMER_KEY_V1_LEGACY)) {
     persist_delete(PERSIST_TIMER_KEY_V1_LEGACY);
   }
+}
+
+// Reset the auto snooze count
+void timer_reset_auto_snooze(void) {
+  timer_data.auto_snooze_count = 0;
 }
 
 // Read the timer from persistent storage
