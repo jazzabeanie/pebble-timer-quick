@@ -13,7 +13,7 @@ jobs:
 
       - name: Build
         run: |
-          docker run --rm -v ${{ github.workspace }}:/pebble -w /pebble pebbledev/pebble-sdk:latest pebble build
+          docker run --rm -v ${{ github.workspace }}:/pebble -w /pebble rebble/pebble-sdk:latest pebble build
           sudo chown -R $USER build
 
       - name: Upload Artifact
