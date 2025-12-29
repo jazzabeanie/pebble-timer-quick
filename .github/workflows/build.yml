@@ -1,0 +1,23 @@
+name: Build Pebble App
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: pebbledev/pebble-sdk:latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Build
+        run: |
+          pebble build
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: pebble-app
+          path: build/*.pbw
