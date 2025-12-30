@@ -316,10 +316,47 @@ static void prv_app_timer_callback(void *data) {
   // schedule next call
   main_data.app_timer = NULL;
   if (main_data.control_mode == ControlModeCounting || main_data.control_mode == ControlModeNew) {
-    uint32_t duration = timer_get_value_ms() % MSEC_IN_SEC;
-    if (timer_is_chrono()) {
-      duration = MSEC_IN_SEC - duration;
+    uint32_t duration;
+    int64_t val = timer_get_value_ms();
+
+#if REDUCE_SCREEN_UPDATES
+    if (val > 5 * MSEC_IN_MIN) {
+       // Update at next minute boundary
+       duration = val % MSEC_IN_MIN;
+    } else if (val >= 30 * MSEC_IN_SEC) {
+       // Update at next 10s boundary
+       duration = val % (10 * MSEC_IN_SEC);
+    } else {
+       // Normal update
+       duration = val % MSEC_IN_SEC;
     }
+#else
+    duration = val % MSEC_IN_SEC;
+#endif
+
+    if (timer_is_chrono()) {
+      // For chrono, we want to align to the next boundary upwards
+      // If duration was "time past the boundary" (remainder),
+      // we need "time until next boundary".
+      // For countdown, remainder is exactly what we want to wait to reach the next lower boundary.
+      // For chrono, we want (Interval - Remainder).
+
+      // Re-calculate interval based on mode
+#if REDUCE_SCREEN_UPDATES
+      uint32_t interval = MSEC_IN_SEC;
+      if (val > 5 * MSEC_IN_MIN) {
+         interval = MSEC_IN_MIN;
+      } else if (val >= 30 * MSEC_IN_SEC) {
+         interval = 10 * MSEC_IN_SEC;
+      }
+      // duration currently holds val % interval
+      // so we want interval - duration
+      duration = interval - duration;
+#else
+      duration = MSEC_IN_SEC - duration;
+#endif
+    }
+
     main_data.app_timer = app_timer_register(duration + 5, prv_app_timer_callback, NULL);
   }
 }

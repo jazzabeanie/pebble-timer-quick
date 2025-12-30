@@ -11,6 +11,7 @@
 #include <pebble.h>
 
 #define BUTTON_HOLD_RESET_MS 750
+#define REDUCE_SCREEN_UPDATES 1
 
 // Current control mode
 typedef enum {
