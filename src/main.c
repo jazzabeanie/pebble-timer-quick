@@ -51,6 +51,9 @@ static void prv_cancel_quit_timer(void);
 // Helper to record interaction time
 static void prv_record_interaction(void) {
   main_data.last_interaction_time = epoch();
+  if (main_data.app_timer) {
+    app_timer_reschedule(main_data.app_timer, 10);
+  }
 }
 
 // Helper to update timer based on mode
@@ -368,21 +371,6 @@ static void prv_app_timer_callback(void *data) {
 
       // Re-calculate interval based on mode
 #if REDUCE_SCREEN_UPDATES
-      uint32_t interval = MSEC_IN_SEC;
-      // Determine interval based on time or interaction
-      if (epoch() - main_data.last_interaction_time < INTERACTION_TIMEOUT_MS) {
-        interval = MSEC_IN_SEC;
-      } else if (val > 5 * MSEC_IN_MIN) {
-         interval = MSEC_IN_MIN;
-      } else if (val >= 30 * MSEC_IN_SEC) {
-         interval = 10 * MSEC_IN_SEC;
-      }
-      // duration currently holds val % interval (from countdown logic block above)
-      // wait, the duration above is calculated as `val % interval` BUT the interval logic is duplicated
-      // we need to be careful.
-      // If we are in the interaction timeout, `duration` above was set to `val % MSEC_IN_SEC`.
-      // If we are NOT, it was set to `val % MSEC_IN_MIN` or `val % 10s`.
-
       // Let's recalculate duration from scratch for chrono to be safe and clean.
       if (epoch() - main_data.last_interaction_time < INTERACTION_TIMEOUT_MS) {
          duration = MSEC_IN_SEC - (val % MSEC_IN_SEC);
