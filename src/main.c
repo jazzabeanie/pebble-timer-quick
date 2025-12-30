@@ -399,7 +399,7 @@ static void prv_terminate(void) {
   // unsubscribe from timer service
   tick_timer_service_unsubscribe();
   // schedule wakeup
-  if (!timer_is_chrono() && !timer_is_paused()) {
+  if (!timer_is_chrono() && !timer_is_paused() && !timer_data.reset_on_init) {
     time_t wakeup_time = (epoch() + timer_get_value_ms()) / MSEC_IN_SEC;
     wakeup_schedule(wakeup_time, 0, true);
   }
