@@ -22,6 +22,7 @@
 #define DOWN_BUTTON_INCREMENT_MS MSEC_IN_MIN
 #define BACK_BUTTON_INCREMENT_MS MSEC_IN_MIN * 60
 #define NEW_EXPIRE_TIME_MS MSEC_IN_SEC * 3
+#define INTERACTION_TIMEOUT_MS 10000
 
 // Main data structure
 static struct {
@@ -32,6 +33,7 @@ static struct {
     AppTimer    *new_expire_timer; //< Moves to counting mode if a button is not pressed in the given time
     AppTimer    *quit_timer;      //< The AppTimer to quit the app after a delay
     bool        is_editing_existing_timer; //< True if the app is in ControlModeNew for editing an existing timer
+    uint64_t    last_interaction_time;     //< Time of the last user interaction
   } main_data;
 
 // Function declarations
@@ -45,6 +47,11 @@ static void prv_cancel_quit_timer(void);
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Private Functions
 //
+
+// Helper to record interaction time
+static void prv_record_interaction(void) {
+  main_data.last_interaction_time = epoch();
+}
 
 // Helper to update timer based on mode
 static void prv_update_timer(int64_t increment) {
@@ -127,6 +134,11 @@ bool main_is_editing_existing_timer(void) {
   return main_data.is_editing_existing_timer;
 }
 
+// Get whether the user has interacted with the app recently
+bool main_is_interaction_active(void) {
+  return (epoch() - main_data.last_interaction_time < INTERACTION_TIMEOUT_MS);
+}
+
 // Background layer update procedure
 static void prv_layer_update_proc_handler(Layer *layer, GContext *ctx) {
   // render the timer's visuals
@@ -135,6 +147,7 @@ static void prv_layer_update_proc_handler(Layer *layer, GContext *ctx) {
 
 // Back click handler
 static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  prv_record_interaction();
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
@@ -154,6 +167,7 @@ static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 
 // Up click handler
 static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  prv_record_interaction();
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
@@ -194,6 +208,7 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 
 // Up long click handler
 static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  prv_record_interaction();
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
@@ -202,6 +217,7 @@ static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) 
 
 // Select click handler
 static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  prv_record_interaction();
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
@@ -235,6 +251,7 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 
 // Select raw click handler
 static void prv_select_raw_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  prv_record_interaction();
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
@@ -247,6 +264,7 @@ static void prv_select_raw_click_handler(ClickRecognizerRef recognizer, void *ct
 
 // Select long click handler
 static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  prv_record_interaction();
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
@@ -260,6 +278,7 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
 
 // Down click handler
 static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  prv_record_interaction();
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
@@ -284,6 +303,7 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 
 // Down long click handler
 static void prv_down_long_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  prv_record_interaction();
   prv_cancel_quit_timer();
   timer_reset_auto_snooze();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Down long press");
@@ -330,6 +350,11 @@ static void prv_app_timer_callback(void *data) {
        // Normal update
        duration = val % MSEC_IN_SEC;
     }
+
+    // Force high refresh rate if user recently interacted
+    if (epoch() - main_data.last_interaction_time < INTERACTION_TIMEOUT_MS) {
+      duration = val % MSEC_IN_SEC;
+    }
 #else
     duration = val % MSEC_IN_SEC;
 #endif
@@ -344,14 +369,30 @@ static void prv_app_timer_callback(void *data) {
       // Re-calculate interval based on mode
 #if REDUCE_SCREEN_UPDATES
       uint32_t interval = MSEC_IN_SEC;
-      if (val > 5 * MSEC_IN_MIN) {
+      // Determine interval based on time or interaction
+      if (epoch() - main_data.last_interaction_time < INTERACTION_TIMEOUT_MS) {
+        interval = MSEC_IN_SEC;
+      } else if (val > 5 * MSEC_IN_MIN) {
          interval = MSEC_IN_MIN;
       } else if (val >= 30 * MSEC_IN_SEC) {
          interval = 10 * MSEC_IN_SEC;
       }
-      // duration currently holds val % interval
-      // so we want interval - duration
-      duration = interval - duration;
+      // duration currently holds val % interval (from countdown logic block above)
+      // wait, the duration above is calculated as `val % interval` BUT the interval logic is duplicated
+      // we need to be careful.
+      // If we are in the interaction timeout, `duration` above was set to `val % MSEC_IN_SEC`.
+      // If we are NOT, it was set to `val % MSEC_IN_MIN` or `val % 10s`.
+
+      // Let's recalculate duration from scratch for chrono to be safe and clean.
+      if (epoch() - main_data.last_interaction_time < INTERACTION_TIMEOUT_MS) {
+         duration = MSEC_IN_SEC - (val % MSEC_IN_SEC);
+      } else if (val > 5 * MSEC_IN_MIN) {
+         duration = MSEC_IN_MIN - (val % MSEC_IN_MIN);
+      } else if (val >= 30 * MSEC_IN_SEC) {
+         duration = (10 * MSEC_IN_SEC) - (val % (10 * MSEC_IN_SEC));
+      } else {
+         duration = MSEC_IN_SEC - (val % MSEC_IN_SEC);
+      }
 #else
       duration = MSEC_IN_SEC - duration;
 #endif
