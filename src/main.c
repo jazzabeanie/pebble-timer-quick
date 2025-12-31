@@ -457,6 +457,7 @@ static void prv_initialize(void) {
   // subscribe to tick timer service
   tick_timer_service_subscribe(MINUTE_UNIT, prv_tick_timer_service_callback);
   // start refreshing
+  prv_record_interaction();
   prv_app_timer_callback(NULL);
 }
 
