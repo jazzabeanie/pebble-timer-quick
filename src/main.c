@@ -22,6 +22,7 @@
 #define DOWN_BUTTON_INCREMENT_MS MSEC_IN_MIN
 #define BACK_BUTTON_INCREMENT_MS MSEC_IN_MIN * 60
 #define NEW_EXPIRE_TIME_MS MSEC_IN_SEC * 3
+#define INTERACTION_TIMEOUT_MS 10000
 
 // Main data structure
 static struct {
@@ -32,6 +33,7 @@ static struct {
     AppTimer    *new_expire_timer; //< Moves to counting mode if a button is not pressed in the given time
     AppTimer    *quit_timer;      //< The AppTimer to quit the app after a delay
     bool        is_editing_existing_timer; //< True if the app is in ControlModeNew for editing an existing timer
+    uint64_t    last_interaction_time;     //< Time of the last user interaction
   } main_data;
 
 // Function declarations
@@ -45,6 +47,14 @@ static void prv_cancel_quit_timer(void);
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Private Functions
 //
+
+// Helper to record interaction time
+static void prv_record_interaction(void) {
+  main_data.last_interaction_time = epoch();
+  if (main_data.app_timer) {
+    app_timer_reschedule(main_data.app_timer, 10);
+  }
+}
 
 // Helper to update timer based on mode
 static void prv_update_timer(int64_t increment) {
@@ -127,6 +137,11 @@ bool main_is_editing_existing_timer(void) {
   return main_data.is_editing_existing_timer;
 }
 
+// Get whether the user has interacted with the app recently
+bool main_is_interaction_active(void) {
+  return (epoch() - main_data.last_interaction_time < INTERACTION_TIMEOUT_MS);
+}
+
 // Background layer update procedure
 static void prv_layer_update_proc_handler(Layer *layer, GContext *ctx) {
   // render the timer's visuals
@@ -135,6 +150,7 @@ static void prv_layer_update_proc_handler(Layer *layer, GContext *ctx) {
 
 // Back click handler
 static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  prv_record_interaction();
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
@@ -154,6 +170,7 @@ static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 
 // Up click handler
 static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  prv_record_interaction();
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
@@ -194,6 +211,7 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 
 // Up long click handler
 static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  prv_record_interaction();
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
@@ -202,6 +220,7 @@ static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) 
 
 // Select click handler
 static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  prv_record_interaction();
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
@@ -235,6 +254,7 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 
 // Select raw click handler
 static void prv_select_raw_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  prv_record_interaction();
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
@@ -247,6 +267,7 @@ static void prv_select_raw_click_handler(ClickRecognizerRef recognizer, void *ct
 
 // Select long click handler
 static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  prv_record_interaction();
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
@@ -260,6 +281,7 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
 
 // Down click handler
 static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  prv_record_interaction();
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
@@ -284,6 +306,7 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 
 // Down long click handler
 static void prv_down_long_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  prv_record_interaction();
   prv_cancel_quit_timer();
   timer_reset_auto_snooze();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Down long press");
@@ -316,10 +339,53 @@ static void prv_app_timer_callback(void *data) {
   // schedule next call
   main_data.app_timer = NULL;
   if (main_data.control_mode == ControlModeCounting || main_data.control_mode == ControlModeNew) {
-    uint32_t duration = timer_get_value_ms() % MSEC_IN_SEC;
-    if (timer_is_chrono()) {
-      duration = MSEC_IN_SEC - duration;
+    uint32_t duration;
+    int64_t val = timer_get_value_ms();
+
+#if REDUCE_SCREEN_UPDATES
+    if (val > 5 * MSEC_IN_MIN) {
+       // Update at next minute boundary
+       duration = val % MSEC_IN_MIN;
+    } else if (val >= 30 * MSEC_IN_SEC) {
+       // Update at next 10s boundary
+       duration = val % (10 * MSEC_IN_SEC);
+    } else {
+       // Normal update
+       duration = val % MSEC_IN_SEC;
     }
+
+    // Force high refresh rate if user recently interacted
+    if (epoch() - main_data.last_interaction_time < INTERACTION_TIMEOUT_MS) {
+      duration = val % MSEC_IN_SEC;
+    }
+#else
+    duration = val % MSEC_IN_SEC;
+#endif
+
+    if (timer_is_chrono()) {
+      // For chrono, we want to align to the next boundary upwards
+      // If duration was "time past the boundary" (remainder),
+      // we need "time until next boundary".
+      // For countdown, remainder is exactly what we want to wait to reach the next lower boundary.
+      // For chrono, we want (Interval - Remainder).
+
+      // Re-calculate interval based on mode
+#if REDUCE_SCREEN_UPDATES
+      // Let's recalculate duration from scratch for chrono to be safe and clean.
+      if (epoch() - main_data.last_interaction_time < INTERACTION_TIMEOUT_MS) {
+         duration = MSEC_IN_SEC - (val % MSEC_IN_SEC);
+      } else if (val > 5 * MSEC_IN_MIN) {
+         duration = MSEC_IN_MIN - (val % MSEC_IN_MIN);
+      } else if (val >= 30 * MSEC_IN_SEC) {
+         duration = (10 * MSEC_IN_SEC) - (val % (10 * MSEC_IN_SEC));
+      } else {
+         duration = MSEC_IN_SEC - (val % MSEC_IN_SEC);
+      }
+#else
+      duration = MSEC_IN_SEC - duration;
+#endif
+    }
+
     main_data.app_timer = app_timer_register(duration + 5, prv_app_timer_callback, NULL);
   }
 }
@@ -391,6 +457,7 @@ static void prv_initialize(void) {
   // subscribe to tick timer service
   tick_timer_service_subscribe(MINUTE_UNIT, prv_tick_timer_service_callback);
   // start refreshing
+  prv_record_interaction();
   prv_app_timer_callback(NULL);
 }
 

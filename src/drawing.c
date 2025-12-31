@@ -166,7 +166,21 @@ static void prv_main_text_update_state(Layer *layer) {
   snprintf(buff[2], sizeof(buff[2]), "%s", hr ? ":" : "\0");
   snprintf(buff[3], sizeof(buff[3]), hr ? "%02d" : "%d", min);
   snprintf(buff[4], sizeof(buff[4]), ":");
+
+#if REDUCE_SCREEN_UPDATES
+  int64_t val = timer_get_value_ms();
+  if (main_is_interaction_active()) {
+     snprintf(buff[5], sizeof(buff[5]), "%02d", sec);
+  } else if (val > 5 * MSEC_IN_MIN) {
+     snprintf(buff[5], sizeof(buff[5]), "__");
+  } else if (val >= 30 * MSEC_IN_SEC) {
+     snprintf(buff[5], sizeof(buff[5]), "%d_", sec / 10);
+  } else {
+     snprintf(buff[5], sizeof(buff[5]), "%02d", sec);
+  }
+#else
   snprintf(buff[5], sizeof(buff[5]), "%02d", sec);
+#endif
 
   int current_mode = main_get_control_mode();
   // APP_LOG(APP_LOG_LEVEL_DEBUG, "Render Mode: %d | Buffers: [%s][%s][%s][%s][%s][%s] (prv_main_text_update_state)",
@@ -222,7 +236,21 @@ static void prv_render_main_text(GContext *ctx, GRect bounds) {
   snprintf(buff[2], sizeof(buff[2]), "%s", hr ? ":" : "\0");
   snprintf(buff[3], sizeof(buff[3]), hr ? "%02d" : "%d", min);
   snprintf(buff[4], sizeof(buff[4]), ":");
+
+#if REDUCE_SCREEN_UPDATES
+  int64_t val = timer_get_value_ms();
+  if (main_is_interaction_active()) {
+     snprintf(buff[5], sizeof(buff[5]), "%02d", sec);
+  } else if (val > 5 * MSEC_IN_MIN) {
+     snprintf(buff[5], sizeof(buff[5]), "__");
+  } else if (val >= 30 * MSEC_IN_SEC) {
+     snprintf(buff[5], sizeof(buff[5]), "%d_", sec / 10);
+  } else {
+     snprintf(buff[5], sizeof(buff[5]), "%02d", sec);
+  }
+#else
   snprintf(buff[5], sizeof(buff[5]), "%02d", sec);
+#endif
 
   int current_mode = main_get_control_mode();
   // APP_LOG(APP_LOG_LEVEL_DEBUG, "Render Mode: %d | Buffers: [%s][%s][%s][%s][%s][%s]",
@@ -270,7 +298,17 @@ static void prv_progress_ring_update(void) {
   }
   // check if large angle and animate
   animation_stop(&drawing_data.progress_angle);
-  if (abs(new_angle - drawing_data.progress_angle) >= ANGLE_CHANGE_ANI_THRESHOLD) {
+#if REDUCE_SCREEN_UPDATES
+  bool should_animate = false;
+  // Only animate if we are updating frequently (less than 30 seconds remaining)
+  if (timer_get_value_ms() < 30 * MSEC_IN_SEC || main_is_interaction_active()) {
+    should_animate = true;
+  }
+#else
+  bool should_animate = true;
+#endif
+
+  if (should_animate && abs(new_angle - drawing_data.progress_angle) >= ANGLE_CHANGE_ANI_THRESHOLD) {
     animation_int32_start(&drawing_data.progress_angle, new_angle, PROGRESS_ANI_DURATION, 0,
       CurveSinEaseOut);
   } else {

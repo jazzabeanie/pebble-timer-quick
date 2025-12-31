@@ -62,10 +62,11 @@ static Character LECO_9 = {'9', 178, 12, {{0, 255}, {178, 255}, {178, 0}, {0, 0}
 static Character LECO_C = {':', 50, 4, {{0, 50}, {50, 50}, {50, 100}, {0, 100}}};
 static Character LECO_P = {'.', 50, 4, {{0, 205}, {50, 205}, {50, 255}, {0, 255}}};
 static Character LECO_DASH = {'-', 100, 4, {{0, 100}, {100, 100}, {100, 150}, {0, 150}}};
+static Character LECO_UNDERSCORE = {'_', 178, 4, {{0, 205}, {178, 205}, {178, 255}, {0, 255}}};
 
 static Character *LECO_CHARS[] = {&LECO_0, &LECO_1, &LECO_2, &LECO_3, &LECO_4, &LECO_5,
                                   &LECO_6, &LECO_7, &LECO_8, &LECO_9, &LECO_C, &LECO_P,
-                                  &LECO_DASH};
+                                  &LECO_DASH, &LECO_UNDERSCORE};
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
