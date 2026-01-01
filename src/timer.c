@@ -165,6 +165,36 @@ void timer_rewind(void) {
   }
 }
 
+// Restart the timer from its original value
+void timer_restart(void) {
+  if (timer_data.base_length_ms > 0) {
+      // Countdown: restore to base length
+      timer_data.length_ms = timer_data.base_length_ms;
+  } else {
+      // Chrono: reset to 0
+      timer_data.length_ms = 0;
+  }
+
+  if (timer_is_paused()) {
+      // If paused, remain paused (start_ms <= 0 means paused)
+      // For countdown: start_ms=0 means value = length_ms
+      // For chrono: start_ms=0 means value = length_ms = 0
+      timer_data.start_ms = 0;
+  } else {
+      // If running, restart running from now
+      timer_data.start_ms = epoch();
+  }
+
+  // enable vibration if length > 0
+  if (timer_data.length_ms > 0) {
+    timer_data.can_vibrate = true;
+  } else {
+    timer_data.can_vibrate = false;
+  }
+
+  timer_data.auto_snooze_count = 0;
+}
+
 // Reset the timer to zero
 void timer_reset(void) {
   timer_data.length_ms = 0;

@@ -272,9 +272,13 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
-  timer_reset();
-  main_data.control_mode = ControlModeNew;
-  main_data.is_editing_existing_timer = false;
+  if (main_data.control_mode == ControlModeCounting) {
+    timer_restart();
+  } else {
+    timer_reset();
+    main_data.control_mode = ControlModeNew;
+    main_data.is_editing_existing_timer = false;
+  }
   // animate and refresh
   drawing_update();
   layer_mark_dirty(main_data.layer);
