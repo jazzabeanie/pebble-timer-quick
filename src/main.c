@@ -22,10 +22,10 @@
 #define SELECT_BUTTON_INCREMENT_MS MSEC_IN_MIN * 5
 #define DOWN_BUTTON_INCREMENT_MS MSEC_IN_MIN
 #define BACK_BUTTON_INCREMENT_MS MSEC_IN_MIN * 60
-#define UP_BUTTON_INCREMENT_SEC_MS MSEC_IN_SEC * 10
+#define UP_BUTTON_INCREMENT_SEC_MS MSEC_IN_SEC * 20
 #define SELECT_BUTTON_INCREMENT_SEC_MS MSEC_IN_SEC * 5
 #define DOWN_BUTTON_INCREMENT_SEC_MS MSEC_IN_SEC
-#define BACK_BUTTON_INCREMENT_SEC_MS MSEC_IN_SEC * 30
+#define BACK_BUTTON_INCREMENT_SEC_MS MSEC_IN_SEC * 60
 #define NEW_EXPIRE_TIME_MS MSEC_IN_SEC * 3
 #define INTERACTION_TIMEOUT_MS 10000
 
@@ -205,7 +205,7 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 
   // If timer is counting (but not vibrating), go to edit mode.
   if (main_data.control_mode == ControlModeCounting) {
-    if (timer_get_value_ms() == 0) {
+    if (timer_get_value_ms() == 0 && timer_is_paused()) {
       main_data.control_mode = ControlModeEditSec;
     } else {
       main_data.control_mode = ControlModeNew;
@@ -290,10 +290,24 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
   if (main_data.control_mode == ControlModeCounting) {
-    timer_restart();
+    if (timer_is_chrono()) {
+      if (timer_is_paused()) {
+        // Paused Chrono -> Paused New Timer (0:00) -> Edit Seconds
+        timer_reset();
+        timer_data.start_ms = 0; // Pause it
+        main_data.control_mode = ControlModeEditSec;
+      } else {
+        // Running Chrono -> Counting New Timer (0:00)
+        timer_reset();
+        // timer_reset sets start_ms to epoch(), so it starts running
+        main_data.control_mode = ControlModeCounting;
+      }
+    } else {
+      timer_restart();
+    }
   } else {
     timer_reset();
-    main_data.control_mode = ControlModeEditSec;
+    main_data.control_mode = ControlModeNew;
     main_data.is_editing_existing_timer = false;
   }
   // animate and refresh
@@ -440,7 +454,7 @@ static void prv_initialize(void) {
   // set initial states
   if (timer_data.reset_on_init) {
     // Check if timer needs to be reset from a previous long press
-    main_data.control_mode = ControlModeEditSec;
+    main_data.control_mode = ControlModeNew;
     timer_reset();
     timer_data.reset_on_init = false;
     main_data.is_editing_existing_timer = false;
@@ -455,7 +469,7 @@ static void prv_initialize(void) {
     main_data.is_editing_existing_timer = false;
   } else {
     // No timer was set and it wasn't in chrono mode, so start fresh
-    main_data.control_mode = ControlModeEditSec;
+    main_data.control_mode = ControlModeNew;
     timer_reset();
     main_data.is_editing_existing_timer = false;
     vibes_short_pulse();
