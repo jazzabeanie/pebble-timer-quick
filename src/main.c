@@ -327,10 +327,37 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
   layer_mark_dirty(main_data.layer);
 }
 
+// Helper to check if we should extend high refresh rate for down button
+static void prv_check_down_button_extended_refresh(void) {
+  int64_t val = timer_get_value_ms();
+  bool near_minute = false;
+
+  // Calculate distance to the next minute boundary (end of current minute)
+  if (timer_is_chrono()) {
+    // Counting up: Boundary is next multiple of 60s
+    // Distance = 60000 - (val % 60000)
+    if ((MSEC_IN_MIN - (val % MSEC_IN_MIN)) <= 3000) {
+      near_minute = true;
+    }
+  } else {
+    // Counting down: Boundary is 00 seconds (val % 60000 == 0)
+    // Distance = val % 60000
+    if ((val % MSEC_IN_MIN) <= 3000) {
+      near_minute = true;
+    }
+  }
+
+  // If we are close to the minute boundary (<= 3 seconds), the standard 10s interaction timeout
+  // is sufficient and prevents the refresh from cutting off too early.
+  // Otherwise, we set the flag to extend the high refresh rate until the minute boundary.
+  if (!near_minute) {
+    main_data.last_interaction_was_down = true;
+  }
+}
+
 // Down click handler
 static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_record_interaction();
-  main_data.last_interaction_was_down = true;
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
@@ -343,7 +370,7 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     return;
   }
   else if (main_data.control_mode == ControlModeCounting) {
-    return;
+    // Fall through to update refresh logic
   }
   else if (main_data.control_mode == ControlModeNew) {
     int64_t increment = DOWN_BUTTON_INCREMENT_MS;
@@ -357,6 +384,7 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     drawing_update();
     layer_mark_dirty(main_data.layer);
   }
+  prv_check_down_button_extended_refresh();
 }
 
 // Down long click handler
@@ -412,8 +440,10 @@ static void prv_app_timer_callback(void *data) {
     // Force high refresh rate if user recently interacted or down button extended logic
     bool high_refresh = (epoch() - main_data.last_interaction_time < INTERACTION_TIMEOUT_MS);
 
+    // If the Down button was pressed, we extend the high refresh rate until the end of the current minute.
+    // We clear the flag when we reach the minute boundary (tolerance of < 250ms).
     if (main_data.last_interaction_was_down) {
-      if (val % MSEC_IN_MIN < 250 && (epoch() - main_data.last_interaction_time > MSEC_IN_SEC)) { // Tolerance for "end of minute", skip if just pressed
+      if (val % MSEC_IN_MIN < 250) {
         main_data.last_interaction_was_down = false;
       } else {
         high_refresh = true;
@@ -439,10 +469,11 @@ static void prv_app_timer_callback(void *data) {
       // Let's recalculate duration from scratch for chrono to be safe and clean.
       // Re-evaluate high_refresh logic for Chrono as well
       bool high_refresh_chrono = (epoch() - main_data.last_interaction_time < INTERACTION_TIMEOUT_MS);
+      // Same extended logic for Chrono mode
       if (main_data.last_interaction_was_down) {
          // For chrono, val increases. If val is slightly above minute boundary, we clear.
          // val % 60000 being small means we just passed minute mark.
-         if (val % MSEC_IN_MIN < 250 && (epoch() - main_data.last_interaction_time > MSEC_IN_SEC)) {
+         if (val % MSEC_IN_MIN < 250) {
             main_data.last_interaction_was_down = false;
          } else {
             high_refresh_chrono = true;
