@@ -376,7 +376,7 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     return;
   }
   else if (main_data.control_mode == ControlModeCounting) {
-    // Fall through to update refresh logic
+    prv_check_down_button_extended_refresh();
   }
   else if (main_data.control_mode == ControlModeNew) {
     int64_t increment = DOWN_BUTTON_INCREMENT_MS;
@@ -390,7 +390,6 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     drawing_update();
     layer_mark_dirty(main_data.layer);
   }
-  prv_check_down_button_extended_refresh();
 }
 
 // Down long click handler
