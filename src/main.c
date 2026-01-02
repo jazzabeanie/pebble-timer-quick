@@ -329,6 +329,12 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
 
 // Helper to check if we should extend high refresh rate for down button
 static void prv_check_down_button_extended_refresh(void) {
+  // If timer is paused (e.g. editing mode), we don't extend the refresh rate
+  // because the timer value isn't changing, which would lead to infinite high refresh.
+  if (timer_is_paused()) {
+    return;
+  }
+
   int64_t val = timer_get_value_ms();
   bool near_minute = false;
 
