@@ -105,6 +105,14 @@ static void prv_new_expire_callback(void *data) {
   }
 }
 
+// Stop the new expire timer
+static void prv_stop_new_expire_timer(void) {
+  if (main_data.new_expire_timer) {
+    app_timer_cancel(main_data.new_expire_timer);
+    main_data.new_expire_timer = NULL;
+  }
+}
+
 // Reset the new expire timer
 static void prv_reset_new_expire_timer(void) {
   // cancel previous timer
@@ -207,6 +215,7 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   if (main_data.control_mode == ControlModeCounting) {
     if (timer_get_value_ms() == 0 && timer_is_paused()) {
       main_data.control_mode = ControlModeEditSec;
+      prv_stop_new_expire_timer();
     } else {
       main_data.control_mode = ControlModeNew;
     }
@@ -296,6 +305,7 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
         timer_reset();
         timer_data.start_ms = 0; // Pause it
         main_data.control_mode = ControlModeEditSec;
+        prv_stop_new_expire_timer();
       } else {
         // Running Chrono -> Counting New Timer (0:00)
         timer_reset();
