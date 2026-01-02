@@ -157,6 +157,11 @@ bool main_is_interaction_active(void) {
   return (epoch() - main_data.last_interaction_time < INTERACTION_TIMEOUT_MS);
 }
 
+// Get whether the last interaction was a down button press
+bool main_is_last_interaction_down(void) {
+  return main_data.last_interaction_was_down;
+}
+
 // Background layer update procedure
 static void prv_layer_update_proc_handler(Layer *layer, GContext *ctx) {
   // render the timer's visuals
@@ -446,9 +451,9 @@ static void prv_app_timer_callback(void *data) {
     bool high_refresh = (epoch() - main_data.last_interaction_time < INTERACTION_TIMEOUT_MS);
 
     // If the Down button was pressed, we extend the high refresh rate until the end of the current minute.
-    // We clear the flag when we reach the minute boundary (tolerance of < 250ms).
+    // We clear the flag when we reach the minute boundary (tolerance of < 500ms).
     if (main_data.last_interaction_was_down) {
-      if (val % MSEC_IN_MIN < 250) {
+      if (val % MSEC_IN_MIN < 500) {
         main_data.last_interaction_was_down = false;
       } else {
         high_refresh = true;
@@ -478,7 +483,7 @@ static void prv_app_timer_callback(void *data) {
       if (main_data.last_interaction_was_down) {
          // For chrono, val increases. If val is slightly above minute boundary, we clear.
          // val % 60000 being small means we just passed minute mark.
-         if (val % MSEC_IN_MIN < 250) {
+         if (val % MSEC_IN_MIN < 500) {
             main_data.last_interaction_was_down = false;
          } else {
             high_refresh_chrono = true;
