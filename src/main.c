@@ -39,6 +39,7 @@ static struct {
     AppTimer    *quit_timer;      //< The AppTimer to quit the app after a delay
     bool        is_editing_existing_timer; //< True if the app is in ControlModeNew for editing an existing timer
     uint64_t    last_interaction_time;     //< Time of the last user interaction
+    bool        last_interaction_was_down; //< True if the last interaction was a down button press
   } main_data;
 
 // Function declarations
@@ -56,6 +57,7 @@ static void prv_cancel_quit_timer(void);
 // Helper to record interaction time
 static void prv_record_interaction(void) {
   main_data.last_interaction_time = epoch();
+  main_data.last_interaction_was_down = false;
   if (main_data.app_timer) {
     app_timer_reschedule(main_data.app_timer, 10);
   }
@@ -328,6 +330,7 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
 // Down click handler
 static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_record_interaction();
+  main_data.last_interaction_was_down = true;
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
@@ -406,8 +409,18 @@ static void prv_app_timer_callback(void *data) {
        duration = val % MSEC_IN_SEC;
     }
 
-    // Force high refresh rate if user recently interacted
-    if (epoch() - main_data.last_interaction_time < INTERACTION_TIMEOUT_MS) {
+    // Force high refresh rate if user recently interacted or down button extended logic
+    bool high_refresh = (epoch() - main_data.last_interaction_time < INTERACTION_TIMEOUT_MS);
+
+    if (main_data.last_interaction_was_down) {
+      if (val % MSEC_IN_MIN < 250) { // Tolerance for "end of minute"
+        main_data.last_interaction_was_down = false;
+      } else {
+        high_refresh = true;
+      }
+    }
+
+    if (high_refresh) {
       duration = val % MSEC_IN_SEC;
     }
 #else
@@ -424,7 +437,19 @@ static void prv_app_timer_callback(void *data) {
       // Re-calculate interval based on mode
 #if REDUCE_SCREEN_UPDATES
       // Let's recalculate duration from scratch for chrono to be safe and clean.
-      if (epoch() - main_data.last_interaction_time < INTERACTION_TIMEOUT_MS) {
+      // Re-evaluate high_refresh logic for Chrono as well
+      bool high_refresh_chrono = (epoch() - main_data.last_interaction_time < INTERACTION_TIMEOUT_MS);
+      if (main_data.last_interaction_was_down) {
+         // For chrono, val increases. If val is slightly above minute boundary, we clear.
+         // val % 60000 being small means we just passed minute mark.
+         if (val % MSEC_IN_MIN < 250) {
+            main_data.last_interaction_was_down = false;
+         } else {
+            high_refresh_chrono = true;
+         }
+      }
+
+      if (high_refresh_chrono) {
          duration = MSEC_IN_SEC - (val % MSEC_IN_SEC);
       } else if (val > 5 * MSEC_IN_MIN) {
          duration = MSEC_IN_MIN - (val % MSEC_IN_MIN);
