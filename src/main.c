@@ -22,6 +22,10 @@
 #define SELECT_BUTTON_INCREMENT_MS MSEC_IN_MIN * 5
 #define DOWN_BUTTON_INCREMENT_MS MSEC_IN_MIN
 #define BACK_BUTTON_INCREMENT_MS MSEC_IN_MIN * 60
+#define UP_BUTTON_INCREMENT_SEC_MS MSEC_IN_SEC * 20
+#define SELECT_BUTTON_INCREMENT_SEC_MS MSEC_IN_SEC * 5
+#define DOWN_BUTTON_INCREMENT_SEC_MS MSEC_IN_SEC
+#define BACK_BUTTON_INCREMENT_SEC_MS MSEC_IN_SEC * 60
 #define NEW_EXPIRE_TIME_MS MSEC_IN_SEC * 3
 #define INTERACTION_TIMEOUT_MS 10000
 
@@ -83,7 +87,7 @@ static void prv_cancel_quit_timer(void) {
 // Callback for when the new timer expires
 static void prv_new_expire_callback(void *data) {
   main_data.new_expire_timer = NULL;
-  if (main_data.control_mode == ControlModeNew) {
+  if (main_data.control_mode == ControlModeNew || main_data.control_mode == ControlModeEditSec) {
     // Store the "base" duration in the persistent struct
     if (timer_data.length_ms > 0) {
       timer_data.base_length_ms = timer_data.length_ms;
@@ -98,6 +102,14 @@ static void prv_new_expire_callback(void *data) {
     if (timer_data.length_ms > AUTO_BACKGROUND_TIMER_LENGTH_MS || (timer_is_chrono() && AUTO_BACKGROUND_CHRONO)) {
       main_data.quit_timer = app_timer_register(QUIT_DELAY_MS, prv_quit_callback, NULL);
     }
+  }
+}
+
+// Stop the new expire timer
+static void prv_stop_new_expire_timer(void) {
+  if (main_data.new_expire_timer) {
+    app_timer_cancel(main_data.new_expire_timer);
+    main_data.new_expire_timer = NULL;
   }
 }
 
@@ -161,6 +173,11 @@ static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     prv_update_timer(BACK_BUTTON_INCREMENT_MS);
     drawing_update();
     layer_mark_dirty(main_data.layer);
+  } else if (main_data.control_mode == ControlModeEditSec) {
+    // increment timer by 30 seconds
+    prv_update_timer(BACK_BUTTON_INCREMENT_SEC_MS);
+    drawing_update();
+    layer_mark_dirty(main_data.layer);
   } else {
     // silence the alarm, or quit if no alarm
     if (!prv_handle_alarm()) {
@@ -196,7 +213,12 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 
   // If timer is counting (but not vibrating), go to edit mode.
   if (main_data.control_mode == ControlModeCounting) {
-    main_data.control_mode = ControlModeNew;
+    if (timer_get_value_ms() == 0 && timer_is_paused()) {
+      main_data.control_mode = ControlModeEditSec;
+      prv_stop_new_expire_timer();
+    } else {
+      main_data.control_mode = ControlModeNew;
+    }
     main_data.is_editing_existing_timer = true;
     drawing_update();
     layer_mark_dirty(main_data.layer);
@@ -204,6 +226,9 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   }
   // increment timer
   int64_t increment = UP_BUTTON_INCREMENT_MS;
+  if (main_data.control_mode == ControlModeEditSec) {
+    increment = UP_BUTTON_INCREMENT_SEC_MS;
+  }
   // increment timer
   prv_update_timer(increment);
   drawing_update();
@@ -240,6 +265,7 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     case ControlModeEditMin:
       break;
     case ControlModeEditSec:
+      prv_update_timer(SELECT_BUTTON_INCREMENT_SEC_MS);
       break;
     case ControlModeCounting:
       timer_toggle_play_pause();
@@ -272,9 +298,28 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
-  timer_reset();
-  main_data.control_mode = ControlModeNew;
-  main_data.is_editing_existing_timer = false;
+  if (main_data.control_mode == ControlModeCounting) {
+    if (timer_is_chrono()) {
+      if (timer_is_paused()) {
+        // Paused Chrono -> Paused New Timer (0:00) -> Edit Seconds
+        timer_reset();
+        timer_data.start_ms = 0; // Pause it
+        main_data.control_mode = ControlModeEditSec;
+        prv_stop_new_expire_timer();
+      } else {
+        // Running Chrono -> Counting New Timer (0:00)
+        timer_reset();
+        // timer_reset sets start_ms to epoch(), so it starts running
+        main_data.control_mode = ControlModeCounting;
+      }
+    } else {
+      timer_restart();
+    }
+  } else {
+    timer_reset();
+    main_data.control_mode = ControlModeNew;
+    main_data.is_editing_existing_timer = false;
+  }
   // animate and refresh
   drawing_update();
   layer_mark_dirty(main_data.layer);
@@ -299,6 +344,12 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   }
   else if (main_data.control_mode == ControlModeNew) {
     int64_t increment = DOWN_BUTTON_INCREMENT_MS;
+    prv_update_timer(increment);
+    drawing_update();
+    layer_mark_dirty(main_data.layer);
+  }
+  else if (main_data.control_mode == ControlModeEditSec) {
+    int64_t increment = DOWN_BUTTON_INCREMENT_SEC_MS;
     prv_update_timer(increment);
     drawing_update();
     layer_mark_dirty(main_data.layer);
@@ -339,7 +390,7 @@ static void prv_app_timer_callback(void *data) {
   layer_mark_dirty(main_data.layer);
   // schedule next call
   main_data.app_timer = NULL;
-  if (main_data.control_mode == ControlModeCounting || main_data.control_mode == ControlModeNew) {
+  if (main_data.control_mode == ControlModeCounting || main_data.control_mode == ControlModeNew || main_data.control_mode == ControlModeEditSec) {
     uint32_t duration;
     int64_t val = timer_get_value_ms();
 

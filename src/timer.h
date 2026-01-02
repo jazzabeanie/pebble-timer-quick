@@ -68,6 +68,9 @@ void timer_toggle_play_pause(void);
 //! Rewind the timer back to its original value
 void timer_rewind(void);
 
+//! Restart the timer from its original value
+void timer_restart(void);
+
 //! Reset the timer to zero
 void timer_reset(void);
 

@@ -81,7 +81,7 @@ static void prv_render_header_text(GContext *ctx, GRect bounds) {
   // draw text
   static char s_time_buffer[16]; // Buffer for formatted time
   char *buff;
-  if (main_get_control_mode() == ControlModeNew) {
+  if (main_get_control_mode() == ControlModeNew || main_get_control_mode() == ControlModeEditSec) {
     if (main_is_editing_existing_timer()) {
       buff = "Edit";
     } else {
@@ -157,7 +157,7 @@ static void prv_main_text_update_state(Layer *layer) {
   timer_get_time_parts(&hr, &min, &sec);
   // convert to strings
   char buff[TEXT_FIELD_COUNT][4] = {{'\0'}};
-  if (main_get_control_mode() == ControlModeNew) {
+  if (main_get_control_mode() == ControlModeNew || main_get_control_mode() == ControlModeEditSec) {
     snprintf(buff[0], sizeof(buff[0]), "-");
   }
   if (hr) {
@@ -182,9 +182,8 @@ static void prv_main_text_update_state(Layer *layer) {
   snprintf(buff[5], sizeof(buff[5]), "%02d", sec);
 #endif
 
-  int current_mode = main_get_control_mode();
   // APP_LOG(APP_LOG_LEVEL_DEBUG, "Render Mode: %d | Buffers: [%s][%s][%s][%s][%s][%s] (prv_main_text_update_state)",
-  //         current_mode,
+  //         main_get_control_mode(),
   //         buff[0], buff[1], buff[2], buff[3], buff[4], buff[5]);
 
   // calculate new sizes for all text elements
@@ -227,7 +226,7 @@ static void prv_render_main_text(GContext *ctx, GRect bounds) {
   timer_get_time_parts(&hr, &min, &sec);
   // convert to strings
   char buff[TEXT_FIELD_COUNT][4] = {{'\0'}};
-  if (main_get_control_mode() == ControlModeNew && timer_data.length_ms == 0) {
+  if ((main_get_control_mode() == ControlModeNew || main_get_control_mode() == ControlModeEditSec) && timer_data.length_ms == 0) {
     snprintf(buff[0], sizeof(buff[0]), "-");
   }
   if (hr) {
@@ -252,9 +251,8 @@ static void prv_render_main_text(GContext *ctx, GRect bounds) {
   snprintf(buff[5], sizeof(buff[5]), "%02d", sec);
 #endif
 
-  int current_mode = main_get_control_mode();
   // APP_LOG(APP_LOG_LEVEL_DEBUG, "Render Mode: %d | Buffers: [%s][%s][%s][%s][%s][%s]",
-  //         current_mode,
+  //         main_get_control_mode(),
   //         buff[0], buff[1], buff[2], buff[3], buff[4], buff[5]);
 
   // draw the main text elements in their respective bounds
