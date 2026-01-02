@@ -413,7 +413,7 @@ static void prv_app_timer_callback(void *data) {
     bool high_refresh = (epoch() - main_data.last_interaction_time < INTERACTION_TIMEOUT_MS);
 
     if (main_data.last_interaction_was_down) {
-      if (val % MSEC_IN_MIN < 250) { // Tolerance for "end of minute"
+      if (val % MSEC_IN_MIN < 250 && (epoch() - main_data.last_interaction_time > MSEC_IN_SEC)) { // Tolerance for "end of minute", skip if just pressed
         main_data.last_interaction_was_down = false;
       } else {
         high_refresh = true;
@@ -442,7 +442,7 @@ static void prv_app_timer_callback(void *data) {
       if (main_data.last_interaction_was_down) {
          // For chrono, val increases. If val is slightly above minute boundary, we clear.
          // val % 60000 being small means we just passed minute mark.
-         if (val % MSEC_IN_MIN < 250) {
+         if (val % MSEC_IN_MIN < 250 && (epoch() - main_data.last_interaction_time > MSEC_IN_SEC)) {
             main_data.last_interaction_was_down = false;
          } else {
             high_refresh_chrono = true;
