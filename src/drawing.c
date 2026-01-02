@@ -306,6 +306,10 @@ static void prv_progress_ring_update(void) {
   bool should_animate = true;
 #endif
 
+  if (timer_is_paused()) {
+    should_animate = false;
+  }
+
   if (should_animate && abs(new_angle - drawing_data.progress_angle) >= ANGLE_CHANGE_ANI_THRESHOLD) {
     animation_int32_start(&drawing_data.progress_angle, new_angle, PROGRESS_ANI_DURATION, 0,
       CurveSinEaseOut);
