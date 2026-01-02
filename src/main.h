@@ -33,3 +33,7 @@ bool main_is_editing_existing_timer(void);
 //! Get whether the user has interacted with the app recently
 //! @return True if the interaction timeout has not expired
 bool main_is_interaction_active(void);
+
+//! Get whether the last interaction was a down button press
+//! @return True if the last interaction was a down button press
+bool main_is_last_interaction_down(void);
