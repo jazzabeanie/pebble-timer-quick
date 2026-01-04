@@ -19,7 +19,8 @@ typedef enum {
   ControlModeEditHr,
   ControlModeEditMin,
   ControlModeEditSec,
-  ControlModeCounting
+  ControlModeCounting,
+  ControlModeEditRepeat
 } ControlMode;
 
 //! Get the current control mode of the app

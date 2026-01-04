@@ -401,13 +401,24 @@ void drawing_render(Layer *layer, GContext *ctx) {
 
   // Draw repeat counter
   if (timer_data.is_repeating && timer_data.repeat_count > 0) {
-    char s_repeat_buffer[8];
-    snprintf(s_repeat_buffer, sizeof(s_repeat_buffer), "x%d", timer_data.repeat_count);
-    GRect repeat_bounds = GRect(bounds.size.w - 50, 0, 50, 20);
-    graphics_context_set_text_color(ctx, GColorWhite);
-    graphics_draw_text(ctx, s_repeat_buffer, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
-      repeat_bounds, GTextOverflowModeFill, GTextAlignmentRight, NULL);
-    graphics_context_set_text_color(ctx, drawing_data.fore_color);
+    bool show = true;
+    if (main_get_control_mode() == ControlModeEditRepeat) {
+      // flash the indicator
+      uint16_t t_ms = 0;
+      time_ms(NULL, &t_ms);
+      if (t_ms < 500) {
+        show = false;
+      }
+    }
+    if (show) {
+      char s_repeat_buffer[8];
+      snprintf(s_repeat_buffer, sizeof(s_repeat_buffer), "x%d", timer_data.repeat_count);
+      GRect repeat_bounds = GRect(bounds.size.w - 50, 0, 50, 20);
+      graphics_context_set_text_color(ctx, GColorWhite);
+      graphics_draw_text(ctx, s_repeat_buffer, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
+        repeat_bounds, GTextOverflowModeFill, GTextAlignmentRight, NULL);
+      graphics_context_set_text_color(ctx, drawing_data.fore_color);
+    }
   }
 
   if (timer_is_vibrating()) {
