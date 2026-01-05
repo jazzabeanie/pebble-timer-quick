@@ -401,14 +401,18 @@ void drawing_render(Layer *layer, GContext *ctx) {
 
   // Draw repeat counter
   if (timer_data.is_repeating) {
-    bool show = true;
+    bool show = false;
     if (main_get_control_mode() == ControlModeEditRepeat) {
+      show = true;
       // flash the indicator
       uint64_t delta = epoch() - main_get_last_interaction_time();
       if ((delta % 1000) >= 500) {
         show = false;
       }
+    } else if (timer_data.repeat_count > 1) {
+      show = true;
     }
+
     if (show) {
       char s_repeat_buffer[8];
       if (timer_data.repeat_count == 0) {
