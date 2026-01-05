@@ -85,10 +85,15 @@ static void prv_cancel_quit_timer(void) {
   }
 }
 
+// Helper to get last interaction time
+uint64_t main_get_last_interaction_time(void) {
+  return main_data.last_interaction_time;
+}
+
 // Callback for when the new timer expires
 static void prv_new_expire_callback(void *data) {
   main_data.new_expire_timer = NULL;
-  if (main_data.control_mode == ControlModeNew || main_data.control_mode == ControlModeEditSec) {
+  if (main_data.control_mode == ControlModeNew || main_data.control_mode == ControlModeEditSec || main_data.control_mode == ControlModeEditRepeat) {
     // previous code before merge:
     //  // Store the "base" duration in the persistent struct
     //  if (timer_data.length_ms > 0) {
@@ -187,6 +192,9 @@ static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     // increment timer by 30 seconds
     prv_update_timer(BACK_BUTTON_INCREMENT_SEC_MS);
     main_data.timer_length_modified_in_edit_mode = true;
+  } else if (main_data.control_mode == ControlModeEditRepeat) {
+    timer_data.repeat_count = 1;
+    prv_reset_new_expire_timer();
   } else {
     // silence the alarm, or quit if no alarm
     if (!prv_handle_alarm()) {
@@ -236,6 +244,14 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     layer_mark_dirty(main_data.layer);
     return;
   }
+  // increment repeats
+  if (main_data.control_mode == ControlModeEditRepeat) {
+    timer_data.repeat_count += 20;
+    prv_reset_new_expire_timer();
+    drawing_update();
+    layer_mark_dirty(main_data.layer);
+    return;
+  }
   // increment timer
   int64_t increment = UP_BUTTON_INCREMENT_MS;
   if (main_data.control_mode == ControlModeEditSec) {
@@ -257,7 +273,11 @@ static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) 
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Up long press");
   timer_data.is_repeating = !timer_data.is_repeating;
   if (timer_data.is_repeating) {
-    timer_data.repeat_count = 10;
+    timer_data.repeat_count = 0;
+    main_data.control_mode = ControlModeEditRepeat;
+    prv_reset_new_expire_timer();
+  } else {
+    main_data.control_mode = ControlModeNew;
   }
   drawing_update();
   layer_mark_dirty(main_data.layer);
@@ -285,6 +305,10 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
       break;
     case ControlModeEditSec:
       prv_update_timer(SELECT_BUTTON_INCREMENT_SEC_MS);
+      break;
+    case ControlModeEditRepeat:
+      timer_data.repeat_count += 5;
+      prv_reset_new_expire_timer();
       break;
     case ControlModeCounting:
       timer_toggle_play_pause();
@@ -377,6 +401,12 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     drawing_update();
     layer_mark_dirty(main_data.layer);
   }
+  else if (main_data.control_mode == ControlModeEditRepeat) {
+    timer_data.repeat_count += 1;
+    prv_reset_new_expire_timer();
+    drawing_update();
+    layer_mark_dirty(main_data.layer);
+  }
 }
 
 // Down long click handler
@@ -413,7 +443,7 @@ static void prv_app_timer_callback(void *data) {
   layer_mark_dirty(main_data.layer);
   // schedule next call
   main_data.app_timer = NULL;
-  if (main_data.control_mode == ControlModeCounting || main_data.control_mode == ControlModeNew || main_data.control_mode == ControlModeEditSec) {
+  if (main_data.control_mode == ControlModeCounting || main_data.control_mode == ControlModeNew || main_data.control_mode == ControlModeEditSec || main_data.control_mode == ControlModeEditRepeat) {
     uint32_t duration;
     int64_t val = timer_get_value_ms();
 
@@ -459,6 +489,10 @@ static void prv_app_timer_callback(void *data) {
 #else
       duration = MSEC_IN_SEC - duration;
 #endif
+    }
+
+    if (main_data.control_mode == ControlModeEditRepeat) {
+      duration = 100;
     }
 
     main_data.app_timer = app_timer_register(duration + 5, prv_app_timer_callback, NULL);

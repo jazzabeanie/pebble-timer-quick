@@ -19,7 +19,8 @@ typedef enum {
   ControlModeEditHr,
   ControlModeEditMin,
   ControlModeEditSec,
-  ControlModeCounting
+  ControlModeCounting,
+  ControlModeEditRepeat
 } ControlMode;
 
 //! Get the current control mode of the app
@@ -33,3 +34,7 @@ bool main_is_editing_existing_timer(void);
 //! Get whether the user has interacted with the app recently
 //! @return True if the interaction timeout has not expired
 bool main_is_interaction_active(void);
+
+//! Get the timestamp of the last user interaction
+//! @return The timestamp in milliseconds
+uint64_t main_get_last_interaction_time(void);
