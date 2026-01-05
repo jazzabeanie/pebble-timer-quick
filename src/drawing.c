@@ -420,9 +420,9 @@ void drawing_render(Layer *layer, GContext *ctx) {
       } else {
         snprintf(s_repeat_buffer, sizeof(s_repeat_buffer), "x%d", timer_data.repeat_count);
       }
-      GRect repeat_bounds = GRect(bounds.size.w - 50, 0, 50, 20);
+      GRect repeat_bounds = GRect(bounds.size.w - 50, 0, 50, 30);
       graphics_context_set_text_color(ctx, GColorWhite);
-      graphics_draw_text(ctx, s_repeat_buffer, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
+      graphics_draw_text(ctx, s_repeat_buffer, fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD),
         repeat_bounds, GTextOverflowModeFill, GTextAlignmentRight, NULL);
       graphics_context_set_text_color(ctx, drawing_data.fore_color);
     }
