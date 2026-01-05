@@ -400,19 +400,22 @@ void drawing_render(Layer *layer, GContext *ctx) {
   prv_render_footer_text(ctx, bounds);
 
   // Draw repeat counter
-  if (timer_data.is_repeating && timer_data.repeat_count > 0) {
+  if (timer_data.is_repeating) {
     bool show = true;
     if (main_get_control_mode() == ControlModeEditRepeat) {
       // flash the indicator
-      uint16_t t_ms = 0;
-      time_ms(NULL, &t_ms);
-      if (t_ms < 500) {
+      uint64_t delta = epoch() - main_get_last_interaction_time();
+      if ((delta % 1000) >= 500) {
         show = false;
       }
     }
     if (show) {
       char s_repeat_buffer[8];
-      snprintf(s_repeat_buffer, sizeof(s_repeat_buffer), "x%d", timer_data.repeat_count);
+      if (timer_data.repeat_count == 0) {
+        snprintf(s_repeat_buffer, sizeof(s_repeat_buffer), "x_");
+      } else {
+        snprintf(s_repeat_buffer, sizeof(s_repeat_buffer), "x%d", timer_data.repeat_count);
+      }
       GRect repeat_bounds = GRect(bounds.size.w - 50, 0, 50, 20);
       graphics_context_set_text_color(ctx, GColorWhite);
       graphics_draw_text(ctx, s_repeat_buffer, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),

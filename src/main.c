@@ -85,6 +85,11 @@ static void prv_cancel_quit_timer(void) {
   }
 }
 
+// Helper to get last interaction time
+uint64_t main_get_last_interaction_time(void) {
+  return main_data.last_interaction_time;
+}
+
 // Callback for when the new timer expires
 static void prv_new_expire_callback(void *data) {
   main_data.new_expire_timer = NULL;
@@ -268,7 +273,7 @@ static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) 
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Up long press");
   timer_data.is_repeating = !timer_data.is_repeating;
   if (timer_data.is_repeating) {
-    timer_data.repeat_count = 1;
+    timer_data.repeat_count = 0;
     main_data.control_mode = ControlModeEditRepeat;
     prv_reset_new_expire_timer();
   } else {
