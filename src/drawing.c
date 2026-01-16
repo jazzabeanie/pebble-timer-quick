@@ -169,7 +169,7 @@ static void prv_main_text_update_state(Layer *layer) {
 
 #if REDUCE_SCREEN_UPDATES
   int64_t val = timer_get_value_ms();
-  if (main_is_interaction_active()) {
+  if (main_is_interaction_active() || main_is_last_interaction_down()) {
      snprintf(buff[5], sizeof(buff[5]), "%02d", sec);
   } else if (val > 5 * MSEC_IN_MIN) {
      snprintf(buff[5], sizeof(buff[5]), "__");
@@ -238,7 +238,7 @@ static void prv_render_main_text(GContext *ctx, GRect bounds) {
 
 #if REDUCE_SCREEN_UPDATES
   int64_t val = timer_get_value_ms();
-  if (main_is_interaction_active()) {
+  if (main_is_interaction_active() || main_is_last_interaction_down()) {
      snprintf(buff[5], sizeof(buff[5]), "%02d", sec);
   } else if (val > 5 * MSEC_IN_MIN) {
      snprintf(buff[5], sizeof(buff[5]), "__");
@@ -299,7 +299,7 @@ static void prv_progress_ring_update(void) {
 #if REDUCE_SCREEN_UPDATES
   bool should_animate = false;
   // Only animate if we are updating frequently (less than 30 seconds remaining)
-  if (timer_get_value_ms() < 30 * MSEC_IN_SEC || main_is_interaction_active()) {
+  if (timer_get_value_ms() < 30 * MSEC_IN_SEC || main_is_interaction_active() || main_is_last_interaction_down()) {
     should_animate = true;
   }
 #else
