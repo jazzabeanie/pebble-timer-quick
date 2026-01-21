@@ -14,7 +14,7 @@
 #include "utility.h"
 
 // Main constants
-#define AUTO_BACKGROUND_TIMER_LENGTH_MS (MSEC_IN_MIN * 3)
+#define AUTO_BACKGROUND_TIMER_LENGTH_MS (MSEC_IN_MIN * 20)
 #define AUTO_BACKGROUND_CHRONO 1
 #define QUIT_DELAY_MS 7000
 #define BUTTON_HOLD_REPEAT_MS 100
@@ -116,7 +116,7 @@ static void prv_new_expire_callback(void *data) {
     }
     main_data.control_mode = ControlModeCounting;
 
-    // Exit if timer is longer than 25 minutes, after a delay
+    // Exit if timer is longer than AUTO_BACKGROUND_TIMER_LENGTH_MS, after a delay
     if (timer_data.length_ms > AUTO_BACKGROUND_TIMER_LENGTH_MS || (timer_is_chrono() && AUTO_BACKGROUND_CHRONO)) {
       main_data.quit_timer = app_timer_register(QUIT_DELAY_MS, prv_quit_callback, NULL);
     }
