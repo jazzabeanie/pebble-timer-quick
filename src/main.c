@@ -220,28 +220,7 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   timer_reset_auto_snooze();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Up button handler");
  if (timer_is_vibrating()) {
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "Up button: Silence and go to Edit Mode (Existing).");
-    vibes_cancel(); // Stop the alarm vibration
-
-    // Restore base length if it exists (Countdown)
-    if (timer_data.base_length_ms > 0) {
-      timer_data.length_ms = timer_data.base_length_ms;
-    } else {
-      timer_data.length_ms = 0;
-    }
-
-    timer_data.start_ms = 0; // Pause timer
-    timer_data.can_vibrate = false;
-    timer_data.auto_snooze_count = 0;
-
-    main_data.control_mode = ControlModeNew;
-    main_data.is_editing_existing_timer = true;
-    main_data.timer_length_modified_in_edit_mode = false;
-    prv_reset_new_expire_timer();
-
-    drawing_update();
-    layer_mark_dirty(main_data.layer);
-    return;
+    prv_handle_alarm();
   }
 
   // If timer is counting (but not vibrating), go to edit mode.
