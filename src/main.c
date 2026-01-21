@@ -220,17 +220,13 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   timer_reset_auto_snooze();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Up button handler");
  if (timer_is_vibrating()) {
-    // Check if we have a "base" duration to add
-    if (timer_data.base_length_ms > 0) {
-      APP_LOG(APP_LOG_LEVEL_DEBUG, "Up button: Extending timer by %lld ms.", timer_data.base_length_ms);
-      vibes_cancel(); // Stop the alarm vibration
-      timer_increment(timer_data.base_length_ms); // Add the base duration
-    } else {
-      APP_LOG(APP_LOG_LEVEL_DEBUG, "ERROR: timer_is_vibrating() returns true, but timer_data.base_length_ms <= 0. How can this be?");
-      // vibes_cancel();  
-      // timer_rewind();  
-      // timer_toggle_play_pause();
-    }
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "Up button: Silence and go to Edit Mode.");
+    vibes_cancel(); // Stop the alarm vibration
+    timer_reset();
+    main_data.control_mode = ControlModeNew;
+    main_data.is_editing_existing_timer = false;
+    main_data.timer_length_modified_in_edit_mode = false;
+    prv_reset_new_expire_timer();
 
     drawing_update();
     layer_mark_dirty(main_data.layer);
@@ -278,6 +274,19 @@ static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) 
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Up long press");
+
+  if (timer_is_vibrating()) {
+    // Check if we have a "base" duration to add
+    if (timer_data.base_length_ms > 0) {
+      APP_LOG(APP_LOG_LEVEL_DEBUG, "Up long press: Extending timer by %lld ms.", timer_data.base_length_ms);
+      vibes_cancel(); // Stop the alarm vibration
+      timer_increment(timer_data.base_length_ms); // Add the base duration
+    }
+    drawing_update();
+    layer_mark_dirty(main_data.layer);
+    return;
+  }
+
   timer_data.is_repeating = !timer_data.is_repeating;
   if (timer_data.is_repeating) {
     timer_data.repeat_count = 0;
