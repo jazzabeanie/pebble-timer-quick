@@ -443,8 +443,8 @@ void drawing_render(Layer *layer, GContext *ctx) {
     const int16_t middle_icon_x_right = bounds.size.w - middle_icon_size.w - middle_icon_padding_right;
 
     // Draw the reset icon (top right)
-    GRect reset_rect = GRect(icon_x_right, icon_padding_top, icon_size.w, icon_size.h);
-    graphics_draw_bitmap_in_rect(ctx, drawing_data.reset_icon, reset_rect);
+    // GRect reset_rect = GRect(icon_x_right, icon_padding_top, icon_size.w, icon_size.h);
+    // graphics_draw_bitmap_in_rect(ctx, drawing_data.reset_icon, reset_rect);
 
     // Draw the pause icon (middle right)
     // This calculates the Y coordinate to be perfectly centered vertically
