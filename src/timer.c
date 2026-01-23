@@ -150,7 +150,28 @@ void timer_increment(int64_t increment) {
 // Increment stopwatch (chrono) value currently being edited by adjusting start time
 void timer_increment_chrono(int64_t increment) {
   // adjust start time to effectively add time to the stopwatch
+  bool was_paused = timer_is_paused();
   timer_data.start_ms -= increment;
+
+  // check if we pushed start_ms into the future (making it a countdown)
+  if (was_paused) {
+    if (timer_data.start_ms > 0) {
+      // Became positive. This implies negative elapsed -> Countdown.
+      timer_data.length_ms = timer_data.start_ms;
+      timer_data.base_length_ms = timer_data.length_ms;
+      timer_data.start_ms = 0; // Paused, 0 elapsed
+      timer_data.can_vibrate = true;
+    }
+  } else {
+    if (timer_data.start_ms > (int64_t)epoch()) {
+      // Start time is in future.
+      int64_t remaining = timer_data.start_ms - (int64_t)epoch();
+      timer_data.length_ms = remaining;
+      timer_data.base_length_ms = timer_data.length_ms;
+      timer_data.start_ms = epoch(); // Running from now
+      timer_data.can_vibrate = true;
+    }
+  }
 }
 
 // Toggle play pause state for timer
