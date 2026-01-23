@@ -41,6 +41,7 @@ static struct {
     uint64_t    last_interaction_time;     //< Time of the last user interaction
     bool        timer_length_modified_in_edit_mode; //< True if the timer's length has been modified while in ControlModeNew
     bool        last_interaction_was_down; //< True if the last interaction was a down button press
+    bool        is_reverse_direction; //< True if the timer should be decremented instead of incremented
   } main_data;
 
 // Function declarations
@@ -66,6 +67,9 @@ static void prv_record_interaction(void) {
 
 // Helper to update timer based on mode
 static void prv_update_timer(int64_t increment) {
+  if (main_data.is_reverse_direction) {
+    increment = -increment;
+  }
   if (main_data.is_editing_existing_timer && timer_is_chrono()) {
     timer_increment_chrono(increment);
   } else {
@@ -95,6 +99,7 @@ uint64_t main_get_last_interaction_time(void) {
 // Callback for when the new timer expires
 static void prv_new_expire_callback(void *data) {
   main_data.new_expire_timer = NULL;
+  main_data.is_reverse_direction = false;
   if (main_data.control_mode == ControlModeNew || main_data.control_mode == ControlModeEditSec || main_data.control_mode == ControlModeEditRepeat) {
     // previous code before merge:
     //  // Store the "base" duration in the persistent struct
@@ -225,6 +230,7 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 
   // If timer is counting (but not vibrating), go to edit mode.
   if (main_data.control_mode == ControlModeCounting) {
+    main_data.is_reverse_direction = false;
     if (timer_get_value_ms() == 0 && timer_is_paused()) {
       main_data.control_mode = ControlModeEditSec;
       prv_stop_new_expire_timer();
@@ -277,14 +283,12 @@ static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) 
     return;
   }
 
-  timer_data.is_repeating = !timer_data.is_repeating;
-  if (timer_data.is_repeating) {
-    timer_data.repeat_count = 0;
-    main_data.control_mode = ControlModeEditRepeat;
-    prv_reset_new_expire_timer();
-  } else {
-    main_data.control_mode = ControlModeNew;
-  }
+  // Toggle reverse direction
+  main_data.is_reverse_direction = !main_data.is_reverse_direction;
+  vibes_short_pulse();
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "Reverse direction: %d", main_data.is_reverse_direction);
+
+  prv_reset_new_expire_timer();
   drawing_update();
   layer_mark_dirty(main_data.layer);
 }
@@ -348,6 +352,7 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
+  main_data.is_reverse_direction = false;
   if (main_data.control_mode == ControlModeCounting) {
     if (timer_is_chrono()) {
       if (timer_is_paused()) {
@@ -461,10 +466,17 @@ static void prv_down_long_click_handler(ClickRecognizerRef recognizer, void *ctx
   window_stack_pop(true);
 }
 
+// Up raw down click handler
+static void prv_up_raw_down_handler(ClickRecognizerRef recognizer, void *ctx) {
+  prv_record_interaction();
+  prv_stop_new_expire_timer();
+}
+
 // Click configuration provider
 static void prv_click_config_provider(void *ctx) {
   window_single_click_subscribe(BUTTON_ID_BACK, prv_back_click_handler);
   window_single_click_subscribe(BUTTON_ID_UP, prv_up_click_handler);
+  window_raw_click_subscribe(BUTTON_ID_UP, prv_up_raw_down_handler, NULL, NULL);
   window_long_click_subscribe(BUTTON_ID_UP, BUTTON_HOLD_RESET_MS, prv_up_long_click_handler, NULL);
   window_single_click_subscribe(BUTTON_ID_SELECT, prv_select_click_handler);
   window_raw_click_subscribe(BUTTON_ID_SELECT, prv_select_raw_click_handler, NULL, NULL);
