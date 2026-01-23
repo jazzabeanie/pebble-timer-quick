@@ -70,7 +70,7 @@ static void prv_update_timer(int64_t increment) {
   if (main_data.is_reverse_direction) {
     increment = -increment;
   }
-  if (main_data.is_editing_existing_timer && timer_is_chrono()) {
+  if (main_data.is_editing_existing_timer && timer_is_chrono() && timer_data.base_length_ms == 0) {
     timer_increment_chrono(increment);
   } else {
     timer_increment(increment);
