@@ -35,7 +35,6 @@ if [[ "$TOOL" != "amp" && "$TOOL" != "claude" && "$TOOL" != "gemini" ]]; then
 fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(git rev-parse --show-toplevel)"
-PRD_DIR="$SCRIPT_DIR/specs"
 CONTEXT_FILE="$SCRIPT_DIR/context.md"
 
 # TODO: consider implementing a separate branch per spec file as he does in https://github.com/snarktank/ralph/blob/main/ralph.sh
@@ -59,7 +58,7 @@ for i in $(seq 1 $MAX_ITERATIONS); do
   # Prompt now consists of prompt.txt + context.md + all .md files in the specs directory
   FULL_PROMPT="Project root: $PROJECT_ROOT
 
-$(cat "$SCRIPT_DIR/prompt.txt" "$CONTEXT_FILE" "$PRD_DIR"/README.md 2>/dev/null)"
+$(cat "$SCRIPT_DIR/prompt.txt" 2>/dev/null)"
   
   if [[ "$TOOL" == "amp" ]]; then
     OUTPUT=$(echo "$FULL_PROMPT" | amp --dangerously-allow-all 2>&1 | tee /dev/stderr) || true
