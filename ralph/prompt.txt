@@ -55,3 +55,18 @@ Before completing your work, verify:
 
 ## Work Philosophy
 Focus on completing one spec fully before moving to the next. Quality and completeness are more important than speed.
+
+## Documentation and State Management
+As you work, you MUST update the following files to maintain the state of the loop:
+
+1.  **context.md**:
+    *   Append instructions or summaries to the "Recent Changes" section that will be useful for the next AI agent iteration. This is your primary way of passing context to your future self.
+    *   Update other sections like "Key Components" or "Important Decisions" if you make significant changes.
+
+2.  **specs/[CURRENT_SPEC].md**:
+    *   If you find any details in the spec are missing or incorrect, update the spec to reflect the reality of the implementation.
+    *   Update the "Progress" section with details of what you have completed in the current step.
+
+3.  **specs/README.md**:
+    *   Update the "Status" of the spec you are working on (e.g., from "Not Started" to "In Progress").
+    *   Update the "Tests" status (e.g., from "NA" to "Failing" or "Passing").
