@@ -5,8 +5,8 @@
 set -e
 
 # Parse arguments
-TOOL="amp"  # Default to amp for backwards compatibility
-MAX_ITERATIONS=10
+TOOL="gemini"  # Default to amp for backwards compatibility
+MAX_ITERATIONS=5
 
 while [[ $# -gt 0 ]]; do
   case $1 in
