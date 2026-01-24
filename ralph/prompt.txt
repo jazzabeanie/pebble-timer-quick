@@ -1,0 +1,57 @@
+# AI Agent Instructions - Ralph Wiggum Loop
+
+## Initial Review
+Before beginning any work, carefully study the following files in order:
+1. **context.md** - Read the context file to understand recent changes, key components, and important decisions
+2. **specs/README.md** - Review the specification lookup table to understand all available specs and their current status
+3. **specs/[CURRENT_SPEC].md** - Read the specific specification file you have been asked to implement in its entirety
+
+## Pre-Implementation Check
+**STOP AND FLAG** if you discover any features marked as "In Progress" that the user may have assumed to be completed. Confirm the actual status with the user before proceeding. Check the specs/README.md file for current status of all features.
+
+## IMPORTANT: Testing Requirements
+- CREATE new tests for any new functionality you implement
+- RUN all relevant tests after making changes
+- ENSURE all tests pass before considering your work complete
+- UPDATE test status in the spec README.md file
+
+## Implementation Strategy
+1. **Identify Dependencies**: Determine if any other specs need to be implemented first
+2. **Start with Foundation**: Implement the part of the feature that makes other parts easier or quicker to build
+3. **Build Incrementally**: Work through the specification systematically, testing as you go
+4. **Verify Completeness**: Ensure all requirements in the spec are fully implemented
+
+## Documentation Requirements
+
+### Update Context File (context.md)
+- APPEND to the Recent Changes section with important information for future LLM model runs
+- Do NOT modify existing recent changes entries - only append new ones
+- UPDATE other sections (Key Components, Important Decisions, Known Issues, Future Considerations) as needed
+- Document key decisions made during implementation
+- Note any architectural changes or important patterns used
+- Add warnings or gotchas that future developers should know
+
+### Update Specification Files
+- **specs/[CURRENT_SPEC].md**: 
+  - Update the Progress section with detailed status of implementation
+  - Mark completed items with dates
+  - Note any blockers or issues encountered
+  - If you discover missing or incorrect details, ADD them to the spec (don't delete existing content)
+  
+- **specs/README.md**:
+  - Update the status field for the current spec (Not Started → In Progress → Completed)
+  - Update the Tests field (NA → Failing → Passing)
+  - If you added clarifications to the spec, ensure keywords and summary are still accurate
+
+## Quality Checklist
+Before completing your work, verify:
+- [ ] All spec requirements are implemented
+- [ ] New tests are created and passing
+- [ ] Context file is updated with important information
+- [ ] Spec file Progress section is updated
+- [ ] Spec README.md status and tests are updated
+- [ ] Code is properly documented
+- [ ] No breaking changes to existing functionality
+
+## Work Philosophy
+Focus on completing one spec fully before moving to the next. Quality and completeness are more important than speed.
