@@ -35,6 +35,21 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 ---
 
+### 2. Testing Framework
+**File:** [testing-framework.md](testing-framework.md)
+
+**Keywords:** testing, unit tests, integration tests, cmocka, pebble emulator, test framework, test coverage
+
+**Summary:** Defines the requirements for a test framework and initial set of tests for the application.
+
+**Status:** Not Started
+
+**Tests:** NA
+
+**Dependencies:** cmocka
+
+---
+
 ## Adding New Specifications
 
 When creating a new spec file:
