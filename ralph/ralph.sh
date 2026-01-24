@@ -34,6 +34,7 @@ if [[ "$TOOL" != "amp" && "$TOOL" != "claude" && "$TOOL" != "gemini" ]]; then
   exit 1
 fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
 PRD_DIR="$SCRIPT_DIR/specs"
 CONTEXT_FILE="$SCRIPT_DIR/context.md"
 
@@ -56,7 +57,9 @@ for i in $(seq 1 $MAX_ITERATIONS); do
 
   # Run the selected tool with the ralph prompt
   # Prompt now consists of prompt.txt + context.md + all .md files in the specs directory
-  FULL_PROMPT=$(cat "$SCRIPT_DIR/prompt.txt" "$CONTEXT_FILE" "$PRD_DIR"/*.md 2>/dev/null)
+  FULL_PROMPT="Project root: $PROJECT_ROOT
+
+$(cat "$SCRIPT_DIR/prompt.txt" "$CONTEXT_FILE" "$PRD_DIR"/README.md 2>/dev/null)"
   
   if [[ "$TOOL" == "amp" ]]; then
     OUTPUT=$(echo "$FULL_PROMPT" | amp --dangerously-allow-all 2>&1 | tee /dev/stderr) || true
