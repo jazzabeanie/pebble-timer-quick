@@ -72,6 +72,11 @@ class EmulatorHelper:
         self._transport = None
         self._pypkjs_port = None
         self._ws = None  # WebSocket connection to pypkjs for button presses
+        self._current_test_name = None  # Current test name for screenshot prefixing
+
+    def set_test_name(self, test_name: str):
+        """Set the current test name for screenshot prefixing."""
+        self._current_test_name = test_name
 
     def _run_pebble(self, *args, check=True, capture_output=True, timeout=120):
         """Run a pebble command."""
@@ -336,9 +341,12 @@ class EmulatorHelper:
 
     def screenshot(self, name: str = None) -> Image.Image:
         """Take a screenshot and return as PIL Image."""
-        # Generate temp filename
+        # Generate filename with test name prefix if available
         if name:
-            filename = self.screenshot_dir / f"{self.platform}_{name}.png"
+            if self._current_test_name:
+                filename = self.screenshot_dir / f"{self._current_test_name}_{self.platform}_{name}.png"
+            else:
+                filename = self.screenshot_dir / f"{self.platform}_{name}.png"
         else:
             filename = self.screenshot_dir / f"{self.platform}_temp.png"
 
@@ -402,3 +410,26 @@ def emulator(request, platform, build_app):
     yield helper
 
     # Teardown: keep emulator running for faster subsequent tests on same platform
+
+
+@pytest.fixture(autouse=True)
+def _set_test_name_on_emulators(request):
+    """Auto-use fixture to set the current test name on emulator helpers."""
+    test_name = request.node.name
+    emulator_helper = None
+
+    # Try to get emulator helper from various fixture names
+    for fixture_name in ['persistent_emulator', 'emulator']:
+        try:
+            emulator_helper = request.getfixturevalue(fixture_name)
+            break
+        except pytest.FixtureLookupError:
+            continue
+
+    if emulator_helper is not None:
+        emulator_helper.set_test_name(test_name)
+
+    yield
+
+    if emulator_helper is not None:
+        emulator_helper.set_test_name(None)
