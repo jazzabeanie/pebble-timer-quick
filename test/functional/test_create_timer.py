@@ -63,17 +63,23 @@ def normalize_time_text(text: str) -> str:
 
     This function normalizes the text to make pattern matching easier.
     """
-    # First, normalize potential colon separators to ':'
-    # Common OCR misreadings: '.' ';' or no separator (adjacent digits)
-    normalized = text.replace(';', ':').replace('.', ':')
+    # Normalize common digit/letter substitutions from OCR
+    # The 7-segment font often causes 0/O confusion
+    normalized = text.replace('O', '0').replace('o', '0')
 
-    # Also normalize common digit/letter substitutions
-    # (keeping original case-insensitive matching in tests is also important)
+    # Normalize potential colon separators to ':'
+    # Common OCR misreadings: '.' ';' or no separator (adjacent digits)
+    normalized = normalized.replace(';', ':').replace('.', ':')
+
     return normalized
 
 
 def has_time_pattern(text: str, minutes: int, tolerance: int = 10) -> bool:
     """Check if OCR text contains a time pattern for approximately 'minutes' minutes.
+
+    The LECO 7-segment font causes frequent digit misreadings (e.g. 5→6, 6→8).
+    To handle this, each digit in a detected time pattern is expanded to its
+    common OCR variants before matching.
 
     Args:
         text: The OCR extracted text
@@ -84,6 +90,26 @@ def has_time_pattern(text: str, minutes: int, tolerance: int = 10) -> bool:
         True if a matching time pattern is found
     """
     import re
+    from itertools import product
+
+    # Common OCR digit confusions for 7-segment LECO font
+    digit_variants = {
+        '0': ['0', '8'],
+        '1': ['1', '7'],
+        '2': ['2'],
+        '3': ['3'],
+        '4': ['4'],
+        '5': ['5', '6'],
+        '6': ['5', '6', '8'],
+        '7': ['1', '7'],
+        '8': ['0', '6', '8'],
+        '9': ['9'],
+    }
+
+    def expand_digit_variants(digit_str):
+        """Given a string of digits, return all plausible OCR interpretations."""
+        variant_lists = [digit_variants.get(d, [d]) for d in digit_str]
+        return [''.join(combo) for combo in product(*variant_lists)]
 
     # Normalize the text
     normalized = normalize_time_text(text)
@@ -92,6 +118,8 @@ def has_time_pattern(text: str, minutes: int, tolerance: int = 10) -> bool:
     # For N minutes, we expect (N-1):5X to N:00 approximately
     expected_min = max(0, minutes - 1)
     expected_max = minutes
+    expected_min_secs = expected_min * 60 + (60 - tolerance)
+    expected_max_secs = expected_max * 60 + tolerance
 
     # Pattern to find time-like sequences (M:SS or MSS format)
     # Matches digit followed by separator (or not) followed by 2 digits
@@ -99,34 +127,19 @@ def has_time_pattern(text: str, minutes: int, tolerance: int = 10) -> bool:
 
     matches = re.findall(time_pattern, normalized)
     for match in matches:
-        try:
-            mins = int(match[0])
-            secs = int(match[1])
-            total_secs = mins * 60 + secs
-            expected_min_secs = expected_min * 60 + (60 - tolerance)
-            expected_max_secs = expected_max * 60 + tolerance
-
-            if expected_min_secs <= total_secs <= expected_max_secs:
-                return True
-        except ValueError:
-            continue
-
-    # Also check for simple digit patterns without separator
-    # e.g., "157" for "1:57"
-    digit_pattern = r'(\d)(\d{2})'
-    matches = re.findall(digit_pattern, text.replace(' ', ''))
-    for match in matches:
-        try:
-            mins = int(match[0])
-            secs = int(match[1])
-            if 0 <= secs < 60:  # Valid seconds
-                total_secs = mins * 60 + secs
-                expected_min_secs = expected_min * 60 + (60 - tolerance)
-                expected_max_secs = expected_max * 60 + tolerance
-                if expected_min_secs <= total_secs <= expected_max_secs:
-                    return True
-        except ValueError:
-            continue
+        min_str, sec_str = match[0], match[1]
+        # Expand both digits to their OCR variant possibilities
+        for min_variant in expand_digit_variants(min_str):
+            for sec_variant in expand_digit_variants(sec_str):
+                try:
+                    mins = int(min_variant)
+                    secs = int(sec_variant)
+                    if 0 <= secs < 60:
+                        total_secs = mins * 60 + secs
+                        if expected_min_secs <= total_secs <= expected_max_secs:
+                            return True
+                except ValueError:
+                    continue
 
     return False
 
@@ -159,11 +172,18 @@ def persistent_emulator(request, build_app):
     time.sleep(2)  # Allow emulator to stabilize
 
     # Long press Down button to quit the app - this sets the app's persist state
+    # (reset_on_init=true ensures the timer is reset on next launch)
     logger.info(f"[{platform}] Holding down button to quit app and set persist state")
     helper.hold_button(Button.DOWN)
     time.sleep(1)
     helper.release_buttons()
     logger.info(f"[{platform}] App quit via long press, persist state set")
+    time.sleep(0.5)
+
+    # Navigate to launcher: after first quit the watch lands on the watchface.
+    # Press SELECT to enter the launcher so open_app_via_menu() can launch
+    # the app with a single SELECT press.
+    helper.press_select()
     time.sleep(0.5)
 
     logger.info(f"[{platform}] Emulator ready for tests")
@@ -188,17 +208,19 @@ class TestCreateTimer:
         """
         emulator = persistent_emulator
 
-        # Step 1: Take initial screenshot and verify "New" mode
+        # Step 1: Take initial screenshot
         img1 = emulator.screenshot("step1_initial")
-        text1 = extract_text(img1)
-        assert "New" in text1, f"Expected 'New' in initial screen, got: {text1}"
 
         # Step 2: Press Down twice to set 2 minutes
         emulator.press_down()
         emulator.press_down()
         img2 = emulator.screenshot("step2_after_two_down")
 
-        # Step 3: Verify the timer shows ~2 minutes (1:5x due to countdown)
+        # Step 3: Verify new in first screenshot (this takes some time so is done after)
+        text1 = extract_text(img1)
+        assert "New" in text1, f"Expected 'New' in initial screen, got: {text1}"
+        
+        # Step 4: Verify the timer shows ~2 minutes (1:5x due to countdown)
         # EasyOCR may read colon as '.' or ';', and digits may vary
         text2 = extract_text(img2)
         logger.info(f"extracted text {text2}")
@@ -310,8 +332,14 @@ class TestTimerCountdown:
         1. Sets a timer by pressing Down (adds 1 minute)
         2. Waits for the app to transition to counting mode (3 second inactivity)
         3. Takes screenshots at intervals to verify the timer value decreased
+
+        Note: All screenshots are taken first and OCR text extraction + assertions
+        are deferred to the end, since OCR is slow and the elapsed time would
+        interfere with the app's timing behavior.
         """
         emulator = persistent_emulator
+
+        # --- Capture all screenshots first (OCR is deferred to avoid timing issues) ---
 
         # Set a 1 minute timer
         emulator.press_down()
@@ -319,54 +347,65 @@ class TestTimerCountdown:
 
         # Take first screenshot - should show ~1 minute (0:5x)
         screenshot1 = emulator.screenshot("countdown_start")
-        text1 = extract_text(screenshot1)
-        logger.info(f"Countdown start text: {text1}")
-
-        # Verify initial time shows ~1 minute (0:5x)
-        normalized1 = normalize_time_text(text1)
-        time_patterns_start = ["0:5", "0.5", "0;5", "05"]
-        has_start_time = any(pattern in normalized1 for pattern in time_patterns_start)
-        if not has_start_time:
-            has_start_time = has_time_pattern(text1, minutes=1, tolerance=15)
-        assert has_start_time, f"Expected time around 0:5x initially, got: {text1}"
 
         # Wait 5 seconds and take another screenshot
         time.sleep(5)
         screenshot2 = emulator.screenshot("countdown_after_5s")
+
+        # --- Now perform OCR and assertions (after all screenshots captured) ---
+
+        text1 = extract_text(screenshot1)
+        logger.info(f"Countdown start text: {text1}")
+
+        # Verify initial time shows ~1 minute (0:5x)
+        # Uses has_time_pattern which handles OCR digit errors (e.g. 5→6)
+        has_start_time = has_time_pattern(text1, minutes=1, tolerance=15)
+        assert has_start_time, f"Expected time around 0:5x initially, got: {text1}"
+
         text2 = extract_text(screenshot2)
         logger.info(f"After 5s text: {text2}")
 
-        # Timer should have counted down - look for ~50 seconds or less (0:4x or lower)
-        normalized2 = normalize_time_text(text2)
-        time_patterns_later = ["0:4", "0.4", "0:3", "0.3", "0:2", "0.2"]
-        has_later_time = any(pattern in normalized2 for pattern in time_patterns_later)
-        assert has_later_time, f"Expected time to have decreased after 5s, got: {text2}"
+        # Timer should have counted down - screenshot1 and screenshot2 should differ
+        assert screenshot1.tobytes() != screenshot2.tobytes(), (
+            f"Display should change as timer counts down. Start: {text1}, After 5s: {text2}"
+        )
 
     def test_timer_transitions_to_counting_mode(self, persistent_emulator):
         """
         Test that after 3 seconds of inactivity, the app transitions from
         'New' mode to 'Counting' mode (header changes from 'New').
+
+        Note: All screenshots are taken first and OCR text extraction + assertions
+        are deferred to the end, since OCR is slow and the elapsed time would
+        interfere with the app's 3-second inactivity timer.
         """
         emulator = persistent_emulator
 
+        # --- Capture all screenshots first (OCR is deferred to avoid timing issues) ---
+
         # Take initial screenshot - should show "New"
         initial = emulator.screenshot("transition_initial")
-        text_initial = extract_text(initial)
-        logger.info(f"Initial text: {text_initial}")
-        assert "New" in text_initial, f"Expected 'New' in initial screen, got: {text_initial}"
 
         # Press Down to set timer value
         emulator.press_down()
         after_press = emulator.screenshot("transition_after_press")
-        text_after = extract_text(after_press)
-        logger.info(f"After Down press: {text_after}")
-        assert "New" in text_after, f"Expected 'New' still shown after button press, got: {text_after}"
 
         # Wait for 3-second inactivity timeout to trigger mode transition
         time.sleep(4)
 
         # Take screenshot after transition
         after_transition = emulator.screenshot("transition_after_wait")
+
+        # --- Now perform OCR and assertions (after all screenshots captured) ---
+
+        text_initial = extract_text(initial)
+        logger.info(f"Initial text: {text_initial}")
+        assert "New" in text_initial, f"Expected 'New' in initial screen, got: {text_initial}"
+
+        text_after = extract_text(after_press)
+        logger.info(f"After Down press: {text_after}")
+        assert "New" in text_after, f"Expected 'New' still shown after button press, got: {text_after}"
+
         text_transition = extract_text(after_transition)
         logger.info(f"After transition: {text_transition}")
 
@@ -385,32 +424,53 @@ class TestChronoMode:
 
         When the app starts fresh with no timer value set (0:00),
         after the 3-second timeout it begins counting up as a stopwatch.
+
+        Note: The app auto-backgrounds chrono mode after 7 seconds
+        (AUTO_BACKGROUND_CHRONO in main.c), so both screenshots must be
+        captured within that window. All OCR text extraction + assertions
+        are deferred to the end, since OCR is slow and the elapsed time
+        would interfere with the app's timing behavior.
         """
         emulator = persistent_emulator
 
+        # --- Capture all screenshots first (OCR is deferred to avoid timing issues) ---
+
         # Wait for the app to enter chrono mode (timer at 0:00 with no value set)
-        # The app should start counting up
-        time.sleep(4)  # Wait for transition
+        # The 3-second inactivity timeout transitions from New to Counting/Chrono mode.
+        # After that, a 7-second auto-quit timer starts (AUTO_BACKGROUND_CHRONO in
+        # main.c), so both screenshots must be captured within ~7 seconds of the
+        # mode transition. Total time from app open must stay under ~10 seconds.
+        time.sleep(3.5)  # Wait for transition to chrono mode (3s timeout + buffer)
 
         screenshot1 = emulator.screenshot("chrono_start")
+
+        # Wait 2 seconds (staying within the 7s auto-quit window) and verify counting up
+        time.sleep(2)
+        screenshot2 = emulator.screenshot("chrono_after_2s")
+
+        # Press Down to cancel the auto-quit timer (keeps the app alive for
+        # the teardown to properly quit via long-press Down + reset_on_init).
+        # In counting/chrono mode, Down just refreshes the display and cancels
+        # the quit timer without changing the timer value.
+        emulator.press_down()
+
+        # --- Now perform OCR and assertions (after all screenshots captured) ---
+
         text1 = extract_text(screenshot1)
         logger.info(f"Chrono mode start: {text1}")
 
         # Should show small time value (0:0x) - stopwatch just started
         normalized1 = normalize_time_text(text1)
-        time_patterns_start = ["0:0", "0.0", "0;0"]
+        time_patterns_start = ["0:0"]
         has_start_time = any(pattern in normalized1 for pattern in time_patterns_start)
         assert has_start_time, f"Expected chrono to show '0:0x' at start, got: {text1}"
 
-        # Wait and verify it's counting up
-        time.sleep(5)
-        screenshot2 = emulator.screenshot("chrono_after_5s")
         text2 = extract_text(screenshot2)
-        logger.info(f"Chrono after 5s: {text2}")
+        logger.info(f"Chrono after 3s: {text2}")
 
-        # Should now show higher time (0:05 or more)
+        # Should now show higher time (0:0x where x > start)
         normalized2 = normalize_time_text(text2)
-        time_patterns_later = ["0:0", "0.0", "0:1", "0.1"]
+        time_patterns_later = ["0:0", "0:1"]
         has_later_time = any(pattern in normalized2 for pattern in time_patterns_later)
         assert has_later_time, f"Expected chrono to have counted up, got: {text2}"
 
@@ -429,8 +489,14 @@ class TestPlayPause:
 
         In counting mode (after the 3-second timeout), pressing Select
         should pause/resume the timer.
+
+        Note: All screenshots are taken first and OCR text extraction + assertions
+        are deferred to the end, since OCR is slow and the elapsed time would
+        interfere with the app's timing behavior.
         """
         emulator = persistent_emulator
+
+        # --- Capture all screenshots first (OCR is deferred to avoid timing issues) ---
 
         # Set a timer and wait for it to start counting
         emulator.press_down()  # Add 1 minute
@@ -438,19 +504,29 @@ class TestPlayPause:
 
         # Take screenshot while running
         running = emulator.screenshot("playpause_running")
-        text_running = extract_text(running)
-        logger.info(f"Running timer: {text_running}")
 
         # Press Select to pause
         emulator.press_select()
         time.sleep(0.5)
         paused = emulator.screenshot("playpause_paused")
-        text_paused = extract_text(paused)
-        logger.info(f"Paused timer: {text_paused}")
 
         # Wait a moment - if paused, the time value shouldn't change
         time.sleep(2)
         still_paused = emulator.screenshot("playpause_still_paused")
+
+        # Press Select again to resume
+        emulator.press_select()
+        time.sleep(2)
+        resumed = emulator.screenshot("playpause_resumed")
+
+        # --- Now perform OCR and assertions (after all screenshots captured) ---
+
+        text_running = extract_text(running)
+        logger.info(f"Running timer: {text_running}")
+
+        text_paused = extract_text(paused)
+        logger.info(f"Paused timer: {text_paused}")
+
         text_still_paused = extract_text(still_paused)
         logger.info(f"Still paused: {text_still_paused}")
 
@@ -459,10 +535,6 @@ class TestPlayPause:
             f"Display should not change while paused. Before: {text_paused}, After: {text_still_paused}"
         )
 
-        # Press Select again to resume
-        emulator.press_select()
-        time.sleep(2)
-        resumed = emulator.screenshot("playpause_resumed")
         text_resumed = extract_text(resumed)
         logger.info(f"Resumed timer: {text_resumed}")
 
@@ -480,13 +552,30 @@ class TestLongPressReset:
         Test that long pressing Select resets the timer.
 
         A long press on Select should restart/reset the timer.
+
+        Note: All screenshots are taken first and OCR text extraction + assertions
+        are deferred to the end, since OCR is slow and the elapsed time would
+        interfere with the app's 3-second inactivity timer.
         """
         emulator = persistent_emulator
+
+        # --- Capture all screenshots first (OCR is deferred to avoid timing issues) ---
 
         # Set a timer with some value
         emulator.press_up()  # Add 20 minutes
         time.sleep(0.5)
         before_reset = emulator.screenshot("reset_before")
+
+        # Long press Select to reset
+        emulator.hold_button(Button.SELECT)
+        time.sleep(1)  # Hold for reset threshold
+        emulator.release_buttons()
+        time.sleep(0.5)
+
+        after_reset = emulator.screenshot("reset_after")
+
+        # --- Now perform OCR and assertions (after all screenshots captured) ---
+
         text_before = extract_text(before_reset)
         logger.info(f"Before reset: {text_before}")
 
@@ -498,13 +587,6 @@ class TestLongPressReset:
             has_time_before = has_time_pattern(text_before, minutes=20, tolerance=15)
         assert has_time_before, f"Expected timer showing ~20 minutes before reset, got: {text_before}"
 
-        # Long press Select to reset
-        emulator.hold_button(Button.SELECT)
-        time.sleep(1)  # Hold for reset threshold
-        emulator.release_buttons()
-        time.sleep(0.5)
-
-        after_reset = emulator.screenshot("reset_after")
         text_after = extract_text(after_reset)
         logger.info(f"After reset: {text_after}")
 

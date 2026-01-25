@@ -323,20 +323,16 @@ class EmulatorHelper:
         This method is used after quitting the app (long-press down) to re-launch
         it WITHOUT using install(), which would clear the app's persisted state.
 
-        The sequence is:
-        1. Press SELECT to open the launcher menu (or select current item if already in menu)
-        2. Press SELECT again to launch the QuickTimer app
+        After quitting via long-press Down, the Pebble returns to the launcher
+        with the previously-run app already selected, so a single SELECT press
+        launches it.
 
-        After long-pressing down to quit an app, the Pebble returns to the launcher
-        with the previously-run app selected, so two SELECT presses should reopen it.
+        If the app auto-quit (e.g. chrono auto-background), the Pebble also
+        returns to the launcher with the app selected, so SELECT still works.
         """
         logger.info(f"[{self.platform}] Opening app via menu navigation")
-        # Press SELECT to access menu or select current item
         self.press_select()
-        time.sleep(0.5)
-        # Press SELECT again to launch the app
-        self.press_select()
-        time.sleep(0.5)
+        time.sleep(1)  # Allow time for app to fully load
         logger.info(f"[{self.platform}] App opened via menu")
 
     def screenshot(self, name: str = None) -> Image.Image:
@@ -447,7 +443,10 @@ def _setup_test_environment(request):
     yield
 
     if emulator_helper is not None:
-        # Quit the app after the test
+        # Quit the app after the test via long-press Down, which sets
+        # reset_on_init=true so the next test starts with a fresh timer.
+        # After quitting, the Pebble returns to the launcher with the
+        # app still selected, ready for open_app_via_menu().
         logger.info(f"[{emulator_helper.platform}] Quitting app after test: {test_name}")
         emulator_helper.hold_button(Button.DOWN)
         time.sleep(1)

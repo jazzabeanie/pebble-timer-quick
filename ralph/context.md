@@ -24,6 +24,7 @@ This file provides critical context about the codebase without requiring you to 
 ## Recent Changes
 *Log recent changes with dates and brief descriptions. Most recent at top.*
 
+- 2026-01-26: Fixed 3 failing functional tests (transitions_to_counting, counts_up, resets_timer). Key insights: (1) EasyOCR text extraction takes several seconds per image, causing app timing issues (3s inactivity timer, 7s chrono auto-quit). Fix: defer all OCR to after all screenshots are captured. (2) Chrono mode auto-backgrounds after 7 seconds (AUTO_BACKGROUND_CHRONO + QUIT_DELAY_MS=7000 in main.c). Fix: capture both chrono screenshots within the window, then press Down to cancel the quit timer before teardown runs. (3) LECO 7-segment font causes OCR digit misreadings (5→6, 0→O). Fix: normalize O/o→0 and expand digit variants in has_time_pattern(). All 10 tests pass on basalt.
 - 2026-01-25: Extended functional-tests-emulator spec with 5 additional test cases. Added tests for: timer countdown, mode transition (New→Counting after 3s inactivity), chrono/stopwatch mode, play/pause toggle, and long-press reset. All 10 tests pass on basalt platform. Test classes now organized by feature: TestCreateTimer, TestButtonPresses, TestTimerCountdown, TestChronoMode, TestPlayPause, TestLongPressReset.
 - 2026-01-25: Fixed persistent_emulator fixture to use menu navigation instead of install(). Key insight: `install()` clears the app's persisted state even within the same emulator session. Solution: Added `open_app_via_menu()` method to EmulatorHelper that re-opens the app by pressing SELECT twice (navigating through the Pebble launcher menu). After long-pressing down to quit an app, the Pebble returns to the launcher with the previously-run app selected. All 5 tests pass on basalt.
 - 2026-01-25: Updated persistent_emulator fixture to preserve app persist state. Key change: After holding down button to quit the app (which sets persist state), the fixture now re-opens the app within the same emulator via `install()` instead of killing the emulator first. This preserves the app's persist data that was set by the long-press quit action. Removed the kill->reinstall cycle that was destroying the persist state.
@@ -65,6 +66,9 @@ Core timer logic. Key behavioral notes:
   - TestLongPressReset: Long press Select to reset timer
 - `test/functional/pytest.ini`: Logging configuration (log_cli=true for visible logs)
 - Key pattern: Use **persistent socket** for QEMU button commands - QEMU only accepts one connection at a time
+- Key pattern: **Defer OCR assertions** to after all screenshots are captured - EasyOCR takes several seconds per image, which interferes with app timing (3s inactivity timer, 7s chrono auto-quit)
+- Key pattern: **Chrono auto-quit**: app exits chrono mode after 7s. Press Down after screenshots to cancel quit timer.
+- Key pattern: **OCR digit normalization**: O/o→0 substitution in normalize_time_text(), digit variant expansion (5↔6, 0↔8, etc.) in has_time_pattern()
 - Run tests: `./conda-env/bin/python -m pytest test/functional/test_create_timer.py -v --platform=basalt`
 
 ---
