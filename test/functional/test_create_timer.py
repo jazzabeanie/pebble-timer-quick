@@ -45,8 +45,8 @@ def persistent_emulator(request, build_app):
     logger.info(f"[{platform}] Starting warm-up cycle to clear stale state")
     helper.wipe()
     helper.install()
-    logger.info(f"[{platform}] Waiting for emulator to stabilize (5s)")
-    time.sleep(5)  # Allow emulator to stabilize
+    logger.info(f"[{platform}] Waiting for emulator to stabilize (2s)")
+    time.sleep(2)  # Allow emulator to stabilize
 
     # Long press Down button to quit the app - this sets the app's persist state
     logger.info(f"[{platform}] Holding down button to quit app and set persist state")
@@ -61,8 +61,8 @@ def persistent_emulator(request, build_app):
     # navigate through the Pebble launcher menu to re-open the app
     logger.info(f"[{platform}] Re-opening app via menu navigation (preserving persist state)")
     helper.open_app_via_menu()
-    logger.info(f"[{platform}] Waiting for app to load (2s)")
-    time.sleep(2)  # Allow app to fully load
+    logger.info(f"[{platform}] Waiting for app to load (1s)")
+    time.sleep(1)  # Allow app to fully load
     logger.info(f"[{platform}] Emulator ready for tests")
 
     yield helper

@@ -70,8 +70,8 @@ class EmulatorHelper:
         self.screenshot_dir = Path(__file__).parent / "screenshots"
         self.screenshot_dir.mkdir(exist_ok=True)
         self._transport = None
-        self._qemu_port = None
-        self._qemu_socket = None  # Persistent socket for button presses
+        self._pypkjs_port = None
+        self._ws = None  # WebSocket connection to pypkjs for button presses
 
     def _run_pebble(self, *args, check=True, capture_output=True, timeout=120):
         """Run a pebble command."""
@@ -102,7 +102,7 @@ class EmulatorHelper:
         # Wipe storage (deletes persist directory for all platforms)
         self._run_pebble("wipe", check=False)
         # Reset port info since emulator was killed
-        self._qemu_port = None
+        self._pypkjs_port = None
         logger.debug(f"[{self.platform}] Wipe complete")
 
     def build(self):
@@ -129,7 +129,7 @@ class EmulatorHelper:
         logger.info(f"[{self.platform}] App installed and transport connected")
 
     def _connect_transport(self):
-        """Connect to the emulator's QEMU transport for button presses."""
+        """Connect to pypkjs WebSocket for button presses."""
         # Import here to avoid issues when pytest collects tests
         sys.path.insert(0, str(CONDA_ENV / "lib" / "python3.10" / "site-packages"))
         from pebble_tool.sdk.emulator import get_emulator_info
@@ -138,72 +138,70 @@ class EmulatorHelper:
         if info is None:
             raise RuntimeError(f"Could not get emulator info for {self.platform}")
 
-        self._qemu_port = info["qemu"]["port"]
-        logger.debug(f"[{self.platform}] Got QEMU port {self._qemu_port}")
+        self._pypkjs_port = info["pypkjs"]["port"]
+        logger.debug(f"[{self.platform}] Got pypkjs port {self._pypkjs_port}")
 
-        # Establish persistent socket connection
-        self._ensure_qemu_socket()
+        # Establish WebSocket connection to pypkjs
+        self._ensure_websocket()
 
-    def _ensure_qemu_socket(self):
-        """Ensure we have an open socket to the QEMU port."""
-        import socket
+    def _ensure_websocket(self):
+        """Ensure we have an open WebSocket connection to pypkjs."""
+        from websocket import create_connection, WebSocketException
 
-        # Close existing socket if any
-        if self._qemu_socket is not None:
+        # Close existing connection if any
+        if self._ws is not None:
             try:
-                self._qemu_socket.close()
+                self._ws.close()
             except Exception:
                 pass
-            self._qemu_socket = None
+            self._ws = None
 
-        # Create new persistent connection
-        self._qemu_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._qemu_socket.settimeout(10.0)
+        # Create new WebSocket connection
         try:
-            self._qemu_socket.connect(("localhost", self._qemu_port))
-            logger.debug(f"[{self.platform}] Established persistent socket to QEMU port {self._qemu_port}")
+            self._ws = create_connection(f"ws://localhost:{self._pypkjs_port}/", timeout=10)
+            logger.debug(f"[{self.platform}] Established WebSocket to pypkjs port {self._pypkjs_port}")
         except Exception as e:
-            self._qemu_socket = None
-            raise RuntimeError(f"Failed to connect to QEMU port {self._qemu_port}: {e}")
+            self._ws = None
+            raise RuntimeError(f"Failed to connect to pypkjs WebSocket port {self._pypkjs_port}: {e}")
 
     def _send_button(self, button: int, retries: int = 2):
-        """Send a button press to the emulator via QEMU protocol using persistent socket."""
-        import socket
-        from libpebble2.communication.transports.qemu.protocol import QemuButton, QemuPacket
+        """Send a button press to the emulator via pypkjs WebSocket."""
+        from websocket import WebSocketException
 
-        # Create button press packet
-        press_packet = QemuButton(state=button)
-        # Create button release packet (state=0 means no buttons pressed)
-        release_packet = QemuButton(state=0)
+        # QEMU protocol 8 = QemuButton
+        # Format: [0x0b (qemu_command opcode), 0x08 (button protocol), button_state]
+        QEMU_COMMAND_OPCODE = 0x0b
+        BUTTON_PROTOCOL = 0x08
+
+        press_data = bytearray([QEMU_COMMAND_OPCODE, BUTTON_PROTOCOL, button])
+        release_data = bytearray([QEMU_COMMAND_OPCODE, BUTTON_PROTOCOL, 0])
 
         for attempt in range(retries + 1):
-            # Ensure we have a socket connection
-            if self._qemu_socket is None:
-                if self._qemu_port is None:
+            # Ensure we have a WebSocket connection
+            if self._ws is None:
+                if self._pypkjs_port is None:
                     self._connect_transport()
                 else:
-                    self._ensure_qemu_socket()
+                    self._ensure_websocket()
 
             try:
-                logger.debug(f"[{self.platform}] Attempt {attempt+1}: sending button {button} on port {self._qemu_port}")
+                logger.debug(f"[{self.platform}] Attempt {attempt+1}: sending button {button} via WebSocket")
                 # Send press
-                data = QemuPacket(data=press_packet).serialise()
-                self._qemu_socket.send(data)
+                self._ws.send_binary(press_data)
                 time.sleep(0.1)  # Hold button briefly
                 # Send release
-                data = QemuPacket(data=release_packet).serialise()
-                self._qemu_socket.send(data)
+                self._ws.send_binary(release_data)
                 logger.debug(f"[{self.platform}] Button {button} sent successfully")
                 break  # Success
-            except (socket.timeout, ConnectionError, OSError, BrokenPipeError) as e:
+            except (WebSocketException, ConnectionError, OSError, BrokenPipeError) as e:
                 logger.warning(f"[{self.platform}] Attempt {attempt+1} failed: {e}")
-                # Close broken socket
-                if self._qemu_socket is not None:
+                # Close broken connection
+                if self._ws is not None:
                     try:
-                        self._qemu_socket.close()
+                        self._ws.close()
                     except Exception:
                         pass
-                    self._qemu_socket = None
+                    self._ws = None
 
                 if attempt < retries:
                     # Wait and reconnect
@@ -218,33 +216,33 @@ class EmulatorHelper:
         time.sleep(0.3)
 
     def hold_button(self, button: int, retries: int = 2):
-        """Holds a button down without releasing it using persistent socket."""
-        import socket
-        from libpebble2.communication.transports.qemu.protocol import QemuButton, QemuPacket
+        """Holds a button down without releasing it via pypkjs WebSocket."""
+        from websocket import WebSocketException
 
-        press_packet = QemuButton(state=button)
+        QEMU_COMMAND_OPCODE = 0x0b
+        BUTTON_PROTOCOL = 0x08
+        press_data = bytearray([QEMU_COMMAND_OPCODE, BUTTON_PROTOCOL, button])
 
         for attempt in range(retries + 1):
-            # Ensure we have a socket connection
-            if self._qemu_socket is None:
-                if self._qemu_port is None:
+            # Ensure we have a WebSocket connection
+            if self._ws is None:
+                if self._pypkjs_port is None:
                     self._connect_transport()
                 else:
-                    self._ensure_qemu_socket()
+                    self._ensure_websocket()
 
             try:
-                data = QemuPacket(data=press_packet).serialise()
-                self._qemu_socket.send(data)
+                self._ws.send_binary(press_data)
                 logger.debug(f"[{self.platform}] Button {button} held")
                 break
-            except (socket.timeout, ConnectionError, OSError, BrokenPipeError) as e:
+            except (WebSocketException, ConnectionError, OSError, BrokenPipeError) as e:
                 logger.warning(f"[{self.platform}] hold_button attempt {attempt+1} failed: {e}")
-                if self._qemu_socket is not None:
+                if self._ws is not None:
                     try:
-                        self._qemu_socket.close()
+                        self._ws.close()
                     except Exception:
                         pass
-                    self._qemu_socket = None
+                    self._ws = None
 
                 if attempt < retries:
                     time.sleep(1)
@@ -256,33 +254,33 @@ class EmulatorHelper:
         time.sleep(0.2)
 
     def release_buttons(self, retries: int = 2):
-        """Releases all currently held buttons using persistent socket."""
-        import socket
-        from libpebble2.communication.transports.qemu.protocol import QemuButton, QemuPacket
+        """Releases all currently held buttons via pypkjs WebSocket."""
+        from websocket import WebSocketException
 
-        release_packet = QemuButton(state=0)
+        QEMU_COMMAND_OPCODE = 0x0b
+        BUTTON_PROTOCOL = 0x08
+        release_data = bytearray([QEMU_COMMAND_OPCODE, BUTTON_PROTOCOL, 0])
 
         for attempt in range(retries + 1):
-            # Ensure we have a socket connection
-            if self._qemu_socket is None:
-                if self._qemu_port is None:
+            # Ensure we have a WebSocket connection
+            if self._ws is None:
+                if self._pypkjs_port is None:
                     self._connect_transport()
                 else:
-                    self._ensure_qemu_socket()
+                    self._ensure_websocket()
 
             try:
-                data = QemuPacket(data=release_packet).serialise()
-                self._qemu_socket.send(data)
+                self._ws.send_binary(release_data)
                 logger.debug(f"[{self.platform}] Buttons released")
                 break
-            except (socket.timeout, ConnectionError, OSError, BrokenPipeError) as e:
+            except (WebSocketException, ConnectionError, OSError, BrokenPipeError) as e:
                 logger.warning(f"[{self.platform}] release_buttons attempt {attempt+1} failed: {e}")
-                if self._qemu_socket is not None:
+                if self._ws is not None:
                     try:
-                        self._qemu_socket.close()
+                        self._ws.close()
                     except Exception:
                         pass
-                    self._qemu_socket = None
+                    self._ws = None
 
                 if attempt < retries:
                     time.sleep(1)
@@ -368,18 +366,18 @@ class EmulatorHelper:
     def kill(self):
         """Kill the emulator."""
         logger.debug(f"[{self.platform}] Killing emulator")
-        # Close persistent socket first
-        if self._qemu_socket is not None:
+        # Close WebSocket connection first
+        if self._ws is not None:
             try:
-                self._qemu_socket.close()
+                self._ws.close()
             except Exception:
                 pass
-            self._qemu_socket = None
+            self._ws = None
         try:
             self._run_pebble("kill", check=False)
         except Exception:
             pass
-        self._qemu_port = None
+        self._pypkjs_port = None
         logger.debug(f"[{self.platform}] Emulator killed")
 
 
