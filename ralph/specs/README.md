@@ -20,22 +20,7 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 ## Specification Index
 
-### 1. User Authentication System
-**File:** [example-user-authentication.md](example-user-authentication.md)
-
-**Keywords:** user authentication, login, registration, signup, JWT, JSON Web Token, session management, password hashing, bcrypt, security, auth middleware, identity management, user credentials, bearer token, protected routes
-
-**Summary:** Implements secure user registration, login, and session management using JWT tokens and bcrypt password hashing.
-
-**Status:** Not Started
-
-**Tests:** NA
-
-**Dependencies:** None (foundational feature)
-
----
-
-### 2. Testing Framework
+### 1. Testing Framework
 **File:** [testing-framework.md](testing-framework.md)
 
 **Keywords:** testing, unit tests, integration tests, cmocka, pebble emulator, test framework, test coverage, timer tests
