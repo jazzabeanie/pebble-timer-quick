@@ -173,6 +173,64 @@ class EmulatorHelper:
         # Wait for display to update
         time.sleep(0.2)
 
+    def hold_button(self, button: int, retries: int = 2):
+        """Holds a button down without releasing it."""
+        if self._qemu_port is None:
+            self._connect_transport()
+
+        import socket
+        from libpebble2.communication.transports.qemu.protocol import QemuButton, QemuPacket
+
+        press_packet = QemuButton(state=button)
+        for attempt in range(retries + 1):
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(5.0)
+            try:
+                sock.connect(("localhost", self._qemu_port))
+                data = QemuPacket(data=press_packet).serialise()
+                sock.send(data)
+                break
+            except (socket.timeout, ConnectionError, OSError) as e:
+                if attempt < retries:
+                    self._qemu_port = None
+                    self._connect_transport()
+                else:
+                    raise RuntimeError(
+                        f"Failed to send button press after {retries + 1} attempts: {e}"
+                    )
+            finally:
+                sock.close()
+        time.sleep(0.2)
+
+    def release_buttons(self, retries: int = 2):
+        """Releases all currently held buttons."""
+        if self._qemu_port is None:
+            self._connect_transport()
+
+        import socket
+        from libpebble2.communication.transports.qemu.protocol import QemuButton, QemuPacket
+
+        release_packet = QemuButton(state=0)
+        for attempt in range(retries + 1):
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(5.0)
+            try:
+                sock.connect(("localhost", self._qemu_port))
+                data = QemuPacket(data=release_packet).serialise()
+                sock.send(data)
+                break
+            except (socket.timeout, ConnectionError, OSError) as e:
+                if attempt < retries:
+                    self._qemu_port = None
+                    self._connect_transport()
+                else:
+                    raise RuntimeError(
+                        f"Failed to send button release after {retries + 1} attempts: {e}"
+                    )
+            finally:
+                sock.close()
+        time.sleep(0.2)
+
     def press_back(self):
         """Press the Back button."""
         self._send_button(Button.BACK)

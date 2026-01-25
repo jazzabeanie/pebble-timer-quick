@@ -28,8 +28,8 @@ This specification defines functional tests that run on the Pebble emulator to v
 
 ### 3. App State Reset
 - The emulator doesn't always restart to a clean state between test runs
-- To ensure consistent starting conditions, each test must reset the app by holding the Down button
-- **At test start:** After launching the app, hold Down button to reset
+- To ensure consistent starting conditions, each test must reset the app by holding the Down button, which will quit the app within the emulator.
+- **Before running any tests:** After launching the app, hold Down button to quit and reset. Then quit the emulator and run a real test.
 - **At test end:** Hold Down button to reset, preparing for the next test
 - This ensures each test starts and ends with a clean timer state
 

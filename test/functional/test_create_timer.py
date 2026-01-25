@@ -11,12 +11,51 @@ The tests verify that button presses correctly update the display.
 
 import pytest
 from PIL import Image
+import time
+
+from .conftest import Button, EmulatorHelper, PLATFORMS
+
+
+@pytest.fixture(scope="module", params=PLATFORMS)
+def persistent_emulator(request, build_app):
+    """
+    Module-scoped fixture that launches the emulator once per platform, performs
+    a long "Down" button press, and then yields the emulator for all tests.
+    """
+    platform = request.param
+    platform_opt = request.config.getoption("--platform")
+    if platform_opt and platform != platform_opt:
+        pytest.skip(f"Skipping test for {platform} since --platform={platform_opt} was specified.")
+    
+    save_screenshots = request.config.getoption("--save-screenshots")
+    helper = EmulatorHelper(platform, save_screenshots)
+
+    # Setup: wipe, install, and do a long press of the down button
+    helper.wipe()
+    helper.install()
+    print(f"[{platform}] Waiting for emulator to stailize.")
+    time.sleep(20)  # Allow emulator to stabilize
+
+    # Perform a 1-second long press of the Down button
+    print(f"[{platform}] Holding down button.")
+    helper.hold_button(Button.DOWN)
+    time.sleep(1)
+    helper.release_buttons()
+    print(f"[{platform}] Performed a long press of the Down button.")
+
+    time.sleep(0.5) # Wait for app to process the button release
+    # TODO: confirm if app need to be relaunced here.
+
+    yield helper
+
+    # Teardown: kill emulator
+    helper.kill()
 
 
 class TestCreateTimer:
     """Tests for creating a timer via button presses."""
 
-    def test_create_2_minute_timer(self, emulator):
+    def test_create_2_minute_timer(self, persistent_emulator):
         """
         Test that Down button presses affect the timer display.
 
@@ -30,6 +69,7 @@ class TestCreateTimer:
         with a running chrono, the display changes as time passes.
         """
         screenshots = []
+        emulator = persistent_emulator
 
         # Step 1: Take initial screenshot
         img1 = emulator.screenshot("step1_initial")
@@ -56,8 +96,9 @@ class TestCreateTimer:
 
         # Screenshots can be visually inspected with --save-screenshots
 
-    def test_initial_state_shows_new(self, emulator):
+    def test_initial_state_shows_new(self, persistent_emulator):
         """Test that the initial state shows 'New' in the header."""
+        emulator = persistent_emulator
         # Take screenshot of initial state
         img = emulator.screenshot("initial_state")
 
@@ -70,8 +111,9 @@ class TestCreateTimer:
         extrema = img.convert("L").getextrema()
         assert extrema[0] != extrema[1], "Screen appears to be blank"
 
-    def test_down_button_increments_minutes(self, emulator):
+    def test_down_button_increments_minutes(self, persistent_emulator):
         """Test that each Down press adds 1 minute to the timer."""
+        emulator = persistent_emulator
         # Take initial screenshot for comparison
         initial = emulator.screenshot()
 
@@ -103,8 +145,9 @@ class TestCreateTimer:
 class TestButtonPresses:
     """Additional tests for button functionality."""
 
-    def test_up_button_increments_20_minutes(self, emulator):
+    def test_up_button_increments_20_minutes(self, persistent_emulator):
         """Test that Up button increments timer by 20 minutes."""
+        emulator = persistent_emulator
         initial = emulator.screenshot()
 
         emulator.press_up()
@@ -115,8 +158,9 @@ class TestButtonPresses:
             "Display should change after Up press"
         )
 
-    def test_select_button_increments_5_minutes(self, emulator):
+    def test_select_button_increments_5_minutes(self, persistent_emulator):
         """Test that Select button increments timer by 5 minutes."""
+        emulator = persistent_emulator
         initial = emulator.screenshot()
 
         emulator.press_select()

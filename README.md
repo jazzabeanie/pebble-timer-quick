@@ -82,7 +82,7 @@ python -m pytest test_create_timer.py -v
 To run on a specific platform:
 
 ```bash
-python -m pytest test_create_timer.py -v --platform=chalk
+python -m pytest test_create_timer.py -v --platform=basalt
 ```
 
 To run on ALL emulator platforms (aplite, basalt, chalk, diorite, emery):
