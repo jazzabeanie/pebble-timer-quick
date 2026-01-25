@@ -42,6 +42,30 @@ Other resources that might be helpful if the above fails:
 - https://github.com/richinfante/rebbletool
 - https://developer.repebble.com/sdk/cloud
 
+## Running Tests
+
+Unit tests use [cmocka](https://cmocka.org/) and can be run without the Pebble SDK.
+
+**Dependencies:** `gcc` and `make` (typically pre-installed on Linux; on Debian/Ubuntu: `sudo apt install build-essential`). The cmocka library is pre-installed in `vendor/cmocka_install/`.
+
+To run the tests:
+
+```bash
+cd test
+make test
+```
+
+This will compile and run the test suite for the timer logic.
+
+To clean up test artifacts (removes the compiled `run_tests` binary):
+
+```bash
+cd test
+make clean
+```
+
+This is only needed if you're troubleshooting build issues and want a fresh rebuild. The Makefile automatically rebuilds when source files change, so cleaning is rarely necessary during normal development.
+
 ## Building instructions for LLMs
 
 After making code changes, do not active the conda environment. Just run build with

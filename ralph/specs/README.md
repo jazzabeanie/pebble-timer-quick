@@ -38,15 +38,15 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 ### 2. Testing Framework
 **File:** [testing-framework.md](testing-framework.md)
 
-**Keywords:** testing, unit tests, integration tests, cmocka, pebble emulator, test framework, test coverage
+**Keywords:** testing, unit tests, integration tests, cmocka, pebble emulator, test framework, test coverage, timer tests
 
-**Summary:** Defines the requirements for a test framework and initial set of tests for the application.
+**Summary:** Defines the requirements for a test framework and initial set of tests for the application. Includes four unit tests for timer.c.
 
-**Status:** Not Started
+**Status:** Completed
 
-**Tests:** NA
+**Tests:** Passing
 
-**Dependencies:** cmocka
+**Dependencies:** cmocka (local copy in vendor/cmocka_install/)
 
 ---
 

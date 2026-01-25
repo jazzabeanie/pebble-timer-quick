@@ -1,0 +1,11 @@
+# cmocka pkg-config source file
+
+prefix=/home/jared/Workspace/pebble-timer-quick/vendor/cmocka_install
+libdir=/home/jared/Workspace/pebble-timer-quick/vendor/cmocka_install/lib
+includedir=/home/jared/Workspace/pebble-timer-quick/vendor/cmocka_install/include
+
+Name: cmocka
+Description: The cmocka unit testing library
+Version: 1.9.0
+Libs: -L${libdir} -lcmocka
+Cflags: -I${includedir}

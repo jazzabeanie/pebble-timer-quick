@@ -24,6 +24,9 @@ This file provides critical context about the codebase without requiring you to 
 ## Recent Changes
 *Log recent changes with dates and brief descriptions. Most recent at top.*
 
+- 2026-01-25: COMPLETED testing framework spec. Fixed test implementations to correctly handle timer.c behavior. Key insight: `timer_reset()` sets `start_ms = epoch()` which leaves timer RUNNING, not paused. Added `test/Makefile` for standalone test builds. All 4 tests now pass.
+- 2026-01-25: Implemented testing framework spec. Added `test/test_timer.c` and `test/pebble.h`. Updated `wscript` to include test command and check for `cmocka`. Tests are skipped if `cmocka` is not found.
+
 <!-- Example:
 - 2026-01-23: Initial project setup with ralph loop structure
 -->
@@ -33,30 +36,34 @@ This file provides critical context about the codebase without requiring you to 
 ## Key Components
 *Summaries of key components or modules, explaining their purpose and how they fit together.*
 
-<!-- Example:
-### Authentication Module
-Located in `src/auth/`. Handles user authentication using JWT tokens. Integrates with the database layer through the User repository pattern.
--->
+### Timer Module (src/timer.c)
+Core timer logic. Key behavioral notes:
+- `timer_reset()` sets `start_ms = epoch()`, leaving timer in RUNNING state
+- `timer_is_paused()` returns `start_ms <= 0` - negative start_ms encodes elapsed time when paused
+- `timer_get_value_ms()` uses complex formula: `length - epoch + (((start + epoch - 1) % epoch) + 1)`
+- `timer_toggle_play_pause()` toggles by subtracting/adding epoch to start_ms
+
+### Testing Framework (test/)
+- `test/test_timer.c`: Unit tests for timer module using cmocka
+- `test/pebble.h`: Mock Pebble SDK headers for host compilation
+- `test/Makefile`: Standalone build without Pebble SDK
+- cmocka installed in `vendor/cmocka_install/`
 
 ---
 
 ## Important Decisions
 *Document architectural or design decisions with reasoning.*
 
-<!-- Example:
-### 2026-01-23: Chose Repository Pattern for Data Access
-Decided to use the repository pattern to abstract database operations. This allows us to swap database implementations without changing business logic. All repositories implement interfaces defined in `src/interfaces/`.
--->
+### 2026-01-25: Standalone Test Build via Makefile
+Added `test/Makefile` to allow running tests without requiring the Pebble SDK. This enables CI/CD integration and easier local testing. The wscript build system is still the primary method when using Pebble tools.
 
 ---
 
 ## Known Issues
 *Technical debt and issues that need future attention but aren't blocking current work.*
 
-<!-- Example:
-- Password reset flow needs to implement rate limiting to prevent abuse
-- Error messages in the API could be more descriptive for debugging
--->
+- timer.c has debug APP_LOG statements with `%lld` format specifiers that cause warnings on 64-bit Linux (should use `PRId64` from `<inttypes.h>`)
+- The `epoch()` function mock in tests returns uint64_t via mock() cast - works but not ideal for very large epoch values
 
 ---
 
