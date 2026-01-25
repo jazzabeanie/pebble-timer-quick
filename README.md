@@ -66,6 +66,37 @@ make clean
 
 This is only needed if you're troubleshooting build issues and want a fresh rebuild. The Makefile automatically rebuilds when source files change, so cleaning is rarely necessary during normal development.
 
+## Running Functional Tests
+
+Functional tests run on the Pebble emulator to verify UI behavior and button interactions.
+
+**Dependencies:** Python 3.10+, Pillow (`pip install Pillow`), and the Pebble SDK (in conda-env).
+
+To run functional tests (runs on basalt by default):
+
+```bash
+cd test/functional
+python -m pytest test_create_timer.py -v
+```
+
+To run on a specific platform:
+
+```bash
+python -m pytest test_create_timer.py -v --platform=chalk
+```
+
+To run on ALL emulator platforms (aplite, basalt, chalk, diorite, emery):
+
+```bash
+python -m pytest test_create_timer.py -v --all-platforms
+```
+
+To save screenshots for debugging:
+
+```bash
+python -m pytest test_create_timer.py -v --save-screenshots
+```
+
 ## Building instructions for LLMs
 
 After making code changes, do not active the conda environment. Just run build with
