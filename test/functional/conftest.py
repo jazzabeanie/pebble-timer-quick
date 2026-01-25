@@ -4,6 +4,7 @@ Shared fixtures for functional tests.
 Provides emulator setup, screenshot helpers, and button simulation.
 """
 
+import logging
 import os
 import subprocess
 import sys
@@ -12,6 +13,9 @@ from pathlib import Path
 
 import pytest
 from PIL import Image
+
+# Configure module logger
+logger = logging.getLogger(__name__)
 
 # Add pebble tool to path
 CONDA_ENV = Path(__file__).parent.parent.parent / "conda-env"
@@ -67,6 +71,7 @@ class EmulatorHelper:
         self.screenshot_dir.mkdir(exist_ok=True)
         self._transport = None
         self._qemu_port = None
+        self._qemu_socket = None  # Persistent socket for button presses
 
     def _run_pebble(self, *args, check=True, capture_output=True, timeout=120):
         """Run a pebble command."""
@@ -87,6 +92,7 @@ class EmulatorHelper:
 
     def wipe(self):
         """Wipe emulator state for a fresh start."""
+        logger.debug(f"[{self.platform}] Wiping emulator state")
         # Kill any existing emulator first - this is required so the wipe takes effect
         try:
             self._run_pebble("kill", "--force", check=False)
@@ -97,6 +103,7 @@ class EmulatorHelper:
         self._run_pebble("wipe", check=False)
         # Reset port info since emulator was killed
         self._qemu_port = None
+        logger.debug(f"[{self.platform}] Wipe complete")
 
     def build(self):
         """Build the application."""
@@ -106,6 +113,7 @@ class EmulatorHelper:
 
     def install(self):
         """Install and launch the app on the emulator."""
+        logger.info(f"[{self.platform}] Installing app on emulator")
         # Install will start the emulator if needed
         result = self._run_pebble(
             "install",
@@ -118,6 +126,7 @@ class EmulatorHelper:
         time.sleep(1)
         # Get emulator info for button presses
         self._connect_transport()
+        logger.info(f"[{self.platform}] App installed and transport connected")
 
     def _connect_transport(self):
         """Connect to the emulator's QEMU transport for button presses."""
@@ -130,12 +139,35 @@ class EmulatorHelper:
             raise RuntimeError(f"Could not get emulator info for {self.platform}")
 
         self._qemu_port = info["qemu"]["port"]
+        logger.debug(f"[{self.platform}] Got QEMU port {self._qemu_port}")
+
+        # Establish persistent socket connection
+        self._ensure_qemu_socket()
+
+    def _ensure_qemu_socket(self):
+        """Ensure we have an open socket to the QEMU port."""
+        import socket
+
+        # Close existing socket if any
+        if self._qemu_socket is not None:
+            try:
+                self._qemu_socket.close()
+            except Exception:
+                pass
+            self._qemu_socket = None
+
+        # Create new persistent connection
+        self._qemu_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._qemu_socket.settimeout(10.0)
+        try:
+            self._qemu_socket.connect(("localhost", self._qemu_port))
+            logger.debug(f"[{self.platform}] Established persistent socket to QEMU port {self._qemu_port}")
+        except Exception as e:
+            self._qemu_socket = None
+            raise RuntimeError(f"Failed to connect to QEMU port {self._qemu_port}: {e}")
 
     def _send_button(self, button: int, retries: int = 2):
-        """Send a button press to the emulator via QEMU protocol."""
-        if self._qemu_port is None:
-            self._connect_transport()
-
+        """Send a button press to the emulator via QEMU protocol using persistent socket."""
         import socket
         from libpebble2.communication.transports.qemu.protocol import QemuButton, QemuPacket
 
@@ -145,107 +177,164 @@ class EmulatorHelper:
         release_packet = QemuButton(state=0)
 
         for attempt in range(retries + 1):
-            # Send via raw socket to QEMU port
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(5.0)  # 5 second timeout
+            # Ensure we have a socket connection
+            if self._qemu_socket is None:
+                if self._qemu_port is None:
+                    self._connect_transport()
+                else:
+                    self._ensure_qemu_socket()
+
             try:
-                sock.connect(("localhost", self._qemu_port))
+                logger.debug(f"[{self.platform}] Attempt {attempt+1}: sending button {button} on port {self._qemu_port}")
                 # Send press
                 data = QemuPacket(data=press_packet).serialise()
-                sock.send(data)
-                time.sleep(0.05)  # Brief press
+                self._qemu_socket.send(data)
+                time.sleep(0.1)  # Hold button briefly
                 # Send release
                 data = QemuPacket(data=release_packet).serialise()
-                sock.send(data)
+                self._qemu_socket.send(data)
+                logger.debug(f"[{self.platform}] Button {button} sent successfully")
                 break  # Success
-            except (socket.timeout, ConnectionError, OSError) as e:
+            except (socket.timeout, ConnectionError, OSError, BrokenPipeError) as e:
+                logger.warning(f"[{self.platform}] Attempt {attempt+1} failed: {e}")
+                # Close broken socket
+                if self._qemu_socket is not None:
+                    try:
+                        self._qemu_socket.close()
+                    except Exception:
+                        pass
+                    self._qemu_socket = None
+
                 if attempt < retries:
-                    # Refresh port info and retry
-                    self._qemu_port = None
+                    # Wait and reconnect
+                    time.sleep(1)
                     self._connect_transport()
                 else:
                     raise RuntimeError(
                         f"Failed to send button after {retries + 1} attempts: {e}"
                     )
-            finally:
-                sock.close()
 
         # Wait for display to update
-        time.sleep(0.2)
+        time.sleep(0.3)
 
     def hold_button(self, button: int, retries: int = 2):
-        """Holds a button down without releasing it."""
-        if self._qemu_port is None:
-            self._connect_transport()
-
+        """Holds a button down without releasing it using persistent socket."""
         import socket
         from libpebble2.communication.transports.qemu.protocol import QemuButton, QemuPacket
 
         press_packet = QemuButton(state=button)
+
         for attempt in range(retries + 1):
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(5.0)
+            # Ensure we have a socket connection
+            if self._qemu_socket is None:
+                if self._qemu_port is None:
+                    self._connect_transport()
+                else:
+                    self._ensure_qemu_socket()
+
             try:
-                sock.connect(("localhost", self._qemu_port))
                 data = QemuPacket(data=press_packet).serialise()
-                sock.send(data)
+                self._qemu_socket.send(data)
+                logger.debug(f"[{self.platform}] Button {button} held")
                 break
-            except (socket.timeout, ConnectionError, OSError) as e:
+            except (socket.timeout, ConnectionError, OSError, BrokenPipeError) as e:
+                logger.warning(f"[{self.platform}] hold_button attempt {attempt+1} failed: {e}")
+                if self._qemu_socket is not None:
+                    try:
+                        self._qemu_socket.close()
+                    except Exception:
+                        pass
+                    self._qemu_socket = None
+
                 if attempt < retries:
-                    self._qemu_port = None
+                    time.sleep(1)
                     self._connect_transport()
                 else:
                     raise RuntimeError(
                         f"Failed to send button press after {retries + 1} attempts: {e}"
                     )
-            finally:
-                sock.close()
         time.sleep(0.2)
 
     def release_buttons(self, retries: int = 2):
-        """Releases all currently held buttons."""
-        if self._qemu_port is None:
-            self._connect_transport()
-
+        """Releases all currently held buttons using persistent socket."""
         import socket
         from libpebble2.communication.transports.qemu.protocol import QemuButton, QemuPacket
 
         release_packet = QemuButton(state=0)
+
         for attempt in range(retries + 1):
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(5.0)
+            # Ensure we have a socket connection
+            if self._qemu_socket is None:
+                if self._qemu_port is None:
+                    self._connect_transport()
+                else:
+                    self._ensure_qemu_socket()
+
             try:
-                sock.connect(("localhost", self._qemu_port))
                 data = QemuPacket(data=release_packet).serialise()
-                sock.send(data)
+                self._qemu_socket.send(data)
+                logger.debug(f"[{self.platform}] Buttons released")
                 break
-            except (socket.timeout, ConnectionError, OSError) as e:
+            except (socket.timeout, ConnectionError, OSError, BrokenPipeError) as e:
+                logger.warning(f"[{self.platform}] release_buttons attempt {attempt+1} failed: {e}")
+                if self._qemu_socket is not None:
+                    try:
+                        self._qemu_socket.close()
+                    except Exception:
+                        pass
+                    self._qemu_socket = None
+
                 if attempt < retries:
-                    self._qemu_port = None
+                    time.sleep(1)
                     self._connect_transport()
                 else:
                     raise RuntimeError(
                         f"Failed to send button release after {retries + 1} attempts: {e}"
                     )
-            finally:
-                sock.close()
         time.sleep(0.2)
 
     def press_back(self):
         """Press the Back button."""
+        logger.debug(f"[{self.platform}] Pressing BACK button")
         self._send_button(Button.BACK)
 
     def press_up(self):
         """Press the Up button."""
+        logger.debug(f"[{self.platform}] Pressing UP button")
         self._send_button(Button.UP)
 
     def press_select(self):
         """Press the Select button."""
+        logger.debug(f"[{self.platform}] Pressing SELECT button")
         self._send_button(Button.SELECT)
 
     def press_down(self):
         """Press the Down button."""
+        logger.debug(f"[{self.platform}] Pressing DOWN button")
         self._send_button(Button.DOWN)
+
+    def open_app_via_menu(self):
+        """
+        Re-open the app by navigating through the Pebble launcher menu.
+
+        This method is used after quitting the app (long-press down) to re-launch
+        it WITHOUT using install(), which would clear the app's persisted state.
+
+        The sequence is:
+        1. Press SELECT to open the launcher menu (or select current item if already in menu)
+        2. Press SELECT again to launch the QuickTimer app
+
+        After long-pressing down to quit an app, the Pebble returns to the launcher
+        with the previously-run app selected, so two SELECT presses should reopen it.
+        """
+        logger.info(f"[{self.platform}] Opening app via menu navigation")
+        # Press SELECT to access menu or select current item
+        self.press_select()
+        time.sleep(0.5)
+        # Press SELECT again to launch the app
+        self.press_select()
+        time.sleep(0.5)
+        logger.info(f"[{self.platform}] App opened via menu")
 
     def screenshot(self, name: str = None) -> Image.Image:
         """Take a screenshot and return as PIL Image."""
@@ -254,6 +343,8 @@ class EmulatorHelper:
             filename = self.screenshot_dir / f"{self.platform}_{name}.png"
         else:
             filename = self.screenshot_dir / f"{self.platform}_temp.png"
+
+        logger.debug(f"[{self.platform}] Taking screenshot: {filename.name}")
 
         # Take screenshot using pebble command
         result = self._run_pebble(
@@ -276,10 +367,20 @@ class EmulatorHelper:
 
     def kill(self):
         """Kill the emulator."""
+        logger.debug(f"[{self.platform}] Killing emulator")
+        # Close persistent socket first
+        if self._qemu_socket is not None:
+            try:
+                self._qemu_socket.close()
+            except Exception:
+                pass
+            self._qemu_socket = None
         try:
             self._run_pebble("kill", check=False)
         except Exception:
             pass
+        self._qemu_port = None
+        logger.debug(f"[{self.platform}] Emulator killed")
 
 
 @pytest.fixture(scope="session")

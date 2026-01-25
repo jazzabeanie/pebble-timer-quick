@@ -145,6 +145,24 @@ python -m pytest test_create_timer.py -v --save-screenshots
 ```
 
 ## Progress
+- 2026-01-25: Fixed persistent_emulator to use menu navigation instead of install():
+  - Discovered that `install()` clears app persist state even within the same emulator session
+  - Added `open_app_via_menu()` method to EmulatorHelper that presses SELECT twice to navigate through the Pebble launcher menu
+  - After long-pressing down to quit, Pebble returns to launcher with the previously-run app selected
+  - Warm-up cycle is now: wipe->install->long-press-quit->open-via-menu (SELECT x2)
+  - All 5 tests pass on basalt platform
+- 2026-01-25: Updated persistent_emulator fixture to preserve app persist state:
+  - After holding down button to quit the app (which sets persist state), the fixture now re-opens the app within the same emulator via `install()` instead of killing and reinstalling
+  - This preserves the app's persist data set by the long-press quit action
+  - Warm-up cycle is now: wipe->install->long-press-quit->re-open-app (without kill)
+  - All 5 tests still pass on basalt platform
+- 2026-01-25: Fixed persistent_emulator fixture. Key fixes:
+  - Changed from creating new sockets per button press to maintaining a persistent socket connection
+  - QEMU's TCP server only supports one concurrent connection, so rapid connect/disconnect caused timeouts
+  - Added proper logging using Python's logging module instead of print statements
+  - Added pytest.ini with log_cli configuration to show logs during test runs
+  - Implemented warm-up cycle: wipe->install->long-press-quit->kill->fresh-install for clean state
+  - All 5 tests now pass on basalt platform
 - 2026-01-25: Spec created.
 
 ## Notes

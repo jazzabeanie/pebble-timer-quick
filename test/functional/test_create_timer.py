@@ -9,46 +9,66 @@ tests may observe the app in counting mode rather than "New" mode.
 The tests verify that button presses correctly update the display.
 """
 
+import logging
 import pytest
 from PIL import Image
 import time
 
 from .conftest import Button, EmulatorHelper, PLATFORMS
 
+# Configure module logger
+logger = logging.getLogger(__name__)
+
 
 @pytest.fixture(scope="module", params=PLATFORMS)
 def persistent_emulator(request, build_app):
     """
-    Module-scoped fixture that launches the emulator once per platform, performs
-    a long "Down" button press, and then yields the emulator for all tests.
+    Module-scoped fixture that launches the emulator once per platform.
+
+    The fixture performs a "warm-up" cycle:
+    1. Wipe storage, install app
+    2. Long press Down to quit the app (sets app state for next launch)
+    3. Re-open the app within the same emulator (preserves persisted state)
+
+    This ensures each test session starts with consistent app state without
+    destroying the persist data set by the long-press quit action.
     """
     platform = request.param
     platform_opt = request.config.getoption("--platform")
     if platform_opt and platform != platform_opt:
         pytest.skip(f"Skipping test for {platform} since --platform={platform_opt} was specified.")
-    
+
     save_screenshots = request.config.getoption("--save-screenshots")
     helper = EmulatorHelper(platform, save_screenshots)
 
-    # Setup: wipe, install, and do a long press of the down button
+    # Phase 1: Warm-up cycle to clear any stale state and set initial state
+    logger.info(f"[{platform}] Starting warm-up cycle to clear stale state")
     helper.wipe()
     helper.install()
-    print(f"[{platform}] Waiting for emulator to stailize.")
-    time.sleep(20)  # Allow emulator to stabilize
+    logger.info(f"[{platform}] Waiting for emulator to stabilize (5s)")
+    time.sleep(5)  # Allow emulator to stabilize
 
-    # Perform a 1-second long press of the Down button
-    print(f"[{platform}] Holding down button.")
+    # Long press Down button to quit the app - this sets the app's persist state
+    logger.info(f"[{platform}] Holding down button to quit app and set persist state")
     helper.hold_button(Button.DOWN)
     time.sleep(1)
     helper.release_buttons()
-    print(f"[{platform}] Performed a long press of the Down button.")
+    logger.info(f"[{platform}] App quit via long press, persist state set")
+    time.sleep(0.5)
 
-    time.sleep(0.5) # Wait for app to process the button release
-    # TODO: confirm if app need to be relaunced here.
+    # Phase 2: Re-open the app via menu navigation (preserves persist state)
+    # Using install() would clear the app's persisted state, so instead we
+    # navigate through the Pebble launcher menu to re-open the app
+    logger.info(f"[{platform}] Re-opening app via menu navigation (preserving persist state)")
+    helper.open_app_via_menu()
+    logger.info(f"[{platform}] Waiting for app to load (2s)")
+    time.sleep(2)  # Allow app to fully load
+    logger.info(f"[{platform}] Emulator ready for tests")
 
     yield helper
 
     # Teardown: kill emulator
+    logger.info(f"[{platform}] Tearing down - killing emulator")
     helper.kill()
 
 

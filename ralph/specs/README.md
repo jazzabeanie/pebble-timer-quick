@@ -72,9 +72,9 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 **Summary:** Defines functional tests that run on the Pebble emulator to verify UI/display updates and button interactions across all emulator platforms.
 
-**Status:** Not Started
+**Status:** In Progress
 
-**Tests:** NA
+**Tests:** Passing
 
 **Dependencies:** testing-framework (spec #2), Pebble SDK, Pillow
 

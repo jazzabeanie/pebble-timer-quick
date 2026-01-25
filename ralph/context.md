@@ -24,6 +24,9 @@ This file provides critical context about the codebase without requiring you to 
 ## Recent Changes
 *Log recent changes with dates and brief descriptions. Most recent at top.*
 
+- 2026-01-25: Fixed persistent_emulator fixture to use menu navigation instead of install(). Key insight: `install()` clears the app's persisted state even within the same emulator session. Solution: Added `open_app_via_menu()` method to EmulatorHelper that re-opens the app by pressing SELECT twice (navigating through the Pebble launcher menu). After long-pressing down to quit an app, the Pebble returns to the launcher with the previously-run app selected. All 5 tests pass on basalt.
+- 2026-01-25: Updated persistent_emulator fixture to preserve app persist state. Key change: After holding down button to quit the app (which sets persist state), the fixture now re-opens the app within the same emulator via `install()` instead of killing the emulator first. This preserves the app's persist data that was set by the long-press quit action. Removed the kill->reinstall cycle that was destroying the persist state.
+- 2026-01-25: Fixed functional-tests-emulator persistent_emulator fixture. Key insights: (1) QEMU's TCP server for button input only supports ONE concurrent connection - must use persistent socket. (2) Rapid socket connect/disconnect causes timeouts after ~2 connections. (3) Added pytest.ini with log_cli=true for proper logging output. (4) Warm-up cycle (wipe->install->long-press-quit->kill->fresh-install) ensures clean state between test runs.
 - 2026-01-25: COMPLETED timer-extended-tests spec. Added 14 new unit tests (total 18 tests now). Key insights: (1) `timer_check_elapsed()` auto-snooze behavior re-enables `can_vibrate` via `timer_increment()` - this is intentional design for re-arming alerts. (2) Vibration mocks now use cmocka's `function_called()` / `expect_function_call()` for verification. (3) Added `vibes_cancel()` mock to pebble.h.
 - 2026-01-25: COMPLETED testing framework spec. Fixed test implementations to correctly handle timer.c behavior. Key insight: `timer_reset()` sets `start_ms = epoch()` which leaves timer RUNNING, not paused. Added `test/Makefile` for standalone test builds. All 4 tests now pass.
 - 2026-01-25: Implemented testing framework spec. Added `test/test_timer.c` and `test/pebble.h`. Updated `wscript` to include test command and check for `cmocka`. Tests are skipped if `cmocka` is not found.
@@ -50,10 +53,20 @@ Core timer logic. Key behavioral notes:
 - `test/Makefile`: Standalone build without Pebble SDK
 - cmocka installed in `vendor/cmocka_install/`
 
+### Functional Tests (test/functional/)
+- `test/functional/conftest.py`: EmulatorHelper class for interacting with Pebble emulator
+- `test/functional/test_create_timer.py`: Tests for timer creation via button presses
+- `test/functional/pytest.ini`: Logging configuration (log_cli=true for visible logs)
+- Key pattern: Use **persistent socket** for QEMU button commands - QEMU only accepts one connection at a time
+- Run tests: `./conda-env/bin/python -m pytest test/functional/test_create_timer.py -v --platform=basalt`
+
 ---
 
 ## Important Decisions
 *Document architectural or design decisions with reasoning.*
+
+### 2026-01-25: Persistent Socket for QEMU Button Commands
+QEMU's TCP serial port (`-serial tcp::port,server,nowait`) only accepts ONE concurrent connection. Previous implementation created a new socket for each button press, causing timeouts after ~2-3 rapid presses. Fixed by maintaining a persistent socket in EmulatorHelper. The socket is created once on transport connect and reused for all button commands.
 
 ### 2026-01-25: Standalone Test Build via Makefile
 Added `test/Makefile` to allow running tests without requiring the Pebble SDK. This enables CI/CD integration and easier local testing. The wscript build system is still the primary method when using Pebble tools.
