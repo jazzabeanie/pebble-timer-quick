@@ -1,5 +1,5 @@
 # Test dependencies for functional tests
 pytest
 Pillow
-pytesseract
+easyocr
 websocket-client

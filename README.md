@@ -72,8 +72,9 @@ Functional tests run on the Pebble emulator to verify UI behavior and button int
 
 **Dependencies:**
 - Python 3.10+ and the Pebble SDK (in conda-env)
-- Tesseract OCR engine: `sudo apt install tesseract-ocr`
 - Python packages: `pip install -r requirements.txt`
+
+Note: The tests use EasyOCR (deep learning-based) for text recognition, which provides better accuracy for the custom LECO 7-segment style font compared to traditional OCR engines like Tesseract. EasyOCR downloads its models (~100MB) on first run.
 
 To run functional tests (runs on basalt by default):
 
