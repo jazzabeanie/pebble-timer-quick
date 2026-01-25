@@ -12,12 +12,27 @@ The tests verify that button presses correctly update the display.
 import logging
 import pytest
 from PIL import Image
+import pytesseract
 import time
 
 from .conftest import Button, EmulatorHelper, PLATFORMS
 
 # Configure module logger
 logger = logging.getLogger(__name__)
+
+
+def extract_text(img: Image.Image) -> str:
+    """Extract text from a Pebble screenshot using OCR.
+
+    Pebble screenshots are small, so we scale them up for better OCR accuracy.
+    """
+    # Scale up the image 4x for better OCR recognition
+    scaled = img.resize((img.width * 4, img.height * 4), Image.Resampling.LANCZOS)
+    # Convert to grayscale for better OCR
+    grayscale = scaled.convert("L")
+    # Use PSM 6 (uniform block of text) for better recognition of watch display
+    config = "--psm 6"
+    return pytesseract.image_to_string(grayscale, config=config)
 
 
 @pytest.fixture(scope="module", params=PLATFORMS)
@@ -61,8 +76,8 @@ def persistent_emulator(request, build_app):
     # navigate through the Pebble launcher menu to re-open the app
     logger.info(f"[{platform}] Re-opening app via menu navigation (preserving persist state)")
     helper.open_app_via_menu()
-    logger.info(f"[{platform}] Waiting for app to load (1s)")
-    time.sleep(1)  # Allow app to fully load
+    logger.info(f"[{platform}] Waiting for app to load (0.5s)")
+    time.sleep(0.5)  # Allow app to fully load
     logger.info(f"[{platform}] Emulator ready for tests")
 
     yield helper
@@ -77,44 +92,32 @@ class TestCreateTimer:
 
     def test_create_2_minute_timer(self, persistent_emulator):
         """
-        Test that Down button presses affect the timer display.
+        Test creating a 2-minute timer via two Down button presses.
 
         This test verifies:
-        1. The app launches and displays something (not blank)
-        2. Pressing Down changes the display
-        3. Pressing Down again changes the display again
-
-        Note: Due to the app's 3-second inactivity timer, the exact mode
-        may vary. In ControlModeNew, Down adds 1 minute. In ControlModeCounting
-        with a running chrono, the display changes as time passes.
+        1. The app shows "New" mode initially
+        2. After pressing Down twice, the timer shows approximately 2 minutes (1:5x)
         """
-        screenshots = []
         emulator = persistent_emulator
 
-        # Step 1: Take initial screenshot
+        # Step 1: Take initial screenshot and verify "New" mode
         img1 = emulator.screenshot("step1_initial")
-        screenshots.append(("step1_initial", img1))
+        text1 = extract_text(img1)
+        assert "New" in text1, f"Expected 'New' in initial screen, got: {text1}"
 
-        # Step 2: Press Down once and take screenshot
+        # Step 2: Press Down twice to set 2 minutes
         emulator.press_down()
-        img2 = emulator.screenshot("step2_after_first_down")
-        screenshots.append(("step2_1min", img2))
-
-        # Step 3: Press Down again and take screenshot
         emulator.press_down()
-        img3 = emulator.screenshot("step3_after_second_down")
-        screenshots.append(("step3_2min", img3))
+        img2 = emulator.screenshot("step2_after_two_down")
 
-        # Verify that screenshots are different (display changed)
-        # This confirms button presses are being received and processed
-        assert img1.tobytes() != img2.tobytes(), (
-            "Screenshot after first Down press should be different from initial"
-        )
-        assert img2.tobytes() != img3.tobytes(), (
-            "Screenshot after second Down press should be different from first"
-        )
-
-        # Screenshots can be visually inspected with --save-screenshots
+        # Step 3: Verify the timer shows ~2 minutes (1:5x due to countdown)
+        # Note: OCR may misread 7-segment digits (e.g., "1" as "L", "5" as "S")
+        text2 = extract_text(img2)
+        logger.info(f"extracted text {text2}")
+        # Check for common OCR interpretations of "1:5x"
+        time_patterns = ["1:5", "L:5", "1:S", "L:S"]
+        has_time = any(pattern in text2 for pattern in time_patterns)
+        assert has_time, f"Expected time starting with '1:5' (or OCR variant) after 2 Down presses, got: {text2}"
 
     def test_initial_state_shows_new(self, persistent_emulator):
         """Test that the initial state shows 'New' in the header."""

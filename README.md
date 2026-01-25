@@ -70,7 +70,10 @@ This is only needed if you're troubleshooting build issues and want a fresh rebu
 
 Functional tests run on the Pebble emulator to verify UI behavior and button interactions.
 
-**Dependencies:** Python 3.10+, Pillow (`pip install Pillow`), and the Pebble SDK (in conda-env).
+**Dependencies:**
+- Python 3.10+ and the Pebble SDK (in conda-env)
+- Tesseract OCR engine: `sudo apt install tesseract-ocr`
+- Python packages: `pip install -r requirements.txt`
 
 To run functional tests (runs on basalt by default):
 

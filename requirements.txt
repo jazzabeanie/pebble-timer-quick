@@ -1,0 +1,5 @@
+# Test dependencies for functional tests
+pytest
+Pillow
+pytesseract
+websocket-client
