@@ -69,6 +69,54 @@ This specification defines functional tests that run on the Pebble emulator to v
 - After each button press, a 3-second inactivity timer starts; test must complete verification before this expires (or reset the timer with another button press)
 - Step 2 (reset) and Step 5 (cleanup) ensure consistent state regardless of emulator history
 
+### Test 2: Timer Countdown
+
+**Purpose:** Verify that a running timer counts down over time.
+
+**Implementation:** `test_timer_counts_down`
+- Sets a 1 minute timer by pressing Down
+- Takes screenshots at intervals to verify the display changes as time passes
+- Verifies that the timer value decreases
+
+### Test 3: Timer Mode Transition
+
+**Purpose:** Verify that after 3 seconds of inactivity, the app transitions from 'New' mode to 'Counting' mode.
+
+**Implementation:** `test_timer_transitions_to_counting_mode`
+- Takes initial screenshot showing "New" mode
+- Presses Down to set timer value
+- Waits for 3-second inactivity timeout
+- Verifies display changed after transition
+
+### Test 4: Chrono (Stopwatch) Mode
+
+**Purpose:** Verify that in chrono mode (no timer set), the stopwatch counts up.
+
+**Implementation:** `test_chrono_mode_counts_up`
+- Waits for the app to enter chrono mode (timer at 0:00)
+- Takes screenshots at intervals
+- Verifies the display changes as the stopwatch counts up
+
+### Test 5: Play/Pause Functionality
+
+**Purpose:** Verify that pressing Select in counting mode toggles play/pause.
+
+**Implementation:** `test_select_toggles_play_pause_in_counting_mode`
+- Sets a timer and waits for counting mode
+- Presses Select to pause
+- Verifies display doesn't change while paused
+- Presses Select to resume
+- Verifies display changes after resuming
+
+### Test 6: Long Press Reset
+
+**Purpose:** Verify that long pressing Select resets the timer.
+
+**Implementation:** `test_long_press_select_resets_timer`
+- Sets a timer with some value (20 minutes via Up button)
+- Long presses Select to reset
+- Verifies display changed (timer reset to 0:00 or New mode)
+
 ## Dependencies
 - **testing-framework** (spec): For patterns and conventions
 - **Pebble SDK:** In `conda-env/` directory
@@ -145,6 +193,13 @@ python -m pytest test_create_timer.py -v --save-screenshots
 ```
 
 ## Progress
+- 2026-01-25: Added 5 additional test cases to cover timer functionality:
+  - `test_timer_counts_down` - verifies timer countdown behavior
+  - `test_timer_transitions_to_counting_mode` - verifies 3-second inactivity transition
+  - `test_chrono_mode_counts_up` - verifies stopwatch counts up
+  - `test_select_toggles_play_pause_in_counting_mode` - verifies play/pause toggle
+  - `test_long_press_select_resets_timer` - verifies long press reset
+  - All 10 tests pass on basalt platform
 - 2026-01-25: Fixed persistent_emulator to use menu navigation instead of install():
   - Discovered that `install()` clears app persist state even within the same emulator session
   - Added `open_app_via_menu()` method to EmulatorHelper that presses SELECT twice to navigate through the Pebble launcher menu

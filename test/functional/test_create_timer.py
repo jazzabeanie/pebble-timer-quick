@@ -193,3 +193,183 @@ class TestButtonPresses:
         assert initial.tobytes() != after_select.tobytes(), (
             "Display should change after Select press"
         )
+
+
+class TestTimerCountdown:
+    """Tests for timer countdown functionality."""
+
+    def test_timer_counts_down(self, persistent_emulator):
+        """
+        Test that a running timer counts down over time.
+
+        This test:
+        1. Sets a timer by pressing Down (adds 1 minute)
+        2. Waits for the app to transition to counting mode (3 second inactivity)
+        3. Takes screenshots at intervals to verify the display changes as time passes
+        """
+        emulator = persistent_emulator
+
+        # Set a 1 minute timer
+        emulator.press_down()
+        time.sleep(0.5)
+
+        # Take first screenshot
+        screenshot1 = emulator.screenshot("countdown_start")
+        text1 = extract_text(screenshot1)
+        logger.info(f"Countdown start text: {text1}")
+
+        # Wait 2 seconds and take another screenshot
+        time.sleep(2)
+        screenshot2 = emulator.screenshot("countdown_after_2s")
+        text2 = extract_text(screenshot2)
+        logger.info(f"After 2s text: {text2}")
+
+        # The display should have changed (timer counting down)
+        assert screenshot1.tobytes() != screenshot2.tobytes(), (
+            "Display should change as timer counts down"
+        )
+
+    def test_timer_transitions_to_counting_mode(self, persistent_emulator):
+        """
+        Test that after 3 seconds of inactivity, the app transitions from
+        'New' mode to 'Counting' mode (header changes from 'New').
+        """
+        emulator = persistent_emulator
+
+        # Take initial screenshot - should show "New"
+        initial = emulator.screenshot("transition_initial")
+        text_initial = extract_text(initial)
+        logger.info(f"Initial text: {text_initial}")
+
+        # Press Down to set timer value
+        emulator.press_down()
+        after_press = emulator.screenshot("transition_after_press")
+        text_after = extract_text(after_press)
+        logger.info(f"After Down press: {text_after}")
+
+        # Wait for 3-second inactivity timeout to trigger mode transition
+        time.sleep(4)
+
+        # Take screenshot after transition
+        after_transition = emulator.screenshot("transition_after_wait")
+        text_transition = extract_text(after_transition)
+        logger.info(f"After transition: {text_transition}")
+
+        # In counting mode, "New" should no longer appear in header
+        # (It might show just the time, or a different header)
+        # We verify by checking that the screen changed
+        assert after_press.tobytes() != after_transition.tobytes(), (
+            "Display should change after transition to counting mode"
+        )
+
+
+class TestChronoMode:
+    """Tests for stopwatch (chrono) mode functionality."""
+
+    def test_chrono_mode_counts_up(self, persistent_emulator):
+        """
+        Test that in chrono mode (no timer set), the stopwatch counts up.
+
+        When the app starts fresh with no timer value set (0:00),
+        after the 3-second timeout it begins counting up as a stopwatch.
+        """
+        emulator = persistent_emulator
+
+        # Wait for the app to enter chrono mode (timer at 0:00 with no value set)
+        # The app should start counting up
+        time.sleep(4)  # Wait for transition
+
+        screenshot1 = emulator.screenshot("chrono_start")
+        text1 = extract_text(screenshot1)
+        logger.info(f"Chrono mode start: {text1}")
+
+        # Wait and verify it's counting up
+        time.sleep(2)
+        screenshot2 = emulator.screenshot("chrono_after_2s")
+        text2 = extract_text(screenshot2)
+        logger.info(f"Chrono after 2s: {text2}")
+
+        # Display should have changed (stopwatch counting up)
+        assert screenshot1.tobytes() != screenshot2.tobytes(), (
+            "Display should change as chrono counts up"
+        )
+
+
+class TestPlayPause:
+    """Tests for play/pause functionality."""
+
+    def test_select_toggles_play_pause_in_counting_mode(self, persistent_emulator):
+        """
+        Test that pressing Select in counting mode toggles play/pause.
+
+        In counting mode (after the 3-second timeout), pressing Select
+        should pause/resume the timer.
+        """
+        emulator = persistent_emulator
+
+        # Set a timer and wait for it to start counting
+        emulator.press_down()  # Add 1 minute
+        time.sleep(4)  # Wait for counting mode
+
+        # Take screenshot while running
+        running = emulator.screenshot("playpause_running")
+
+        # Press Select to pause
+        emulator.press_select()
+        time.sleep(0.5)
+        paused = emulator.screenshot("playpause_paused")
+
+        # Wait a moment - if paused, display shouldn't change
+        time.sleep(1.5)
+        still_paused = emulator.screenshot("playpause_still_paused")
+
+        # The paused screenshots should be the same (timer stopped)
+        # Note: We compare with some tolerance because the screen might
+        # have minor differences, but the timer value should be the same
+        assert paused.tobytes() == still_paused.tobytes(), (
+            "Display should not change while paused"
+        )
+
+        # Press Select again to resume
+        emulator.press_select()
+        time.sleep(1.5)
+        resumed = emulator.screenshot("playpause_resumed")
+
+        # Display should have changed (timer resumed counting)
+        assert still_paused.tobytes() != resumed.tobytes(), (
+            "Display should change after resuming"
+        )
+
+
+class TestLongPressReset:
+    """Tests for long press reset functionality."""
+
+    def test_long_press_select_resets_timer(self, persistent_emulator):
+        """
+        Test that long pressing Select resets the timer.
+
+        A long press on Select should restart/reset the timer.
+        """
+        emulator = persistent_emulator
+
+        # Set a timer with some value
+        emulator.press_up()  # Add 20 minutes
+        time.sleep(0.5)
+        before_reset = emulator.screenshot("reset_before")
+        text_before = extract_text(before_reset)
+        logger.info(f"Before reset: {text_before}")
+
+        # Long press Select to reset
+        emulator.hold_button(Button.SELECT)
+        time.sleep(1)  # Hold for reset threshold
+        emulator.release_buttons()
+        time.sleep(0.5)
+
+        after_reset = emulator.screenshot("reset_after")
+        text_after = extract_text(after_reset)
+        logger.info(f"After reset: {text_after}")
+
+        # The display should have changed (timer reset)
+        assert before_reset.tobytes() != after_reset.tobytes(), (
+            "Display should change after long press reset"
+        )

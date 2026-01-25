@@ -24,6 +24,7 @@ This file provides critical context about the codebase without requiring you to 
 ## Recent Changes
 *Log recent changes with dates and brief descriptions. Most recent at top.*
 
+- 2026-01-25: Extended functional-tests-emulator spec with 5 additional test cases. Added tests for: timer countdown, mode transition (New→Counting after 3s inactivity), chrono/stopwatch mode, play/pause toggle, and long-press reset. All 10 tests pass on basalt platform. Test classes now organized by feature: TestCreateTimer, TestButtonPresses, TestTimerCountdown, TestChronoMode, TestPlayPause, TestLongPressReset.
 - 2026-01-25: Fixed persistent_emulator fixture to use menu navigation instead of install(). Key insight: `install()` clears the app's persisted state even within the same emulator session. Solution: Added `open_app_via_menu()` method to EmulatorHelper that re-opens the app by pressing SELECT twice (navigating through the Pebble launcher menu). After long-pressing down to quit an app, the Pebble returns to the launcher with the previously-run app selected. All 5 tests pass on basalt.
 - 2026-01-25: Updated persistent_emulator fixture to preserve app persist state. Key change: After holding down button to quit the app (which sets persist state), the fixture now re-opens the app within the same emulator via `install()` instead of killing the emulator first. This preserves the app's persist data that was set by the long-press quit action. Removed the kill->reinstall cycle that was destroying the persist state.
 - 2026-01-25: Fixed functional-tests-emulator persistent_emulator fixture. Key insights: (1) QEMU's TCP server for button input only supports ONE concurrent connection - must use persistent socket. (2) Rapid socket connect/disconnect causes timeouts after ~2 connections. (3) Added pytest.ini with log_cli=true for proper logging output. (4) Warm-up cycle (wipe->install->long-press-quit->kill->fresh-install) ensures clean state between test runs.
@@ -55,7 +56,13 @@ Core timer logic. Key behavioral notes:
 
 ### Functional Tests (test/functional/)
 - `test/functional/conftest.py`: EmulatorHelper class for interacting with Pebble emulator
-- `test/functional/test_create_timer.py`: Tests for timer creation via button presses
+- `test/functional/test_create_timer.py`: 10 functional tests organized into 6 test classes:
+  - TestCreateTimer: Timer creation via button presses (2-minute timer test, initial state, increment tests)
+  - TestButtonPresses: Button functionality (Up adds 20min, Select adds 5min)
+  - TestTimerCountdown: Timer countdown and mode transition tests
+  - TestChronoMode: Stopwatch/chrono functionality
+  - TestPlayPause: Play/pause toggle in counting mode
+  - TestLongPressReset: Long press Select to reset timer
 - `test/functional/pytest.ini`: Logging configuration (log_cli=true for visible logs)
 - Key pattern: Use **persistent socket** for QEMU button commands - QEMU only accepts one connection at a time
 - Run tests: `./conda-env/bin/python -m pytest test/functional/test_create_timer.py -v --platform=basalt`

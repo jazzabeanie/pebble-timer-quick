@@ -70,13 +70,13 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 **Keywords:** functional tests, emulator, integration tests, UI tests, button interactions, display verification, screenshot, aplite, basalt, chalk, diorite, emery, QemuButton, libpebble2, pytest
 
-**Summary:** Defines functional tests that run on the Pebble emulator to verify UI/display updates and button interactions across all emulator platforms.
+**Summary:** Defines functional tests that run on the Pebble emulator to verify UI/display updates and button interactions across all emulator platforms. Includes 10 tests covering timer creation, countdown, chrono mode, play/pause, and reset functionality.
 
-**Status:** In Progress
+**Status:** Completed
 
-**Tests:** Passing
+**Tests:** Passing (10 tests on basalt)
 
-**Dependencies:** testing-framework (spec #2), Pebble SDK, Pillow
+**Dependencies:** testing-framework (spec #2), Pebble SDK, Pillow, pytesseract
 
 ---
 
