@@ -43,10 +43,9 @@ def persistent_emulator(request, build_app):
     The fixture performs a "warm-up" cycle:
     1. Wipe storage, install app
     2. Long press Down to quit the app (sets app state for next launch)
-    3. Re-open the app within the same emulator (preserves persisted state)
 
-    This ensures each test session starts with consistent app state without
-    destroying the persist data set by the long-press quit action.
+    The app is left closed after warmup. The _reset_app_between_tests autouse
+    fixture handles opening/closing the app before/after each test.
     """
     platform = request.param
     platform_opt = request.config.getoption("--platform")
@@ -56,7 +55,7 @@ def persistent_emulator(request, build_app):
     save_screenshots = request.config.getoption("--save-screenshots")
     helper = EmulatorHelper(platform, save_screenshots)
 
-    # Phase 1: Warm-up cycle to clear any stale state and set initial state
+    # Warm-up cycle to clear any stale state and set initial persist state
     logger.info(f"[{platform}] Starting warm-up cycle to clear stale state")
     helper.wipe()
     helper.install()
@@ -71,13 +70,6 @@ def persistent_emulator(request, build_app):
     logger.info(f"[{platform}] App quit via long press, persist state set")
     time.sleep(0.5)
 
-    # Phase 2: Re-open the app via menu navigation (preserves persist state)
-    # Using install() would clear the app's persisted state, so instead we
-    # navigate through the Pebble launcher menu to re-open the app
-    logger.info(f"[{platform}] Re-opening app via menu navigation (preserving persist state)")
-    helper.open_app_via_menu()
-    logger.info(f"[{platform}] Waiting for app to load (0.5s)")
-    time.sleep(0.5)  # Allow app to fully load
     logger.info(f"[{platform}] Emulator ready for tests")
 
     yield helper
@@ -125,44 +117,28 @@ class TestCreateTimer:
         # Take screenshot of initial state
         img = emulator.screenshot("initial_state")
 
-        # Basic check: image was captured and has content
-        assert img is not None
-        assert img.size[0] > 0 and img.size[1] > 0
-
-        # The image should not be completely blank/uniform
-        # Check that there's some variation in pixel values
-        extrema = img.convert("L").getextrema()
-        assert extrema[0] != extrema[1], "Screen appears to be blank"
+        # Extract text and verify "New" is shown
+        text = extract_text(img)
+        logger.info(f"Initial state text: {text}")
+        assert "New" in text, f"Expected 'New' in initial screen, got: {text}"
 
     def test_down_button_increments_minutes(self, persistent_emulator):
         """Test that each Down press adds 1 minute to the timer."""
         emulator = persistent_emulator
-        # Take initial screenshot for comparison
-        initial = emulator.screenshot()
 
-        # Press Down and verify change
+        # Press Down three times to set 3 minutes
         emulator.press_down()
-        after_one = emulator.screenshot()
-
-        assert initial.tobytes() != after_one.tobytes(), (
-            "Display should change after Down press"
-        )
-
-        # Press Down again
         emulator.press_down()
-        after_two = emulator.screenshot()
-
-        assert after_one.tobytes() != after_two.tobytes(), (
-            "Display should change after second Down press"
-        )
-
-        # Press Down a third time
         emulator.press_down()
-        after_three = emulator.screenshot()
+        img = emulator.screenshot("after_three_down")
 
-        assert after_two.tobytes() != after_three.tobytes(), (
-            "Display should change after third Down press"
-        )
+        # Verify the timer shows ~3 minutes (2:5x due to countdown)
+        # Note: OCR may misread 7-segment digits (e.g., "2" as "Z", "5" as "S")
+        text = extract_text(img)
+        logger.info(f"After 3 Down presses: {text}")
+        time_patterns = ["2:5", "Z:5", "2:S", "Z:S"]
+        has_time = any(pattern in text for pattern in time_patterns)
+        assert has_time, f"Expected time starting with '2:5' (or OCR variant) after 3 Down presses, got: {text}"
 
 
 class TestButtonPresses:
@@ -171,28 +147,34 @@ class TestButtonPresses:
     def test_up_button_increments_20_minutes(self, persistent_emulator):
         """Test that Up button increments timer by 20 minutes."""
         emulator = persistent_emulator
-        initial = emulator.screenshot()
 
         emulator.press_up()
-        after_up = emulator.screenshot()
+        img = emulator.screenshot("after_up")
 
-        # The display should change after pressing Up
-        assert initial.tobytes() != after_up.tobytes(), (
-            "Display should change after Up press"
-        )
+        # Verify the timer shows ~20 minutes (19:5x due to countdown)
+        # Note: OCR may misread 7-segment digits
+        text = extract_text(img)
+        logger.info(f"After Up press: {text}")
+        # Look for "19:" pattern (20 minutes minus countdown)
+        time_patterns = ["19:", "L9:", "1S:"]
+        has_time = any(pattern in text for pattern in time_patterns)
+        assert has_time, f"Expected time starting with '19:' (or OCR variant) after Up press, got: {text}"
 
     def test_select_button_increments_5_minutes(self, persistent_emulator):
         """Test that Select button increments timer by 5 minutes."""
         emulator = persistent_emulator
-        initial = emulator.screenshot()
 
         emulator.press_select()
-        after_select = emulator.screenshot()
+        img = emulator.screenshot("after_select")
 
-        # The display should change after pressing Select
-        assert initial.tobytes() != after_select.tobytes(), (
-            "Display should change after Select press"
-        )
+        # Verify the timer shows ~5 minutes (4:5x due to countdown)
+        # Note: OCR may misread 7-segment digits
+        text = extract_text(img)
+        logger.info(f"After Select press: {text}")
+        # Look for "4:" pattern (5 minutes minus countdown)
+        time_patterns = ["4:5", "4:S"]
+        has_time = any(pattern in text for pattern in time_patterns)
+        assert has_time, f"Expected time starting with '4:5' (or OCR variant) after Select press, got: {text}"
 
 
 class TestTimerCountdown:
@@ -205,7 +187,7 @@ class TestTimerCountdown:
         This test:
         1. Sets a timer by pressing Down (adds 1 minute)
         2. Waits for the app to transition to counting mode (3 second inactivity)
-        3. Takes screenshots at intervals to verify the display changes as time passes
+        3. Takes screenshots at intervals to verify the timer value decreased
         """
         emulator = persistent_emulator
 
@@ -213,21 +195,26 @@ class TestTimerCountdown:
         emulator.press_down()
         time.sleep(0.5)
 
-        # Take first screenshot
+        # Take first screenshot - should show ~1 minute (0:5x)
         screenshot1 = emulator.screenshot("countdown_start")
         text1 = extract_text(screenshot1)
         logger.info(f"Countdown start text: {text1}")
 
-        # Wait 2 seconds and take another screenshot
-        time.sleep(2)
-        screenshot2 = emulator.screenshot("countdown_after_2s")
-        text2 = extract_text(screenshot2)
-        logger.info(f"After 2s text: {text2}")
+        # Verify initial time shows ~1 minute
+        time_patterns_start = ["0:5", "O:5", "0:S", "O:S"]
+        has_start_time = any(pattern in text1 for pattern in time_patterns_start)
+        assert has_start_time, f"Expected time starting with '0:5' (or OCR variant) initially, got: {text1}"
 
-        # The display should have changed (timer counting down)
-        assert screenshot1.tobytes() != screenshot2.tobytes(), (
-            "Display should change as timer counts down"
-        )
+        # Wait 5 seconds and take another screenshot
+        time.sleep(5)
+        screenshot2 = emulator.screenshot("countdown_after_5s")
+        text2 = extract_text(screenshot2)
+        logger.info(f"After 5s text: {text2}")
+
+        # Timer should have counted down - look for ~50 seconds or less (0:4x or lower)
+        time_patterns_later = ["0:4", "O:4", "0:3", "O:3", "0:2", "O:2"]
+        has_later_time = any(pattern in text2 for pattern in time_patterns_later)
+        assert has_later_time, f"Expected time to have decreased after 5s, got: {text2}"
 
     def test_timer_transitions_to_counting_mode(self, persistent_emulator):
         """
@@ -240,12 +227,14 @@ class TestTimerCountdown:
         initial = emulator.screenshot("transition_initial")
         text_initial = extract_text(initial)
         logger.info(f"Initial text: {text_initial}")
+        assert "New" in text_initial, f"Expected 'New' in initial screen, got: {text_initial}"
 
         # Press Down to set timer value
         emulator.press_down()
         after_press = emulator.screenshot("transition_after_press")
         text_after = extract_text(after_press)
         logger.info(f"After Down press: {text_after}")
+        assert "New" in text_after, f"Expected 'New' still shown after button press, got: {text_after}"
 
         # Wait for 3-second inactivity timeout to trigger mode transition
         time.sleep(4)
@@ -256,10 +245,8 @@ class TestTimerCountdown:
         logger.info(f"After transition: {text_transition}")
 
         # In counting mode, "New" should no longer appear in header
-        # (It might show just the time, or a different header)
-        # We verify by checking that the screen changed
-        assert after_press.tobytes() != after_transition.tobytes(), (
-            "Display should change after transition to counting mode"
+        assert "New" not in text_transition, (
+            f"Expected 'New' to disappear after transition to counting mode, got: {text_transition}"
         )
 
 
@@ -283,13 +270,23 @@ class TestChronoMode:
         text1 = extract_text(screenshot1)
         logger.info(f"Chrono mode start: {text1}")
 
-        # Wait and verify it's counting up
-        time.sleep(2)
-        screenshot2 = emulator.screenshot("chrono_after_2s")
-        text2 = extract_text(screenshot2)
-        logger.info(f"Chrono after 2s: {text2}")
+        # Should show small time value (0:0x) - stopwatch just started
+        time_patterns_start = ["0:0", "O:0", "0:O", "O:O"]
+        has_start_time = any(pattern in text1 for pattern in time_patterns_start)
+        assert has_start_time, f"Expected chrono to show '0:0x' at start, got: {text1}"
 
-        # Display should have changed (stopwatch counting up)
+        # Wait and verify it's counting up
+        time.sleep(5)
+        screenshot2 = emulator.screenshot("chrono_after_5s")
+        text2 = extract_text(screenshot2)
+        logger.info(f"Chrono after 5s: {text2}")
+
+        # Should now show higher time (0:05 or more)
+        time_patterns_later = ["0:0", "O:0", "0:1", "O:1"]
+        has_later_time = any(pattern in text2 for pattern in time_patterns_later)
+        assert has_later_time, f"Expected chrono to have counted up, got: {text2}"
+
+        # Verify the time actually increased by checking screenshots differ
         assert screenshot1.tobytes() != screenshot2.tobytes(), (
             "Display should change as chrono counts up"
         )
@@ -313,31 +310,37 @@ class TestPlayPause:
 
         # Take screenshot while running
         running = emulator.screenshot("playpause_running")
+        text_running = extract_text(running)
+        logger.info(f"Running timer: {text_running}")
 
         # Press Select to pause
         emulator.press_select()
         time.sleep(0.5)
         paused = emulator.screenshot("playpause_paused")
+        text_paused = extract_text(paused)
+        logger.info(f"Paused timer: {text_paused}")
 
-        # Wait a moment - if paused, display shouldn't change
-        time.sleep(1.5)
+        # Wait a moment - if paused, the time value shouldn't change
+        time.sleep(2)
         still_paused = emulator.screenshot("playpause_still_paused")
+        text_still_paused = extract_text(still_paused)
+        logger.info(f"Still paused: {text_still_paused}")
 
-        # The paused screenshots should be the same (timer stopped)
-        # Note: We compare with some tolerance because the screen might
-        # have minor differences, but the timer value should be the same
+        # The paused screenshots should show the same time (timer stopped)
         assert paused.tobytes() == still_paused.tobytes(), (
-            "Display should not change while paused"
+            f"Display should not change while paused. Before: {text_paused}, After: {text_still_paused}"
         )
 
         # Press Select again to resume
         emulator.press_select()
-        time.sleep(1.5)
+        time.sleep(2)
         resumed = emulator.screenshot("playpause_resumed")
+        text_resumed = extract_text(resumed)
+        logger.info(f"Resumed timer: {text_resumed}")
 
         # Display should have changed (timer resumed counting)
         assert still_paused.tobytes() != resumed.tobytes(), (
-            "Display should change after resuming"
+            f"Display should change after resuming. Paused: {text_still_paused}, Resumed: {text_resumed}"
         )
 
 
@@ -359,6 +362,11 @@ class TestLongPressReset:
         text_before = extract_text(before_reset)
         logger.info(f"Before reset: {text_before}")
 
+        # Verify we have a non-zero timer (should show ~20 minutes)
+        time_patterns_before = ["19:", "L9:", "1S:", "20:", "ZO:"]
+        has_time_before = any(pattern in text_before for pattern in time_patterns_before)
+        assert has_time_before, f"Expected timer showing ~20 minutes before reset, got: {text_before}"
+
         # Long press Select to reset
         emulator.hold_button(Button.SELECT)
         time.sleep(1)  # Hold for reset threshold
@@ -369,7 +377,5 @@ class TestLongPressReset:
         text_after = extract_text(after_reset)
         logger.info(f"After reset: {text_after}")
 
-        # The display should have changed (timer reset)
-        assert before_reset.tobytes() != after_reset.tobytes(), (
-            "Display should change after long press reset"
-        )
+        # After reset, timer should be back to 0:00 and show "New"
+        assert "New" in text_after, f"Expected 'New' after reset, got: {text_after}"

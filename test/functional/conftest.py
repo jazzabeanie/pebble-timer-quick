@@ -413,8 +413,18 @@ def emulator(request, platform, build_app):
 
 
 @pytest.fixture(autouse=True)
-def _set_test_name_on_emulators(request):
-    """Auto-use fixture to set the current test name on emulator helpers."""
+def _setup_test_environment(request):
+    """
+    Auto-use fixture that runs before/after each test.
+
+    Before each test:
+    - Sets the test name on the emulator helper (for screenshot naming)
+    - Opens the app via menu navigation
+
+    After each test:
+    - Quits the app via long-press down button
+    - Clears the test name
+    """
     test_name = request.node.name
     emulator_helper = None
 
@@ -427,9 +437,21 @@ def _set_test_name_on_emulators(request):
             continue
 
     if emulator_helper is not None:
+        # Set test name for screenshot prefixing
         emulator_helper.set_test_name(test_name)
+        # Open the app before the test
+        logger.info(f"[{emulator_helper.platform}] Opening app for test: {test_name}")
+        emulator_helper.open_app_via_menu()
+        time.sleep(0.5)
 
     yield
 
     if emulator_helper is not None:
+        # Quit the app after the test
+        logger.info(f"[{emulator_helper.platform}] Quitting app after test: {test_name}")
+        emulator_helper.hold_button(Button.DOWN)
+        time.sleep(1)
+        emulator_helper.release_buttons()
+        time.sleep(0.5)
+        # Clear test name
         emulator_helper.set_test_name(None)
