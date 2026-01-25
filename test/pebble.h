@@ -33,6 +33,7 @@ typedef struct {
 
 void vibes_long_pulse(void);
 void vibes_enqueue_custom_pattern(VibePattern pattern);
+void vibes_cancel(void);
 
 // Time
 time_t time(time_t *tloc);
