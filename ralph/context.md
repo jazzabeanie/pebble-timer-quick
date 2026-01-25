@@ -24,6 +24,7 @@ This file provides critical context about the codebase without requiring you to 
 ## Recent Changes
 *Log recent changes with dates and brief descriptions. Most recent at top.*
 
+- 2026-01-25: COMPLETED timer-extended-tests spec. Added 14 new unit tests (total 18 tests now). Key insights: (1) `timer_check_elapsed()` auto-snooze behavior re-enables `can_vibrate` via `timer_increment()` - this is intentional design for re-arming alerts. (2) Vibration mocks now use cmocka's `function_called()` / `expect_function_call()` for verification. (3) Added `vibes_cancel()` mock to pebble.h.
 - 2026-01-25: COMPLETED testing framework spec. Fixed test implementations to correctly handle timer.c behavior. Key insight: `timer_reset()` sets `start_ms = epoch()` which leaves timer RUNNING, not paused. Added `test/Makefile` for standalone test builds. All 4 tests now pass.
 - 2026-01-25: Implemented testing framework spec. Added `test/test_timer.c` and `test/pebble.h`. Updated `wscript` to include test command and check for `cmocka`. Tests are skipped if `cmocka` is not found.
 
