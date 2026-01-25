@@ -1,21 +1,56 @@
 #!/bin/bash
 # Ralph Wiggum - Long-running AI agent loop
-# Usage: ./ralph.sh [--tool amp|claude] [max_iterations]
 
 set -e
 
+# Help function
+show_help() {
+  cat << EOF
+Ralph Wiggum - Long-running AI agent loop
+
+Usage: ./ralph.sh [OPTIONS] [max_iterations]
+
+Options:
+  --tool <name>       AI tool to use: amp, claude, or gemini (default: gemini)
+  --prepend <text>    Custom text to prepend to the prompt
+  -h, --help          Show this help message and exit
+
+Arguments:
+  max_iterations      Maximum number of iterations to run (default: 5)
+
+Examples:
+  ./ralph.sh                              # Run with defaults (gemini, 5 iterations)
+  ./ralph.sh 10                           # Run 10 iterations
+  ./ralph.sh --tool claude 3              # Use claude for 3 iterations
+  ./ralph.sh --prepend "Focus on tests"   # Prepend custom instruction to prompt
+EOF
+  exit 0
+}
+
 # Parse arguments
-TOOL="claude"  # Default to amp for backwards compatibility
+TOOL="claude"
 MAX_ITERATIONS=5
+PREPEND_TEXT=""
 
 while [[ $# -gt 0 ]]; do
   case $1 in
+    -h|--help)
+      show_help
+      ;;
     --tool)
       TOOL="$2"
       shift 2
       ;;
     --tool=*)
       TOOL="${1#*=}"
+      shift
+      ;;
+    --prepend)
+      PREPEND_TEXT="$2"
+      shift 2
+      ;;
+    --prepend=*)
+      PREPEND_TEXT="${1#*=}"
       shift
       ;;
     *)
@@ -55,8 +90,14 @@ for i in $(seq 1 $MAX_ITERATIONS); do
   echo "==============================================================="
 
   # Run the selected tool with the ralph prompt
-  # Prompt now consists of prompt.txt + context.md + all .md files in the specs directory
-  FULL_PROMPT="Project root: $PROJECT_ROOT
+  # Prompt now consists of optional prepend text + prompt.txt + context.md + all .md files in the specs directory
+  FULL_PROMPT=""
+  if [[ -n "$PREPEND_TEXT" ]]; then
+    FULL_PROMPT="$PREPEND_TEXT
+
+"
+  fi
+  FULL_PROMPT="${FULL_PROMPT}Project root: $PROJECT_ROOT
 
 $(cat "$SCRIPT_DIR/prompt.txt" 2>/dev/null)"
   
