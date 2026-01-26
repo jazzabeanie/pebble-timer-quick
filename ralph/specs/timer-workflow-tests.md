@@ -24,25 +24,28 @@ This specification defines functional tests for common user workflows that are n
 | Step | Action | Expected Display State |
 |---|---|---|
 | 1 | Launch app and set a 2-minute timer | Header: "New", Main: "2:00" |
-| 2 | Press Select to start the timer | Header: "Counting", Main: shows time decreasing from "2:00" |
-| 3 | Wait 2 seconds | Main: shows time around "1:58" |
-| 4 | Press Down button | Header: "Editing", Main: "2:58" (adds 1 minute) |
-| 5 | Wait 2 seconds | Main: shows time decreasing from "2:58" |
+| 2 | Wait 4 seconds for auto-start | Header: shows total duration, Main: shows time decreasing from "2:00" |
+| 3 | Wait 2 seconds | Main: shows time around "1:54" |
+| 4 | Press Up button | Header: "Edit", Main: shows current time |
+| 5 | Press Down button | Main: time increases by 1 minute (shows ~"2:54") |
+| 6 | Wait 4 seconds to resume counting | Header: shows total duration, Main: time decreasing from ~"2:54" |
 **Verification Details:**
-- Step 4: Verify the header changes to "Editing" and the time is increased by 1 minute.
-- Step 5: Verify the timer continues counting down from the new time.
+- Step 4: Verify the header changes to "Edit".
+- Step 5: Verify the time is increased by approximately 1 minute.
+- Step 6: Verify the timer continues counting down from the new time.
 
 ### Test 2: Set a 4-second timer
-**Purpose:** Verify that a short timer can be set and requires a manual start.
+**Purpose:** Verify that a short timer can be set and starts counting down automatically.
 **Preconditions:**
 - App launches fresh.
 **Steps:**
 | Step | Action | Expected Display State |
 |---|---|---|
-| 1 | Use `short_timer` fixture to set a 4-second timer | Header: "New", Main: "0:04" |
-| 2 | Wait 5 seconds | Header: "New", Main: "0:04" |
+| 1 | Use `short_timer` fixture to set and start a 4-second timer | Header: shows total duration, Main: shows time decreasing from "0:04" |
+| 2 | Wait 2 seconds | Main: shows time around "0:02" |
 **Verification Details:**
-- Step 2: Verify the timer has not started automatically and the display has not changed.
+- Step 1: Verify the timer is in counting mode (e.g., no "Edit" or "New" in header).
+- Step 2: Verify the timer has counted down from its initial value.
 
 ### Test 3: Snooze a completed timer
 **Purpose:** Verify that a completed timer can be snoozed.
@@ -53,13 +56,13 @@ This specification defines functional tests for common user workflows that are n
 |---|---|---|
 | 1 | Use `short_timer` to set and start a 4-second timer | Header: "Counting", Main: "0:04" -> "0:00" |
 | 2 | Wait for timer to complete | App vibrates, Header: "Alarming" or similar |
-| 3 | Press Select button | Header: "Snoozed", Main: shows snooze countdown (e.g., "5:00") |
+| 3 | Press Down button | Header: shows total duration, Main: shows snooze countdown (e.g., "5:00") |
 **Verification Details:**
 - Step 2: Verify the device vibrates or the display indicates an alarm.
-- Step 3: Verify the header changes to "Snoozed" and a new countdown has started. The default snooze time is 5 minutes.
+- Step 3: Verify a new countdown has started for the snooze duration (default 5 minutes).
 
-### Test 4: Repeat a completed timer
-**Purpose:** Verify that a completed timer can be repeated.
+### Test 4: Silence and edit a completed timer
+**Purpose:** Verify that a completed (vibrating) timer can be silenced and edited with the Up button.
 **Preconditions:**
 - A timer is running.
 **Steps:**
@@ -67,9 +70,9 @@ This specification defines functional tests for common user workflows that are n
 |---|---|---|
 | 1 | Use `short_timer` to set and start a 4-second timer | Header: "Counting", Main: "0:04" -> "0:00" |
 | 2 | Wait for timer to complete | App vibrates, Header: "Alarming" or similar |
-| 3 | Hold Up button | Header: "Counting", Main: "0:04" (restarted) |
+| 3 | Press Up button | Alarm/vibration stops, Header: "Edit" |
 **Verification Details:**
-- Step 3: Verify the timer restarts with the original duration.
+- Step 3: Verify the alarm stops and the app enters edit mode.
 
 ### Test 5: Quiet alarm with back button
 **Purpose:** Verify the back button quiets the alarm, but the timer continues counting up.
@@ -100,18 +103,19 @@ This specification defines functional tests for common user workflows that are n
 - Step 4: Verify the header changes to "Paused" and the time stops counting.
 
 ### Test 7: Edit a completed timer to add a minute
-**Purpose:** Verify a completed timer (in chrono mode) can be edited to add a minute.
+**Purpose:** Verify a completed (vibrating) timer can be edited to add a minute.
 **Preconditions:**
 - A timer has just completed.
 **Steps:**
 | Step | Action | Expected Display State |
 |---|---|---|
 | 1 | Use `short_timer` to set and start a 4-second timer | Header: "Counting", Main: "0:04" -> "0:00" |
-| 2 | Wait for timer to complete and enter chrono mode | Header: "Chrono", Main: counting up from "0:00" |
-| 3 | Wait 2 seconds | Main: shows "0:02" |
-| 4 | Press Up button | Header: "Editing", Main: "1:02" |
+| 2 | Wait for timer to complete | App vibrates, Header: "Alarming" or similar |
+| 3 | Press Up button | Enters edit mode, Header: "Edit" |
+| 4 | Press Down button | Main: time increases by 1 minute (shows ~"1:00") |
 **Verification Details:**
-- Step 4: Verify the header changes to "Editing" and 1 minute is added to the chrono time. The total time at the top should also be updated.
+- Step 3: Verify the app enters edit mode.
+- Step 4: Verify 1 minute is added to the timer.
 
 ### Test 8: Enable repeating timer (Expected to Fail)
 **Purpose:** Verify that holding the Up button while a timer is counting down enables a repeating timer.
