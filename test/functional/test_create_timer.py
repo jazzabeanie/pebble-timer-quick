@@ -312,6 +312,7 @@ class TestButtonPresses:
 
         # Use flexible pattern matching
         normalized = normalize_time_text(text)
+        logger.info(f"  normalized: {normalized}")
         time_patterns = ["4:5", "4.5", "4;5", "45"]
         has_time = any(pattern in normalized for pattern in time_patterns)
 
@@ -568,7 +569,7 @@ class TestLongPressReset:
 
         # Long press Select to reset
         emulator.hold_button(Button.SELECT)
-        time.sleep(1)  # Hold for reset threshold
+        time.sleep(1.5)  # Hold for reset threshold
         emulator.release_buttons()
         time.sleep(0.5)
 
