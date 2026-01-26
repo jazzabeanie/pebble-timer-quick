@@ -354,8 +354,8 @@ class TestRepeatCompletedTimer:
         # Step 2: Wait for countdown to complete + vibration buffer
         time.sleep(5)
 
-        # Step 3: Press Up to silence alarm and enter edit mode
-        emulator.press_up()  # FIXME: hold up not press
+        # Step 3: Press Up to repeat the timer
+        emulator.hold_button(Button.UP)
         time.sleep(0.5)
 
         # Capture screenshot in edit mode
@@ -370,6 +370,7 @@ class TestRepeatCompletedTimer:
         logger.info(f"After holding Up during alarm: {repeat_text}")
 
         # Verify edit mode: header should show twice the original duration
+        # Timer should show less than 00:04
         # TODO:
 
 

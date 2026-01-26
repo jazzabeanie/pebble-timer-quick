@@ -61,18 +61,18 @@ This specification defines functional tests for common user workflows that are n
 - Step 2: Verify the device vibrates or the display indicates an alarm.
 - Step 3: Verify a new countdown has started for the snooze duration (default 5 minutes).
 
-### Test 4: Silence and edit a completed timer
-**Purpose:** Verify that a completed (vibrating) timer can be silenced and edited with the Up button.
+### Test 4: Repeat a completed timer
+**Purpose:** Verify that a completed (vibrating) timer can be repeated by holding the Up button.
 **Preconditions:**
 - A timer is running.
 **Steps:**
 | Step | Action | Expected Display State |
 |---|---|---|
 | 1 | Use `short_timer` to set and start a 4-second timer | Header: "Counting", Main: "0:04" -> "0:00" |
-| 2 | Wait for timer to complete | App vibrates, Header: "Alarming" or similar |
-| 3 | Press Up button | Alarm/vibration stops, Header: "Edit" |
+| 2 | Wait for timer to complete | App vibrates |
+| 3 | Hold Up button | Alarm/vibration stops, Header: "00:08" or similar |
 **Verification Details:**
-- Step 3: Verify the alarm stops and the app enters edit mode.
+- Step 3: Verify the alarm stops and app repeats the timer.
 
 ### Test 5: Quiet alarm with back button
 **Purpose:** Verify the back button quiets the alarm, but the timer continues counting up.
