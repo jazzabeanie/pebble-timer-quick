@@ -80,6 +80,21 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 ---
 
+### 5. Timer Workflow Tests
+**File:** [timer-workflow-tests.md](timer-workflow-tests.md)
+
+**Keywords:** functional tests, timer workflow, edit timer, snooze, repeat timer, alarm
+
+**Summary:** Defines functional tests for common timer workflows like editing a running timer, snoozing, and repeating.
+
+**Status:** Not Started
+
+**Tests:** NA
+
+**Dependencies:** functional-tests-emulator.md (spec #4)
+
+---
+
 ## Adding New Specifications
 
 When creating a new spec file:
