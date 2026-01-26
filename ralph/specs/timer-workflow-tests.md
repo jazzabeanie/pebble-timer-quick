@@ -26,7 +26,7 @@ This specification defines functional tests for common user workflows that are n
 | 1 | Launch app and set a 2-minute timer | Header: "New", Main: "2:00" |
 | 2 | Press Select to start the timer | Header: "Counting", Main: shows time decreasing from "2:00" |
 | 3 | Wait 2 seconds | Main: shows time around "1:58" |
-| 4 | Press Up button | Header: "Editing", Main: "2:58" (adds 1 minute) |
+| 4 | Press Down button | Header: "Editing", Main: "2:58" (adds 1 minute) |
 | 5 | Wait 2 seconds | Main: shows time decreasing from "2:58" |
 **Verification Details:**
 - Step 4: Verify the header changes to "Editing" and the time is increased by 1 minute.
@@ -67,7 +67,7 @@ This specification defines functional tests for common user workflows that are n
 |---|---|---|
 | 1 | Use `short_timer` to set and start a 4-second timer | Header: "Counting", Main: "0:04" -> "0:00" |
 | 2 | Wait for timer to complete | App vibrates, Header: "Alarming" or similar |
-| 3 | Press Up button | Header: "Counting", Main: "0:04" (restarted) |
+| 3 | Hold Up button | Header: "Counting", Main: "0:04" (restarted) |
 **Verification Details:**
 - Step 3: Verify the timer restarts with the original duration.
 
@@ -126,7 +126,7 @@ This specification defines functional tests for common user workflows that are n
 **Verification Details:**
 - Step 2: Verify a visual indicator for repeat mode appears.
 - Step 3: Verify the timer restarts automatically after finishing.
-**Status:** This test is expected to fail as the feature is not yet implemented.
+**Status:** This test is expected to fail as there is a bug.
 
 ## Dependencies
 - **functional-tests-emulator.md** (spec)
