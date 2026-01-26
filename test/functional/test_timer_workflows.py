@@ -100,7 +100,7 @@ def setup_short_timer(emulator, seconds=4):
     logger.info(f"[{emulator.platform}] Setting up {seconds}s timer: waiting for chrono mode")
 
     # Step 2: Wait for transition to chrono mode (0:00 counting up)
-    time.sleep(3.5)
+    time.sleep(2.5)
 
     # Step 3: Pause the chrono
     emulator.press_select()
@@ -588,12 +588,12 @@ class TestEnableRepeatingTimer:
         """
         Verify that holding the Up button while a timer is counting down
         enables a repeating timer, starting at _x (no repeat) and requiring
-        Down presses to increase to 2x for actual repeating.
+        Down presses to increase to 3x for repeating.
 
         Uses pixel-based detection instead of OCR for the repeat indicator.
         The indicator is white text rendered in the top-right corner of the
         display. We detect its presence by counting white pixels in that region,
-        and verify '2x' specifically by comparing the white pixel mask against
+        and verify '3x' specifically by comparing the white pixel mask against
         a stored reference image.
 
         Steps:
@@ -601,11 +601,12 @@ class TestEnableRepeatingTimer:
         2. Wait 4s for timer to count down (6s remaining)
         3. Hold Up button for 1 second (enables repeat edit mode, repeat_count=0, shows "_x")
         4. Verify indicator is visible via white pixel detection (flashing "_x")
-        5. Press Down twice to increase to 2x (the minimum useful repeat count)
-        6. Verify "2x" indicator matches reference mask
+        5. Press Down three times to increase to 3x
+        6. Verify "3x" indicator matches reference mask
         7. Wait for expire timer (3s) + remaining countdown + buffer
-        8. Verify the timer restarts automatically (repeat_count decrements 2->1)
-        9. Verify the restarted timer is counting down from ~10s
+        8. Verify the timer restarts automatically (repeat_count decrements 3->2)
+        9. Verify static "2x" indicator is shown after first repeat
+        10. Verify the restarted timer is counting down from ~10s
         """
         emulator = persistent_emulator
 
@@ -613,7 +614,7 @@ class TestEnableRepeatingTimer:
         setup_short_timer(emulator, seconds=10)
 
         # Wait briefly before enabling repeat. Timer will have ~8s remaining.
-        time.sleep(2)
+        time.sleep(1)
 
         # Step 2: Hold Up button (long press while counting down)
         # This enables repeat edit mode with repeat_count=0 (displays "_x").
@@ -638,33 +639,47 @@ class TestEnableRepeatingTimer:
         time.sleep(0.5)
         initial_repeat_screenshot = emulator.screenshot("initial_repeat_check_0")
 
-        # Step 3: Press Down twice to increase repeat count from 0 (_x) to 2 (2x).
+        # Step 3: Press Down three times to increase repeat count from 0 (_x) to 3 (3x).
         # Each Down press in EditRepeat increments repeat_count and resets the
         # expire timer (extending the 3s window). It also resets
         # last_interaction_time, putting the flash indicator into the ON phase.
         emulator.press_down()  # count: 0 → 1 ("1x")
         time.sleep(0.3)
-        emulator.press_down()  # count: 1 → 2 ("2x"), expire timer reset
-        # The second Down press just reset last_interaction_time, so the
+        emulator.press_down()  # count: 1 → 2 ("2x")
+        time.sleep(0.3)
+        emulator.press_down()  # count: 2 → 3 ("3x"), expire timer reset
+        # The third Down press just reset last_interaction_time, so the
         # indicator is now in the ON phase. Take a screenshot immediately.
-        # We use varying delays for 3 screenshots to handle timing uncertainty.
+        # Then take another one in case the timing is off.
         repeat_2x_screenshots = []
-        for i, delay in enumerate([0.3, 0, 0.5]):
+        for i, delay in enumerate([0, 0.5]):
             time.sleep(delay)
             repeat_2x_screenshots.append(emulator.screenshot(f"repeat_check_{i}"))
 
         # Step 4: Wait for the expire timer (3s from last Down press) to
         # transition back to ControlModeCounting, then wait for the remaining
         # countdown to complete and the timer to automatically restart.
-        time.sleep(8)
+        time.sleep(5)
 
         # Step 5: Take a screenshot to check if the timer has restarted.
-        # The header should show "00:20" (original 10s + 10s repeat increment)
-        # and the main display should show a countdown value.
+        # The header should show "00:20" (10s base + 10s from first repeat).
         first_restart_screenshot = emulator.screenshot("first_restart")
 
-        # Allow some time for the restarted timer to count down
+        # Step 6: Capture the repeat indicator after first restart.
+        # repeat_count should have decremented from 3 to 2, showing "2x".
+        # The indicator is static (not flashing) during counting mode, so a
+        # single screenshot is sufficient.
+        repeat_after_first_screenshot = emulator.screenshot("repeat_after_first")
+
+        # Allow some time for the restarted timer to count down, then take
+        # a second screenshot to verify the timer is actively counting.
         time.sleep(2)
+        counting_screenshot = emulator.screenshot("counting")
+
+        # Step 7: Wait for the second repeat cycle to complete and restart.
+        # The first restart timer counts down from ~20s. We've already waited
+        # ~2s for screenshots, so wait for the remaining countdown + buffer.
+        time.sleep(20)
         second_restart_screenshot = emulator.screenshot("second_restart")
 
         # Cancel quit timer
@@ -684,41 +699,59 @@ class TestEnableRepeatingTimer:
             "The '_x' indicator may not have been captured during its flash-on phase."
         )
 
-        # 2. Check 2x repeat screenshots via reference mask comparison.
-        # This confirms the indicator shows "2x" specifically (not just any text).
-        found_2x = False
+        # 2. Check 3x repeat screenshots via reference mask comparison.
+        # This confirms the indicator shows "3x" specifically (not just any text).
+        found_3x = False
         for i, screenshot in enumerate(repeat_2x_screenshots):
-            if has_repeat_indicator(screenshot) and matches_indicator_reference(screenshot, "basalt_2x"):
-                logger.info(f"'2x' indicator matched reference in screenshot {i}")
-                found_2x = True
+            if has_repeat_indicator(screenshot) and matches_indicator_reference(screenshot, "basalt_3x"):
+                logger.info(f"'3x' indicator matched reference in screenshot {i}")
+                found_3x = True
                 break
-        assert found_2x, (
-            "Expected '2x' indicator matching reference mask in at least one "
-            "repeat screenshot after 2 Down presses."
+        assert found_3x, (
+            "Expected '3x' indicator matching reference mask in at least one "
+            "repeat screenshot after 3 Down presses."
         )
 
-        # 3. Verify the header shows "00:20" after restart (original 10s + 10s repeat)
-        # This proves the timer was restarted by adding base_length_ms to length_ms.
+        # 3. Verify the header shows "00:20" after first restart (10s base + 10s repeat).
         first_restart_text = extract_text(first_restart_screenshot)
         logger.info(f"First restart: {first_restart_text}")
         first_normalized = normalize_time_text(first_restart_text)
         logger.info(f"First restart normalized: {first_normalized}")
         assert "00:20" in first_normalized or "00 20" in first_normalized, (
-            f"Expected header '00:20' indicating repeat restart (10s + 10s), got: {first_restart_text}"
+            f"Expected header '00:20' indicating first repeat restart (10s + 10s), got: {first_restart_text}"
         )
 
-        # 4. Verify the timer is counting down (display changes between screenshots)
-        second_restart_text = extract_text(second_restart_screenshot)
-        logger.info(f"Second restart: {second_restart_text}")
+        # 4. Verify the repeat indicator decremented from 3x to 2x after first repeat.
+        # The indicator is static (not flashing) during counting mode.
+        assert has_repeat_indicator(repeat_after_first_screenshot), (
+            "Expected repeat indicator (white pixels in top-right corner) "
+            "after first repeat restart."
+        )
+        assert matches_indicator_reference(repeat_after_first_screenshot, "basalt_2x"), (
+            "Expected '2x' indicator after first repeat (3x should decrement to 2x)."
+        )
+
+        # 5. Verify the timer is counting down (display changes between screenshots).
+        counting_text = extract_text(counting_screenshot)
+        logger.info(f"Counting: {counting_text}")
 
         # Compare cropped screenshots (exclude footer clock time which may change)
         first_cropped = first_restart_screenshot.crop(
             (0, 0, first_restart_screenshot.width, int(first_restart_screenshot.height * 0.75))
         )
-        second_cropped = second_restart_screenshot.crop(
-            (0, 0, second_restart_screenshot.width, int(second_restart_screenshot.height * 0.75))
+        counting_cropped = counting_screenshot.crop(
+            (0, 0, counting_screenshot.width, int(counting_screenshot.height * 0.75))
         )
-        assert first_cropped.tobytes() != second_cropped.tobytes(), (
+        assert first_cropped.tobytes() != counting_cropped.tobytes(), (
             f"Timer display should change as it counts down. "
-            f"First: {first_restart_text}, Second: {second_restart_text}"
+            f"First: {first_restart_text}, Counting: {counting_text}"
+        )
+
+        # 6. Verify the header shows "00:30" after second restart (10s + 10s + 10s).
+        second_restart_text = extract_text(second_restart_screenshot)
+        logger.info(f"Second restart: {second_restart_text}")
+        second_normalized = normalize_time_text(second_restart_text)
+        logger.info(f"Second restart normalized: {second_normalized}")
+        assert "00:30" in second_normalized or "00 30" in second_normalized, (
+            f"Expected header '00:30' indicating second repeat restart (10s + 10s + 10s), got: {second_restart_text}"
         )
