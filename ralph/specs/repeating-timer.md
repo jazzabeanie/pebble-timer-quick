@@ -9,13 +9,11 @@ This specification defines the functionality for a repeating timer. Users can en
 
 ### 2.1. Activation
 - When a timer is actively counting down, a long press (hold) of the **Up button** for at least 750ms shall enable "repeat edit mode."
-- This action should only be available while the timer is in `ControlModeCounting` and is not paused.
+- This action should only be available while the timer is in `ControlModeCounting`. The timer may or may not be paused.
 
 ### 2.2. Repeat Edit Mode
-- Upon entering "repeat edit mode," a flashing "2x" indicator shall appear in the top-right corner of the display.
-- The "2x" indicates the timer will run a total of two times (the initial run + one repeat).
-- Pressing the **Up button** in this mode increases the repeat count (e.g., "3x", "4x", etc.).
-- Pressing the **Down button** in this mode decreases the repeat count, with a minimum of "2x".
+- Upon entering "repeat edit mode," a flashing indicator shall appear in the top-right corner of the display.
+- A "2x", for example, indicates the timer will run a total of two times (the initial run + one repeat).
 - The UI shall exit "repeat edit mode" automatically after 3 seconds of inactivity, saving the selected repeat count.
 
 ### 2.3. Visual Indicator
@@ -27,13 +25,13 @@ This specification defines the functionality for a repeating timer. Users can en
 - The repeat indicator ("Nx") shall be removed from the display.
 
 ### 2.5. Timer Completion and Restart
-- When a repeating timer completes its countdown, it will vibrate and enter the alarm state as usual.
+- When a repeating timer completes its countdown, it will vibrate briefly before starting the next timer.
 - After the first completion, if there are repeats remaining, the timer will automatically restart with its original duration.
 - The repeat indicator will decrement (e.g., from "3x" to "2x").
 - When the final timer in the sequence completes, it will behave as a normal timer, entering chrono mode (counting up).
 
 ### 2.6. Interaction with Other Features
-- **Snooze:** If the user presses the **Down button** (snooze) after the *final* alarm of a repeating sequence, the timer will add 5 minutes and behave like a normal snoozed timer. Snoozing during an intermediate alarm should be prevented, and the timer should just restart.
+- **Snooze:** If the user presses the **Down button** (snooze) after the *final* alarm of a repeating sequence, the timer will add 5 minutes and behave like a normal snoozed timer. Snoozing during an intermediate alarm should not be possible, and the timer should just restart.
 - **Repeat:** If the user holds the **Up button** while a *completed* repeating timer is in its alarm state, it shall repeat the original timer value *one* time, regardless of the original repeat count.
 - **Pause:** A repeating timer can be paused and resumed like a normal timer. The repeat setting is retained.
 - **Edit:** Editing a running repeating timer (e.g., adding time with a single Up press) shall preserve the repeat setting.
