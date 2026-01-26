@@ -24,6 +24,8 @@ logger = logging.getLogger(__name__)
 
 # Directory for reference images
 SCREENSHOTS_DIR = Path(__file__).parent / "screenshots"
+REFERENCES_DIR = SCREENSHOTS_DIR / "references"
+REFERENCES_DIR.mkdir(parents=True, exist_ok=True)
 
 # Initialize EasyOCR reader once (models are loaded on first use)
 _ocr_reader = None
@@ -190,38 +192,61 @@ def has_repeat_indicator(img: Image.Image) -> bool:
     return count >= INDICATOR_WHITE_THRESHOLD
 
 
-def load_indicator_reference(name: str) -> "np.ndarray":
+def load_indicator_reference(name: str) -> "np.ndarray | None":
     """Load a reference white pixel mask for indicator comparison.
 
     Args:
         name: Reference name, e.g. "basalt_2x" loads "ref_basalt_2x_mask.png"
 
     Returns:
-        Boolean numpy array (height x width) where True = white pixel expected.
+        Boolean numpy array (height x width) where True = white pixel expected,
+        or None if the reference file does not exist yet.
     """
     import numpy as np
-    ref_path = SCREENSHOTS_DIR / f"ref_{name}_mask.png"
+    ref_path = REFERENCES_DIR / f"ref_{name}_mask.png"
+    if not ref_path.exists():
+        return None
     ref_img = Image.open(ref_path).convert("L")
     return np.array(ref_img) > 128
+
+
+def save_indicator_reference(name: str, mask: "np.ndarray") -> None:
+    """Save a white pixel mask as the reference for future comparisons.
+
+    Args:
+        name: Reference name, e.g. "basalt_2x" saves "ref_basalt_2x_mask.png"
+        mask: Boolean numpy array (height x width) where True = white pixel.
+    """
+    import numpy as np
+    ref_path = REFERENCES_DIR / f"ref_{name}_mask.png"
+    # Convert boolean mask to uint8 image (True=255, False=0)
+    mask_img = Image.fromarray((mask.astype(np.uint8) * 255))
+    mask_img.save(ref_path)
+    logger.info(f"Saved indicator reference to {ref_path}")
 
 
 def matches_indicator_reference(img: Image.Image, ref_name: str) -> bool:
     """Check if the indicator in a screenshot matches a named reference.
 
     Extracts the white pixel mask from the screenshot's indicator region
-    and compares it to the stored reference mask.
+    and compares it to the stored reference mask. If no reference exists yet,
+    saves the current mask as the reference and returns True.
 
     Args:
         img: Full Pebble screenshot.
         ref_name: Reference name, e.g. "basalt_2x".
 
     Returns:
-        True if the white pixel masks match exactly.
+        True if the white pixel masks match (or if a new reference was saved).
     """
     import numpy as np
     crop_arr = _get_indicator_crop(img)
     mask = _get_white_mask(crop_arr)
     ref_mask = load_indicator_reference(ref_name)
+    if ref_mask is None:
+        logger.info(f"No reference found for '{ref_name}', saving current mask as reference")
+        save_indicator_reference(ref_name, mask)
+        return True
     return np.array_equal(mask, ref_mask)
 
 
