@@ -72,9 +72,9 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 **Summary:** Defines functional tests for common timer workflows like editing a running timer, snoozing, and repeating.
 
-**Status:** Not Started
+**Status:** Completed
 
-**Tests:** NA
+**Tests:** Passing
 
 **Dependencies:** functional-tests-emulator.md (spec #4)
 
@@ -92,6 +92,21 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 **Tests:** Passing (22 unit tests including 4 repeat tests; functional test uses pixel-based indicator detection)
 
 **Dependencies:** functional-tests-emulator.md (spec #4)
+
+---
+
+### 7. Button Icon Tests
+**File:** [button-icon-tests.md](button-icon-tests.md)
+
+**Keywords:** button icons, icon tests, screenshot comparison, pixel mask, reference image, action bar, silence icon, pause icon, snooze icon, repeat icon, play icon, direction icon, functional tests
+
+**Summary:** Defines functional tests for verifying that icons appear beside buttons in every app state where a button has functionality. Uses pixel-based screenshot comparison against per-icon reference masks.
+
+**Status:** Not Started
+
+**Tests:** NA
+
+**Dependencies:** functional-tests-emulator.md (spec #4), repeating-timer.md (spec #6)
 
 ---
 

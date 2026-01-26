@@ -130,10 +130,10 @@ This specification defines functional tests for common user workflows that are n
 **Verification Details:**
 - Step 2: Verify a visual indicator for repeat mode appears.
 - Step 3: Verify the timer restarts automatically after finishing.
-**Status:** This test is expected to fail as there is a bug.
+**Status:** Passing.
 
 ## Dependencies
 - **functional-tests-emulator.md** (spec)
 
 ## Progress
-- **Not Started**
+- **Completed**

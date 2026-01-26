@@ -3,4 +3,5 @@ build
 .idea/
 .DS_Store
 .claude/
-test/functional/screenshots/
+test/functional/screenshots/*
+!test/functional/screenshots/references/
