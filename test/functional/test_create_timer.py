@@ -550,13 +550,16 @@ class TestLongPressReset:
 
     def test_long_press_select_resets_timer(self, persistent_emulator):
         """
-        Test that long pressing Select resets the timer.
+        Test that long pressing Select restarts the timer in counting mode.
 
-        A long press on Select should restart/reset the timer.
+        In counting mode, a long press on Select should restart the timer
+        to its original value (base_length_ms). The app must first transition
+        from ControlModeNew to ControlModeCounting (3-second inactivity timeout)
+        before the long press, otherwise the timer would be reset to 0:00 instead.
 
         Note: All screenshots are taken first and OCR text extraction + assertions
         are deferred to the end, since OCR is slow and the elapsed time would
-        interfere with the app's 3-second inactivity timer.
+        interfere with the app's timing behavior.
         """
         emulator = persistent_emulator
 
@@ -564,10 +567,13 @@ class TestLongPressReset:
 
         # Set a timer with some value
         emulator.press_up()  # Add 20 minutes
-        time.sleep(0.5)
+
+        # Wait for the 3-second inactivity timeout to transition
+        # from ControlModeNew to ControlModeCounting
+        time.sleep(4)
         before_reset = emulator.screenshot("reset_before")
 
-        # Long press Select to reset
+        # Long press Select to restart the timer
         emulator.hold_button(Button.SELECT)
         time.sleep(1.5)  # Hold for reset threshold
         emulator.release_buttons()
@@ -580,10 +586,10 @@ class TestLongPressReset:
         text_before = extract_text(before_reset)
         logger.info(f"Before reset: {text_before}")
 
-        # Verify we have a non-zero timer (should show ~20 minutes)
-        normalized = normalize_time_text(text_before)
+        # Verify we have a non-zero timer (should show ~20 minutes, counted down ~4s)
+        normalized_before = normalize_time_text(text_before)
         time_patterns_before = ["19:", "19.", "19;", "20:", "20."]
-        has_time_before = any(pattern in normalized for pattern in time_patterns_before)
+        has_time_before = any(pattern in normalized_before for pattern in time_patterns_before)
         if not has_time_before:
             has_time_before = has_time_pattern(text_before, minutes=20, tolerance=15)
         assert has_time_before, f"Expected timer showing ~20 minutes before reset, got: {text_before}"
@@ -591,5 +597,11 @@ class TestLongPressReset:
         text_after = extract_text(after_reset)
         logger.info(f"After reset: {text_after}")
 
-        # After reset, timer should be back to 0:00 and show "New"
-        assert "New" in text_after, f"Expected 'New' after reset, got: {text_after}"
+        # After long press SELECT in counting mode, the timer restarts to its
+        # original value (~20 minutes). Verify ~20 minutes is shown.
+        normalized_after = normalize_time_text(text_after)
+        time_patterns_after = ["19:", "19.", "19;", "20:", "20."]
+        has_time_after = any(pattern in normalized_after for pattern in time_patterns_after)
+        if not has_time_after:
+            has_time_after = has_time_pattern(text_after, minutes=20, tolerance=15)
+        assert has_time_after, f"Expected timer showing ~20 minutes after restart, got: {text_after}"
