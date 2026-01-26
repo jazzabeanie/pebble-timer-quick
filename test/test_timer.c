@@ -703,6 +703,50 @@ static void test_timer_check_elapsed_repeat_decrements_to_final(void **state) {
     assert_true(timer_data.is_repeating);
 }
 
+// 22. test_timer_check_elapsed_repeat_zero_count
+// Purpose: Verify that timer_check_elapsed() does NOT restart when repeat_count is 0.
+// When repeat mode is first enabled, repeat_count starts at 0 (displayed as "_x").
+// This is equivalent to 1x (no actual repeat), so the timer should vibrate normally.
+static void test_timer_check_elapsed_repeat_zero_count(void **state) {
+    // Setup: reset timer at T=10000
+    will_return(epoch, 10000);
+    timer_reset();
+
+    // Increment to 5000 ms
+    will_return(epoch, 10000);
+    will_return(epoch, 10000);
+    will_return(epoch, 10000);
+    timer_increment(5000);
+
+    // Set up repeating timer with count=0 (initial state after enabling repeat)
+    timer_data.base_length_ms = 5000;
+    timer_data.is_repeating = true;
+    timer_data.repeat_count = 0; // Initial state - should NOT restart
+    timer_data.can_vibrate = true;
+
+    // Simulate delay of 7 seconds (enter chrono)
+    // timer_check_elapsed calls:
+    // 1. timer_is_chrono (3 epoch calls)
+    // 2. timer_is_paused (0 calls)
+    // 3. repeat_count is 0, NOT > 1, so skip repeat restart
+    // 4. timer_get_value_ms (3 epoch calls) -> returns ~2000ms (under 30s)
+    // 5. Vibrates with custom pattern (normal vibration)
+    will_return(epoch, 17000);
+    will_return(epoch, 17000);
+    will_return(epoch, 17000);
+    will_return(epoch, 17000);
+    will_return(epoch, 17000);
+    will_return(epoch, 17000);
+
+    // Expect vibes_enqueue_custom_pattern (normal vibration, NOT long_pulse)
+    expect_function_call(vibes_enqueue_custom_pattern);
+
+    timer_check_elapsed();
+
+    // Assert repeat_count unchanged
+    assert_int_equal(timer_data.repeat_count, 0);
+}
+
 int main(void) {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test_setup_teardown(test_timer_reset, setup, teardown),
@@ -726,6 +770,7 @@ int main(void) {
         cmocka_unit_test_setup_teardown(test_timer_check_elapsed_repeat_final, setup, teardown),
         cmocka_unit_test_setup_teardown(test_timer_reset_clears_repeat, setup, teardown),
         cmocka_unit_test_setup_teardown(test_timer_check_elapsed_repeat_decrements_to_final, setup, teardown),
+        cmocka_unit_test_setup_teardown(test_timer_check_elapsed_repeat_zero_count, setup, teardown),
     };
 
     return cmocka_run_group_tests(tests, NULL, NULL);

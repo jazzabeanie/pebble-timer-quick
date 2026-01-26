@@ -89,7 +89,7 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 **Status:** Completed
 
-**Tests:** Passing (21 unit tests including 3 new repeat tests; functional test test_enable_repeating_timer passing on basalt)
+**Tests:** Passing (22 unit tests including 4 repeat tests; functional test test_enable_repeating_timer updated for _x initial display)
 
 **Dependencies:** functional-tests-emulator.md (spec #4)
 

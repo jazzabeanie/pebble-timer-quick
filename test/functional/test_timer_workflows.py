@@ -585,15 +585,19 @@ class TestEnableRepeatingTimer:
     def test_enable_repeating_timer(self, persistent_emulator):
         """
         Verify that holding the Up button while a timer is counting down
-        enables a repeating timer.
+        enables a repeating timer, starting at _x (no repeat) and requiring
+        Down presses to increase to 2x for actual repeating.
 
         Steps:
         1. Set up and start a 10-second timer
         2. Wait 4s for timer to count down (6s remaining)
-        3. Hold Up button for 1 second (enables repeat edit mode, repeat_count=2)
-        4. Wait for expire timer (3s) + remaining countdown (~3s) + buffer
-        5. Verify the timer restarts automatically (repeat_count decrements 2->1)
-        6. Verify the restarted timer is counting down from ~10s
+        3. Hold Up button for 1 second (enables repeat edit mode, repeat_count=0, shows "_x")
+        4. Verify "_x" is displayed (initial state, equivalent to 1x / no repeat)
+        5. Press Down twice to increase to 2x (the minimum useful repeat count)
+        6. Verify "2x" is displayed
+        7. Wait for expire timer (3s) + remaining countdown + buffer
+        8. Verify the timer restarts automatically (repeat_count decrements 2->1)
+        9. Verify the restarted timer is counting down from ~10s
         """
         emulator = persistent_emulator
 
@@ -605,26 +609,38 @@ class TestEnableRepeatingTimer:
         time.sleep(4)
 
         # Step 2: Hold Up button (long press while counting down)
-        # This enables repeat edit mode with repeat_count=2.
+        # This enables repeat edit mode with repeat_count=0 (displays "_x").
         emulator.hold_button(Button.UP)
         time.sleep(1)
         emulator.release_buttons()
         time.sleep(0.1)
 
-        # Take multiple screenshots to catch the flashing "2x" indicator.
+        # Take multiple screenshots to catch the flashing "_x" indicator.
         # In ControlModeEditRepeat, the indicator flashes: visible for 500ms, hidden for 500ms.
         # We take 4 screenshots spaced 250ms apart to ensure at least one captures it visible.
-        repeat_screenshots = []
+        initial_repeat_screenshots = []
         for i in range(4):
-            repeat_screenshots.append(emulator.screenshot(f"repeat_check_{i}"))
+            initial_repeat_screenshots.append(emulator.screenshot(f"initial_repeat_check_{i}"))
             time.sleep(0.25)
 
-        # Step 3: Wait for the initial 10-second timer to expire and restart.
-        # Timeline: ~4s remaining when we enter edit repeat mode.
-        # 3s expire timer fires → ~1s remaining → timer completes → repeat restart
+        # Step 3: Press Down twice to increase repeat count from 0 (_x) to 2 (2x)
+        emulator.press_down()
+        time.sleep(0.3)
+        emulator.press_down()
+        time.sleep(0.3)
+
+        # Take multiple screenshots to catch the flashing "2x" indicator.
+        repeat_2x_screenshots = []
+        for i in range(4):
+            repeat_2x_screenshots.append(emulator.screenshot(f"repeat_2x_check_{i}"))
+            time.sleep(0.25)
+
+        # Step 4: Wait for the initial 10-second timer to expire and restart.
+        # Timeline: ~2-3s remaining after the button presses.
+        # 3s expire timer fires → remaining countdown → timer completes → repeat restart
         time.sleep(6)
 
-        # Step 4: Take a screenshot to check if the timer has restarted.
+        # Step 5: Take a screenshot to check if the timer has restarted.
         # The header should show "00:20" (original 10s + 10s repeat increment)
         # and the main display should show a countdown value.
         first_restart_screenshot = emulator.screenshot("first_restart")
@@ -638,21 +654,36 @@ class TestEnableRepeatingTimer:
 
         # --- Perform OCR assertions ---
 
-        # 1. Check repeat screenshots for "2x" indicator.
+        # 1. Check initial repeat screenshots for "_x" indicator (or "x" since OCR may miss underscore).
         # The indicator flashes in ControlModeEditRepeat, so we check multiple screenshots.
-        found_2x = False
-        all_texts = []
-        for screenshot in repeat_screenshots:
+        found_initial = False
+        initial_texts = []
+        for screenshot in initial_repeat_screenshots:
             text = extract_text(screenshot)
-            all_texts.append(text)
-            logger.info(f"Repeat check: {text}")
+            initial_texts.append(text)
+            logger.info(f"Initial repeat check: {text}")
+            # Look for "_x" or just "x" (OCR may not read underscore reliably)
+            text_lower = text.lower()
+            if "_x" in text_lower or (("x" in text_lower or "X" in text) and "2x" not in text_lower and "2X" not in text):
+                found_initial = True
+        assert found_initial, (
+            f"Expected '_x' indicator in at least one initial repeat screenshot, got: {initial_texts}"
+        )
+
+        # 2. Check 2x repeat screenshots for "2x" indicator.
+        found_2x = False
+        all_2x_texts = []
+        for screenshot in repeat_2x_screenshots:
+            text = extract_text(screenshot)
+            all_2x_texts.append(text)
+            logger.info(f"Repeat 2x check: {text}")
             if "2x" in text or "2X" in text or "2x" in text.lower():
                 found_2x = True
         assert found_2x, (
-            f"Expected '2x' indicator in at least one repeat screenshot, got: {all_texts}"
+            f"Expected '2x' indicator in at least one repeat screenshot after 2 Down presses, got: {all_2x_texts}"
         )
 
-        # 2. Verify the header shows "00:20" after restart (original 10s + 10s repeat)
+        # 3. Verify the header shows "00:20" after restart (original 10s + 10s repeat)
         # This proves the timer was restarted by adding base_length_ms to length_ms.
         first_restart_text = extract_text(first_restart_screenshot)
         logger.info(f"First restart: {first_restart_text}")
@@ -662,7 +693,7 @@ class TestEnableRepeatingTimer:
             f"Expected header '00:20' indicating repeat restart (10s + 10s), got: {first_restart_text}"
         )
 
-        # 3. Verify the timer is counting down (display changes between screenshots)
+        # 4. Verify the timer is counting down (display changes between screenshots)
         second_restart_text = extract_text(second_restart_screenshot)
         logger.info(f"Second restart: {second_restart_text}")
 

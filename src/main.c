@@ -293,7 +293,7 @@ static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) 
     }
     timer_data.is_repeating = !timer_data.is_repeating;
     if (timer_data.is_repeating) {
-      timer_data.repeat_count = 2;
+      timer_data.repeat_count = 0;
       main_data.control_mode = ControlModeEditRepeat;
       prv_reset_new_expire_timer();
     } else {

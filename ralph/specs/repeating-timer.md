@@ -13,6 +13,8 @@ This specification defines the functionality for a repeating timer. Users can en
 
 ### 2.2. Repeat Edit Mode
 - Upon entering "repeat edit mode," a flashing indicator shall appear in the top-right corner of the display.
+- The initial display shall show "_x", which is equivalent to 1x (no actual repeat). This means enabling repeat mode alone does not cause the timer to repeat.
+- To repeat the timer, the user must increase the count by pressing the Down button. Each press increments the count by 1. Two Down presses are needed to reach "2x" (the minimum useful repeat count).
 - A "2x", for example, indicates the timer will run a total of two times (the initial run + one repeat).
 - The UI shall exit "repeat edit mode" automatically after 3 seconds of inactivity, saving the selected repeat count.
 
@@ -49,7 +51,7 @@ This specification defines the functionality for a repeating timer. Users can en
 
 ## 5. Status
 - **Status:** Completed
-- **Tests:** Passing (21 unit tests, functional test `test_enable_repeating_timer` passing on basalt)
+- **Tests:** Passing (22 unit tests including 4 repeat tests; functional test `test_enable_repeating_timer` updated for _x initial display)
 
 ## 6. Progress
 
@@ -63,7 +65,13 @@ This specification defines the functionality for a repeating timer. Users can en
 - **Functional test**: Removed `@pytest.mark.xfail` marker from `test_enable_repeating_timer`. Updated test to handle flashing indicator in `ControlModeEditRepeat` (takes 4 screenshots to catch flash), and verify restart via header "00:20" pattern.
 - **has_time_pattern()**: Added `seconds` parameter to support sub-minute time assertions.
 
+### 2026-01-26: Initial display changed from 2x to _x
+- **main.c - `prv_up_long_click_handler`**: Changed initial `repeat_count` from 2 to 0 when enabling repeat mode. Now displays "_x" (equivalent to 1x / no repeat). User must press Down twice to reach "2x" for actual repeating.
+- **drawing.c**: Already handled `repeat_count == 0` as "_x" display. No changes needed.
+- **Unit tests**: Added test 22 (`test_timer_check_elapsed_repeat_zero_count`) verifying that `repeat_count = 0` does not trigger repeat restart, behaves as normal timer vibration.
+- **Functional test**: Updated `test_enable_repeating_timer` to verify "_x" initial display, then press Down twice to reach "2x" before verifying repeat restart behavior.
+
 ### Key Decisions
-- **Initial repeat_count = 2**: When entering repeat edit mode, `repeat_count` starts at 2 (the minimum useful value) rather than 0 as in the removed code. This means "long press Up" immediately sets up a "run twice" timer.
-- **Indicator hidden at count=1**: The "Nx" indicator is only shown when `repeat_count > 1`. When count is 1 (final run), no indicator is shown since "1x" is equivalent to a normal timer.
+- **Initial repeat_count = 0 (displayed as "_x")**: When entering repeat edit mode, `repeat_count` starts at 0 (displayed as "_x"). This is equivalent to 1x (no actual repeat). The user must press Down twice to reach "2x" (the minimum useful repeat count). This gives the user explicit control over enabling actual repeating behavior.
+- **Indicator hidden at count ≤ 1**: The "Nx" indicator is only shown when `repeat_count > 1`. When count is 0 or 1, no indicator is shown outside of EditRepeat mode since these are equivalent to a normal timer.
 - **Flashing indicator**: In `ControlModeEditRepeat`, the indicator flashes (500ms on, 500ms off). In `ControlModeCounting`, it's static.
