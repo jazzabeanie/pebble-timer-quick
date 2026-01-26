@@ -95,6 +95,21 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 ---
 
+### 6. Repeating Timer
+**File:** [repeating-timer.md](repeating-timer.md)
+
+**Keywords:** functional tests, timer, repeat timer, repeating, countdown, loop, alarm, 2x, multiply
+
+**Summary:** Defines the functionality and interaction for a repeating timer feature.
+
+**Status:** Not Started
+
+**Tests:** Failing (test_enable_repeating_timer in test/functional/test_timer_workflows.py)
+
+**Dependencies:** functional-tests-emulator.md (spec #4)
+
+---
+
 ## Adding New Specifications
 
 When creating a new spec file:
