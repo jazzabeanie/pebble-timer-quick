@@ -38,6 +38,7 @@ This specification defines the functionality for a repeating timer. Users can en
 - **Chrono Mode:** A long press of the **Up button** while in chrono mode (after a timer has fully completed) shall have no effect.
 
 ## 3. Technical Details
+- This functionality was removed by commit 6c1eaee9055b135e9aa62f6773fe46d7f4543e5a. Please look at that to see the working code and integrate apply it onto of the current HEAD. That code should align with the other technical details below.
 - A new persistent storage key should be used to store the repeat count for a timer.
 - The `prv_handle_alarm()` function in `main.c` will need to be modified to check for and handle the repeat logic.
 - The `up_long_click_handler` in `main.c` will need to be updated to handle enabling/disabling the repeat feature.
