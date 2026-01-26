@@ -276,6 +276,8 @@ static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) 
     if (timer_data.base_length_ms > 0) {
       APP_LOG(APP_LOG_LEVEL_DEBUG, "Up long press: Extending timer by %lld ms.", timer_data.base_length_ms);
       vibes_cancel(); // Stop the alarm vibration
+      timer_data.is_repeating = false;
+      timer_data.repeat_count = 0;
       timer_increment(timer_data.base_length_ms); // Add the base duration
     }
     drawing_update();
@@ -283,7 +285,28 @@ static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) 
     return;
   }
 
-  // Toggle reverse direction
+  // In counting mode, toggle repeat on/off
+  if (main_data.control_mode == ControlModeCounting) {
+    // No effect in chrono mode (spec 2.6)
+    if (timer_is_chrono()) {
+      return;
+    }
+    timer_data.is_repeating = !timer_data.is_repeating;
+    if (timer_data.is_repeating) {
+      timer_data.repeat_count = 2;
+      main_data.control_mode = ControlModeEditRepeat;
+      prv_reset_new_expire_timer();
+    } else {
+      timer_data.repeat_count = 0;
+      main_data.control_mode = ControlModeCounting;
+    }
+    vibes_short_pulse();
+    drawing_update();
+    layer_mark_dirty(main_data.layer);
+    return;
+  }
+
+  // In edit modes, toggle reverse direction
   main_data.is_reverse_direction = !main_data.is_reverse_direction;
   vibes_short_pulse();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Reverse direction: %d", main_data.is_reverse_direction);
@@ -424,7 +447,14 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Down button pressed");
   if (timer_is_vibrating()) {
     vibes_cancel();
-    timer_increment(SNOOZE_INCREMENT_MS);
+    if (timer_data.is_repeating && timer_data.repeat_count > 1) {
+      // Intermediate alarm: just restart the timer (no snooze)
+      timer_data.repeat_count--;
+      timer_increment(timer_data.base_length_ms);
+    } else {
+      // Final alarm or non-repeating: normal snooze
+      timer_increment(SNOOZE_INCREMENT_MS);
+    }
     drawing_update();
     layer_mark_dirty(main_data.layer);
     return;

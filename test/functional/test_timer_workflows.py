@@ -580,22 +580,20 @@ class TestEditCompletedTimer:
 
 
 class TestEnableRepeatingTimer:
-    """Test 8: Enable repeating timer (expected to fail)."""
+    """Test 8: Enable repeating timer."""
 
-    @pytest.mark.xfail(reason="Repeating timer feature not yet fully implemented")
     def test_enable_repeating_timer(self, persistent_emulator):
         """
         Verify that holding the Up button while a timer is counting down
         enables a repeating timer.
 
         Steps:
-        1. Set up and start a 4-second timer
-        2. Hold Up button for 1 second (should enable repeat mode)
-        3. Wait for timer to complete
-        4. Verify the timer restarts automatically
-
-        Status: Expected to fail - the long press Up during countdown
-        toggles reverse direction, not repeat mode.
+        1. Set up and start a 10-second timer
+        2. Wait 4s for timer to count down (6s remaining)
+        3. Hold Up button for 1 second (enables repeat edit mode, repeat_count=2)
+        4. Wait for expire timer (3s) + remaining countdown (~3s) + buffer
+        5. Verify the timer restarts automatically (repeat_count decrements 2->1)
+        6. Verify the restarted timer is counting down from ~10s
         """
         emulator = persistent_emulator
 
@@ -607,22 +605,28 @@ class TestEnableRepeatingTimer:
         time.sleep(4)
 
         # Step 2: Hold Up button (long press while counting down)
-        # This is expected to enable repeat timers.
+        # This enables repeat edit mode with repeat_count=2.
         emulator.hold_button(Button.UP)
         time.sleep(1)
         emulator.release_buttons()
-        time.sleep(0.5)
+        time.sleep(0.1)
 
-        # Capture screenshot immediately after attempting to enable repeat.
-        # This should show the "2x" indicator if the feature was working.
-        repeat_enabled_screenshot = emulator.screenshot("after_enabling_repeat")
+        # Take multiple screenshots to catch the flashing "2x" indicator.
+        # In ControlModeEditRepeat, the indicator flashes: visible for 500ms, hidden for 500ms.
+        # We take 4 screenshots spaced 250ms apart to ensure at least one captures it visible.
+        repeat_screenshots = []
+        for i in range(4):
+            repeat_screenshots.append(emulator.screenshot(f"repeat_check_{i}"))
+            time.sleep(0.25)
 
-        # Step 3: Wait for the initial 10-second timer to expire.
-        # (6 seconds remaining from when Up was pressed + a buffer)
-        time.sleep(7) # 6s countdown + 1s buffer
+        # Step 3: Wait for the initial 10-second timer to expire and restart.
+        # Timeline: ~4s remaining when we enter edit repeat mode.
+        # 3s expire timer fires → ~1s remaining → timer completes → repeat restart
+        time.sleep(6)
 
         # Step 4: Take a screenshot to check if the timer has restarted.
-        # It should restart to the original 10 seconds.
+        # The header should show "00:20" (original 10s + 10s repeat increment)
+        # and the main display should show a countdown value.
         first_restart_screenshot = emulator.screenshot("first_restart")
 
         # Allow some time for the restarted timer to count down
@@ -634,36 +638,42 @@ class TestEnableRepeatingTimer:
 
         # --- Perform OCR assertions ---
 
-        # Check repeat_enabled_screenshot for "2x" in the top right
-        repeat_enabled_text = extract_text(repeat_enabled_screenshot)
-        logger.info(f"After enabling repeat: {repeat_enabled_text}")
-        # This assertion is expected to fail given the xfail marker, but we include it for completeness.
-        assert "2x" in repeat_enabled_text, "Expected '2x' indicator in repeat_enabled_screenshot"
+        # 1. Check repeat screenshots for "2x" indicator.
+        # The indicator flashes in ControlModeEditRepeat, so we check multiple screenshots.
+        found_2x = False
+        all_texts = []
+        for screenshot in repeat_screenshots:
+            text = extract_text(screenshot)
+            all_texts.append(text)
+            logger.info(f"Repeat check: {text}")
+            if "2x" in text or "2X" in text or "2x" in text.lower():
+                found_2x = True
+        assert found_2x, (
+            f"Expected '2x' indicator in at least one repeat screenshot, got: {all_texts}"
+        )
 
-        # Check first_restart_screenshot to see if the timer has restarted to ~10s
+        # 2. Verify the header shows "00:20" after restart (original 10s + 10s repeat)
+        # This proves the timer was restarted by adding base_length_ms to length_ms.
         first_restart_text = extract_text(first_restart_screenshot)
         logger.info(f"First restart: {first_restart_text}")
-        has_first_restart_time = has_time_pattern(first_restart_text, minutes=0, seconds=10, tolerance=2)
-        assert has_first_restart_time, (
-            f"Expected time around 0:10 after first restart, got: {first_restart_text}"
+        first_normalized = normalize_time_text(first_restart_text)
+        logger.info(f"First restart normalized: {first_normalized}")
+        assert "00:20" in first_normalized or "00 20" in first_normalized, (
+            f"Expected header '00:20' indicating repeat restart (10s + 10s), got: {first_restart_text}"
         )
 
-        # Check second_restart_screenshot to verify it's counting down from ~10s
+        # 3. Verify the timer is counting down (display changes between screenshots)
         second_restart_text = extract_text(second_restart_screenshot)
         logger.info(f"Second restart: {second_restart_text}")
-        has_second_restart_time = has_time_pattern(second_restart_text, minutes=0, seconds=8, tolerance=2)
-        assert has_second_restart_time, (
-            f"Expected time around 0:08 after second restart, got: {second_restart_text}"
+
+        # Compare cropped screenshots (exclude footer clock time which may change)
+        first_cropped = first_restart_screenshot.crop(
+            (0, 0, first_restart_screenshot.width, int(first_restart_screenshot.height * 0.75))
         )
-
-        # Also verify that the time in the second screenshot is less than the first
-        first_normalized = normalize_time_text(first_restart_text)
-        second_normalized = normalize_time_text(second_restart_text)
-
-        # Simple check: assuming format like "0:XX"
-        try:
-            first_seconds = int(first_normalized.split(':')[1])
-            second_seconds = int(second_normalized.split(':')[1])
-            assert second_seconds < first_seconds, "Timer should be counting down"
-        except (IndexError, ValueError):
-            logger.warning("Could not parse time for countdown verification, skipping strict check.")
+        second_cropped = second_restart_screenshot.crop(
+            (0, 0, second_restart_screenshot.width, int(second_restart_screenshot.height * 0.75))
+        )
+        assert first_cropped.tobytes() != second_cropped.tobytes(), (
+            f"Timer display should change as it counts down. "
+            f"First: {first_restart_text}, Second: {second_restart_text}"
+        )

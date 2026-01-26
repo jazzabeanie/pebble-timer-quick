@@ -74,8 +74,8 @@ def normalize_time_text(text: str) -> str:
     return normalized
 
 
-def has_time_pattern(text: str, minutes: int, tolerance: int = 10) -> bool:
-    """Check if OCR text contains a time pattern for approximately 'minutes' minutes.
+def has_time_pattern(text: str, minutes: int, tolerance: int = 10, seconds: int = 0) -> bool:
+    """Check if OCR text contains a time pattern for approximately the specified time.
 
     The LECO 7-segment font causes frequent digit misreadings (e.g. 5→6, 6→8).
     To handle this, each digit in a detected time pattern is expanded to its
@@ -85,6 +85,7 @@ def has_time_pattern(text: str, minutes: int, tolerance: int = 10) -> bool:
         text: The OCR extracted text
         minutes: Expected minutes (e.g., 2 for a 2-minute timer)
         tolerance: Seconds tolerance for countdown (default 10 seconds)
+        seconds: Expected seconds to add to minutes (default 0)
 
     Returns:
         True if a matching time pattern is found
@@ -115,11 +116,9 @@ def has_time_pattern(text: str, minutes: int, tolerance: int = 10) -> bool:
     normalized = normalize_time_text(text)
 
     # Build patterns for expected time range
-    # For N minutes, we expect (N-1):5X to N:00 approximately
-    expected_min = max(0, minutes - 1)
-    expected_max = minutes
-    expected_min_secs = expected_min * 60 + (60 - tolerance)
-    expected_max_secs = expected_max * 60 + tolerance
+    target_total_secs = minutes * 60 + seconds
+    expected_min_secs = max(0, target_total_secs - tolerance)
+    expected_max_secs = target_total_secs + tolerance
 
     # Pattern to find time-like sequences (M:SS or MSS format)
     # Matches digit followed by separator (or not) followed by 2 digits

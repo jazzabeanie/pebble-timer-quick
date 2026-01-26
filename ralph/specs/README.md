@@ -102,9 +102,9 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 **Summary:** Defines the functionality and interaction for a repeating timer feature.
 
-**Status:** Not Started
+**Status:** Completed
 
-**Tests:** Failing (test_enable_repeating_timer in test/functional/test_timer_workflows.py)
+**Tests:** Passing (21 unit tests including 3 new repeat tests; functional test test_enable_repeating_timer passing on basalt)
 
 **Dependencies:** functional-tests-emulator.md (spec #4)
 

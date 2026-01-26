@@ -416,9 +416,9 @@ void drawing_render(Layer *layer, GContext *ctx) {
     if (show) {
       char s_repeat_buffer[8];
       if (timer_data.repeat_count == 0) {
-        snprintf(s_repeat_buffer, sizeof(s_repeat_buffer), "x_");
+        snprintf(s_repeat_buffer, sizeof(s_repeat_buffer), "_x");
       } else {
-        snprintf(s_repeat_buffer, sizeof(s_repeat_buffer), "x%d", timer_data.repeat_count);
+        snprintf(s_repeat_buffer, sizeof(s_repeat_buffer), "%dx", timer_data.repeat_count);
       }
       GRect repeat_bounds = GRect(bounds.size.w - 50, 0, 50, 30);
       graphics_context_set_text_color(ctx, GColorWhite);

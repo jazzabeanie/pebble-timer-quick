@@ -596,6 +596,113 @@ static void test_timer_crosses_sub_second_resets(void **state) {
     assert_int_equal(timer_get_length_ms(), 0);
 }
 
+// 19. test_timer_check_elapsed_repeat_final
+// Purpose: Verify that timer_check_elapsed() does NOT restart on the final repeat (repeat_count == 1).
+// When repeat_count == 1, the timer has completed its last repeat and should vibrate normally.
+static void test_timer_check_elapsed_repeat_final(void **state) {
+    // Setup: reset timer at T=10000
+    will_return(epoch, 10000);
+    timer_reset();
+
+    // Increment to 5000 ms
+    will_return(epoch, 10000);
+    will_return(epoch, 10000);
+    will_return(epoch, 10000);
+    timer_increment(5000);
+
+    // Set up repeating timer with final repeat
+    timer_data.base_length_ms = 5000;
+    timer_data.is_repeating = true;
+    timer_data.repeat_count = 1; // Final repeat - should NOT restart
+    timer_data.can_vibrate = true;
+
+    // Simulate delay of 7 seconds (enter chrono)
+    // timer_check_elapsed calls:
+    // 1. timer_is_chrono (3 epoch calls)
+    // 2. timer_is_paused (0 calls)
+    // 3. repeat_count is 1, NOT > 1, so skip repeat restart
+    // 4. timer_get_value_ms (3 epoch calls) -> returns ~2000ms (under 30s)
+    // 5. Vibrates with custom pattern
+    will_return(epoch, 17000);
+    will_return(epoch, 17000);
+    will_return(epoch, 17000);
+    will_return(epoch, 17000);
+    will_return(epoch, 17000);
+    will_return(epoch, 17000);
+
+    // Expect vibes_enqueue_custom_pattern (normal vibration, NOT long_pulse)
+    expect_function_call(vibes_enqueue_custom_pattern);
+
+    timer_check_elapsed();
+
+    // Assert repeat_count unchanged (not decremented)
+    assert_int_equal(timer_data.repeat_count, 1);
+}
+
+// 20. test_timer_reset_clears_repeat
+// Purpose: Verify that timer_reset() clears repeat state.
+static void test_timer_reset_clears_repeat(void **state) {
+    // Setup: set repeat state
+    timer_data.is_repeating = true;
+    timer_data.repeat_count = 3;
+    timer_data.length_ms = 60000;
+    timer_data.base_length_ms = 60000;
+
+    // timer_reset() calls epoch() once
+    will_return(epoch, 10000);
+
+    timer_reset();
+
+    // Assert repeat state is cleared
+    assert_false(timer_data.is_repeating);
+    assert_int_equal(timer_data.repeat_count, 0);
+}
+
+// 21. test_timer_check_elapsed_repeat_decrements_to_final
+// Purpose: Verify that timer_check_elapsed() decrements from 2 to 1, restarting the timer.
+// After this, the next elapsed check with count=1 should NOT restart.
+static void test_timer_check_elapsed_repeat_decrements_to_final(void **state) {
+    // Setup: reset timer at T=10000
+    will_return(epoch, 10000);
+    timer_reset();
+
+    // Increment to 5000 ms
+    will_return(epoch, 10000);
+    will_return(epoch, 10000);
+    will_return(epoch, 10000);
+    timer_increment(5000);
+
+    // Set up repeating timer with count=2 (one more repeat remaining)
+    timer_data.base_length_ms = 5000;
+    timer_data.is_repeating = true;
+    timer_data.repeat_count = 2;
+    timer_data.can_vibrate = true;
+
+    // Simulate delay of 7 seconds (enter chrono)
+    // timer_check_elapsed calls:
+    // 1. timer_is_chrono (3 epoch calls)
+    // 2. timer_is_paused (0 calls)
+    // 3. repeat_count=2 > 1, so decrement and restart
+    // 4. timer_increment(base_length_ms) calls timer_get_value_ms (3 epoch calls)
+    will_return(epoch, 17000);
+    will_return(epoch, 17000);
+    will_return(epoch, 17000);
+    // timer_increment inside check_elapsed
+    will_return(epoch, 17000);
+    will_return(epoch, 17000);
+    will_return(epoch, 17000);
+
+    // Expect vibes_long_pulse (for repeat restart)
+    expect_function_call(vibes_long_pulse);
+
+    timer_check_elapsed();
+
+    // Assert repeat_count == 1 (decremented from 2)
+    assert_int_equal(timer_data.repeat_count, 1);
+    // Assert timer is still repeating
+    assert_true(timer_data.is_repeating);
+}
+
 int main(void) {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test_setup_teardown(test_timer_reset, setup, teardown),
@@ -616,6 +723,9 @@ int main(void) {
         cmocka_unit_test_setup_teardown(test_timer_sub_minute_valid, setup, teardown),
         cmocka_unit_test_setup_teardown(test_timer_sub_second_resets, setup, teardown),
         cmocka_unit_test_setup_teardown(test_timer_crosses_sub_second_resets, setup, teardown),
+        cmocka_unit_test_setup_teardown(test_timer_check_elapsed_repeat_final, setup, teardown),
+        cmocka_unit_test_setup_teardown(test_timer_reset_clears_repeat, setup, teardown),
+        cmocka_unit_test_setup_teardown(test_timer_check_elapsed_repeat_decrements_to_final, setup, teardown),
     };
 
     return cmocka_run_group_tests(tests, NULL, NULL);

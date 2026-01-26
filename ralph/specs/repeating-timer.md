@@ -48,5 +48,22 @@ This specification defines the functionality for a repeating timer. Users can en
 - Relies on functional tests defined in `functional-tests-emulator.md`.
 
 ## 5. Status
-- **Status:** Not Started
-- **Tests:** Failing (`test_enable_repeating_timer` in `test/functional/test_timer_workflows.py`)
+- **Status:** Completed
+- **Tests:** Passing (21 unit tests, functional test `test_enable_repeating_timer` passing on basalt)
+
+## 6. Progress
+
+### 2026-01-26: Implementation Complete
+- **main.c - `prv_up_long_click_handler`**: Modified to toggle repeat mode on/off when in `ControlModeCounting`. Long press Up enables repeat with `repeat_count = 2` (minimum useful value) and enters `ControlModeEditRepeat`. No effect in chrono mode (spec 2.6). When vibrating, long press Up now clears repeat state before extending timer.
+- **main.c - `prv_down_click_handler`**: Modified to handle intermediate alarm snooze (spec 2.6). When vibrating and `is_repeating && repeat_count > 1`, pressing Down restarts the timer (decrements count, adds base_length_ms) instead of normal 5-minute snooze.
+- **drawing.c - repeat indicator format**: Changed from "x2" to "2x" format to match spec (e.g., "2x", "3x").
+- **timer.c - `timer_check_elapsed()`**: Already handles repeat logic correctly (decrements count, calls `timer_increment(base_length_ms)`, vibrates with `vibes_long_pulse()`). No changes needed.
+- **timer.c - `timer_reset()`**: Already clears `is_repeating` and `repeat_count`. Verified with unit test.
+- **Unit tests**: Added 3 new tests (tests 19-21): `test_timer_check_elapsed_repeat_final` (final repeat doesn't restart), `test_timer_reset_clears_repeat`, `test_timer_check_elapsed_repeat_decrements_to_final` (2→1 decrement and restart).
+- **Functional test**: Removed `@pytest.mark.xfail` marker from `test_enable_repeating_timer`. Updated test to handle flashing indicator in `ControlModeEditRepeat` (takes 4 screenshots to catch flash), and verify restart via header "00:20" pattern.
+- **has_time_pattern()**: Added `seconds` parameter to support sub-minute time assertions.
+
+### Key Decisions
+- **Initial repeat_count = 2**: When entering repeat edit mode, `repeat_count` starts at 2 (the minimum useful value) rather than 0 as in the removed code. This means "long press Up" immediately sets up a "run twice" timer.
+- **Indicator hidden at count=1**: The "Nx" indicator is only shown when `repeat_count > 1`. When count is 1 (final run), no indicator is shown since "1x" is equivalent to a normal timer.
+- **Flashing indicator**: In `ControlModeEditRepeat`, the indicator flashes (500ms on, 500ms off). In `ControlModeCounting`, it's static.
