@@ -89,7 +89,7 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 **Status:** Completed
 
-**Tests:** Passing (22 unit tests including 4 repeat tests; functional test test_enable_repeating_timer updated for _x initial display)
+**Tests:** Passing (22 unit tests including 4 repeat tests; functional test uses pixel-based indicator detection)
 
 **Dependencies:** functional-tests-emulator.md (spec #4)
 

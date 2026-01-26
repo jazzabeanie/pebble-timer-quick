@@ -51,7 +51,7 @@ This specification defines the functionality for a repeating timer. Users can en
 
 ## 5. Status
 - **Status:** Completed
-- **Tests:** Passing (22 unit tests including 4 repeat tests; functional test `test_enable_repeating_timer` updated for _x initial display)
+- **Tests:** Passing (22 unit tests including 4 repeat tests; functional test `test_enable_repeating_timer` uses pixel-based indicator detection)
 
 ## 6. Progress
 
@@ -75,3 +75,10 @@ This specification defines the functionality for a repeating timer. Users can en
 - **Initial repeat_count = 0 (displayed as "_x")**: When entering repeat edit mode, `repeat_count` starts at 0 (displayed as "_x"). This is equivalent to 1x (no actual repeat). The user must press Down twice to reach "2x" (the minimum useful repeat count). This gives the user explicit control over enabling actual repeating behavior.
 - **Indicator hidden at count ≤ 1**: The "Nx" indicator is only shown when `repeat_count > 1`. When count is 0 or 1, no indicator is shown outside of EditRepeat mode since these are equivalent to a normal timer.
 - **Flashing indicator**: In `ControlModeEditRepeat`, the indicator flashes (500ms on, 500ms off). In `ControlModeCounting`, it's static.
+
+### 2026-01-26: Functional test rewritten with pixel-based indicator detection
+- **Problem**: OCR (EasyOCR) could not reliably detect the small "_x" and "2x" indicator text in the top-right corner. Additionally, the `pebble screenshot` command takes ~1.0s, creating perfect aliasing with the 1000ms flash cycle — every screenshot landed at phase=550ms (OFF).
+- **Solution**: Replaced OCR-based indicator assertions with pixel-based detection. The indicator text is rendered in pure white (255,255,255) against the green background. Detection is done by counting white pixels in the crop region `(94, 0, 144, 30)` for basalt. The "2x" indicator is verified by comparing the white pixel mask against a stored reference (`ref_basalt_2x_mask.png`).
+- **Timing fix**: Added a 0.5s delay before the first screenshot to shift the flash phase into the ON window. Reduced initial screenshots to 1 (from 4) to stay within the 3-second `new_expire_timer` before pressing Down.
+- **New helpers**: `has_repeat_indicator()`, `matches_indicator_reference()`, `load_indicator_reference()` in `test_create_timer.py`.
+- **Reference image**: `test/functional/screenshots/ref_basalt_2x_mask.png` — 50x30 grayscale image with the white pixel positions of the "2x" indicator (104 white pixels).

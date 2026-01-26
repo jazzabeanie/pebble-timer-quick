@@ -10,7 +10,9 @@ The tests verify that button presses correctly update the display.
 """
 
 import logging
+import os
 import pytest
+from pathlib import Path
 from PIL import Image
 import easyocr
 import time
@@ -19,6 +21,9 @@ from .conftest import Button, EmulatorHelper, PLATFORMS
 
 # Configure module logger
 logger = logging.getLogger(__name__)
+
+# Directory for reference images
+SCREENSHOTS_DIR = Path(__file__).parent / "screenshots"
 
 # Initialize EasyOCR reader once (models are loaded on first use)
 _ocr_reader = None
@@ -141,6 +146,83 @@ def has_time_pattern(text: str, minutes: int, tolerance: int = 10, seconds: int 
                     continue
 
     return False
+
+
+# --- Repeat indicator detection via pixel comparison ---
+# The repeat indicator ("_x", "2x", "3x") is drawn in white text in the
+# top-right corner of the display. OCR is unreliable for detecting this small
+# flashing text, so we use direct pixel analysis instead.
+#
+# For basalt (144x168): the indicator is rendered at GRect(94, 0, 50, 30).
+# The indicator text is pure white (255,255,255) against the green background.
+
+# Indicator crop region (matches drawing.c GRect(bounds.size.w - 50, 0, 50, 30))
+INDICATOR_CROP_BASALT = (94, 0, 144, 30)
+
+# Minimum white pixel count to consider indicator visible
+INDICATOR_WHITE_THRESHOLD = 20
+
+
+def _get_indicator_crop(img: Image.Image) -> "np.ndarray":
+    """Crop the top-right indicator region and return as numpy array."""
+    import numpy as np
+    crop = img.crop(INDICATOR_CROP_BASALT)
+    return np.array(crop)
+
+
+def _get_white_mask(crop_arr: "np.ndarray") -> "np.ndarray":
+    """Extract a boolean mask of white pixels from a crop array."""
+    import numpy as np
+    return np.all(crop_arr[:, :, :3] == 255, axis=2)
+
+
+def has_repeat_indicator(img: Image.Image) -> bool:
+    """Check if any repeat indicator is visible in the screenshot.
+
+    Detects the presence of white text pixels in the top-right indicator region.
+    Returns True if the white pixel count exceeds the threshold.
+    """
+    import numpy as np
+    crop_arr = _get_indicator_crop(img)
+    mask = _get_white_mask(crop_arr)
+    count = int(np.sum(mask))
+    logger.debug(f"Indicator white pixel count: {count}")
+    return count >= INDICATOR_WHITE_THRESHOLD
+
+
+def load_indicator_reference(name: str) -> "np.ndarray":
+    """Load a reference white pixel mask for indicator comparison.
+
+    Args:
+        name: Reference name, e.g. "basalt_2x" loads "ref_basalt_2x_mask.png"
+
+    Returns:
+        Boolean numpy array (height x width) where True = white pixel expected.
+    """
+    import numpy as np
+    ref_path = SCREENSHOTS_DIR / f"ref_{name}_mask.png"
+    ref_img = Image.open(ref_path).convert("L")
+    return np.array(ref_img) > 128
+
+
+def matches_indicator_reference(img: Image.Image, ref_name: str) -> bool:
+    """Check if the indicator in a screenshot matches a named reference.
+
+    Extracts the white pixel mask from the screenshot's indicator region
+    and compares it to the stored reference mask.
+
+    Args:
+        img: Full Pebble screenshot.
+        ref_name: Reference name, e.g. "basalt_2x".
+
+    Returns:
+        True if the white pixel masks match exactly.
+    """
+    import numpy as np
+    crop_arr = _get_indicator_crop(img)
+    mask = _get_white_mask(crop_arr)
+    ref_mask = load_indicator_reference(ref_name)
+    return np.array_equal(mask, ref_mask)
 
 
 @pytest.fixture(scope="module", params=PLATFORMS)

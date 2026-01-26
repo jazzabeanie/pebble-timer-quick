@@ -21,6 +21,8 @@ from .test_create_timer import (
     extract_text,
     normalize_time_text,
     has_time_pattern,
+    has_repeat_indicator,
+    matches_indicator_reference,
 )
 
 # Configure module logger
@@ -588,13 +590,19 @@ class TestEnableRepeatingTimer:
         enables a repeating timer, starting at _x (no repeat) and requiring
         Down presses to increase to 2x for actual repeating.
 
+        Uses pixel-based detection instead of OCR for the repeat indicator.
+        The indicator is white text rendered in the top-right corner of the
+        display. We detect its presence by counting white pixels in that region,
+        and verify '2x' specifically by comparing the white pixel mask against
+        a stored reference image.
+
         Steps:
         1. Set up and start a 10-second timer
         2. Wait 4s for timer to count down (6s remaining)
         3. Hold Up button for 1 second (enables repeat edit mode, repeat_count=0, shows "_x")
-        4. Verify "_x" is displayed (initial state, equivalent to 1x / no repeat)
+        4. Verify indicator is visible via white pixel detection (flashing "_x")
         5. Press Down twice to increase to 2x (the minimum useful repeat count)
-        6. Verify "2x" is displayed
+        6. Verify "2x" indicator matches reference mask
         7. Wait for expire timer (3s) + remaining countdown + buffer
         8. Verify the timer restarts automatically (repeat_count decrements 2->1)
         9. Verify the restarted timer is counting down from ~10s
@@ -604,41 +612,51 @@ class TestEnableRepeatingTimer:
         # Step 1: Set up 10-second timer (starts running)
         setup_short_timer(emulator, seconds=10)
 
-        # Allow some time for the timer to count down before attempting to enable repeat.
-        # Timer will be at approx 6 seconds remaining.
-        time.sleep(4)
+        # Wait briefly before enabling repeat. Timer will have ~8s remaining.
+        time.sleep(2)
 
         # Step 2: Hold Up button (long press while counting down)
         # This enables repeat edit mode with repeat_count=0 (displays "_x").
+        # The long press handler fires after 750ms, entering ControlModeEditRepeat
+        # and starting a 3-second expire timer.
         emulator.hold_button(Button.UP)
         time.sleep(1)
         emulator.release_buttons()
-        time.sleep(0.1)
 
-        # Take multiple screenshots to catch the flashing "_x" indicator.
-        # In ControlModeEditRepeat, the indicator flashes: visible for 500ms, hidden for 500ms.
-        # We take 4 screenshots spaced 250ms apart to ensure at least one captures it visible.
-        initial_repeat_screenshots = []
-        for i in range(4):
-            initial_repeat_screenshots.append(emulator.screenshot(f"initial_repeat_check_{i}"))
-            time.sleep(0.25)
+        # Take ONE screenshot of the "_x" indicator with a delay to break
+        # flash aliasing. The indicator flashes 500ms on / 500ms off driven by
+        # (epoch() - last_interaction_time) % 1000. The screenshot command takes
+        # ~1.0s, so we add 0.5s delay to shift into the ON phase.
+        #
+        # IMPORTANT: We must keep total time before the first Down press under
+        # 3 seconds (the expire timer duration). Timeline:
+        #   t=0.0: Enter EditRepeat (expire timer starts)
+        #   t=0.25: release_buttons returns (0.2s internal sleep)
+        #   t=0.75: sleep(0.5) ends, screenshot starts
+        #   t=1.75: screenshot completes (~1.0s)
+        #   t=2.05: Down press sent (well before expire at t=3.0)
+        time.sleep(0.5)
+        initial_repeat_screenshot = emulator.screenshot("initial_repeat_check_0")
 
-        # Step 3: Press Down twice to increase repeat count from 0 (_x) to 2 (2x)
-        emulator.press_down()
+        # Step 3: Press Down twice to increase repeat count from 0 (_x) to 2 (2x).
+        # Each Down press in EditRepeat increments repeat_count and resets the
+        # expire timer (extending the 3s window). It also resets
+        # last_interaction_time, putting the flash indicator into the ON phase.
+        emulator.press_down()  # count: 0 → 1 ("1x")
         time.sleep(0.3)
-        emulator.press_down()
-        time.sleep(0.3)
-
-        # Take multiple screenshots to catch the flashing "2x" indicator.
+        emulator.press_down()  # count: 1 → 2 ("2x"), expire timer reset
+        # The second Down press just reset last_interaction_time, so the
+        # indicator is now in the ON phase. Take a screenshot immediately.
+        # We use varying delays for 3 screenshots to handle timing uncertainty.
         repeat_2x_screenshots = []
-        for i in range(4):
-            repeat_2x_screenshots.append(emulator.screenshot(f"repeat_2x_check_{i}"))
-            time.sleep(0.25)
+        for i, delay in enumerate([0.3, 0, 0.5]):
+            time.sleep(delay)
+            repeat_2x_screenshots.append(emulator.screenshot(f"repeat_check_{i}"))
 
-        # Step 4: Wait for the initial 10-second timer to expire and restart.
-        # Timeline: ~2-3s remaining after the button presses.
-        # 3s expire timer fires → remaining countdown → timer completes → repeat restart
-        time.sleep(6)
+        # Step 4: Wait for the expire timer (3s from last Down press) to
+        # transition back to ControlModeCounting, then wait for the remaining
+        # countdown to complete and the timer to automatically restart.
+        time.sleep(8)
 
         # Step 5: Take a screenshot to check if the timer has restarted.
         # The header should show "00:20" (original 10s + 10s repeat increment)
@@ -652,35 +670,31 @@ class TestEnableRepeatingTimer:
         # Cancel quit timer
         emulator.press_down()
 
-        # --- Perform OCR assertions ---
+        # --- Perform assertions ---
 
-        # 1. Check initial repeat screenshots for "_x" indicator (or "x" since OCR may miss underscore).
-        # The indicator flashes in ControlModeEditRepeat, so we check multiple screenshots.
-        found_initial = False
-        initial_texts = []
-        for screenshot in initial_repeat_screenshots:
-            text = extract_text(screenshot)
-            initial_texts.append(text)
-            logger.info(f"Initial repeat check: {text}")
-            # Look for "_x" or just "x" (OCR may not read underscore reliably)
-            text_lower = text.lower()
-            if "_x" in text_lower or (("x" in text_lower or "X" in text) and "2x" not in text_lower and "2X" not in text):
-                found_initial = True
+        # 1. Check initial repeat screenshot for "_x" indicator via pixel detection.
+        # The indicator is white text in the top-right corner. We detect it by
+        # checking for white pixels in that region (avoids unreliable OCR).
+        found_initial = has_repeat_indicator(initial_repeat_screenshot)
+        if found_initial:
+            logger.info("Initial repeat indicator ('_x') detected via white pixels")
         assert found_initial, (
-            f"Expected '_x' indicator in at least one initial repeat screenshot, got: {initial_texts}"
+            "Expected repeat indicator (white pixels in top-right corner) "
+            "in initial repeat screenshot. "
+            "The '_x' indicator may not have been captured during its flash-on phase."
         )
 
-        # 2. Check 2x repeat screenshots for "2x" indicator.
+        # 2. Check 2x repeat screenshots via reference mask comparison.
+        # This confirms the indicator shows "2x" specifically (not just any text).
         found_2x = False
-        all_2x_texts = []
-        for screenshot in repeat_2x_screenshots:
-            text = extract_text(screenshot)
-            all_2x_texts.append(text)
-            logger.info(f"Repeat 2x check: {text}")
-            if "2x" in text or "2X" in text or "2x" in text.lower():
+        for i, screenshot in enumerate(repeat_2x_screenshots):
+            if has_repeat_indicator(screenshot) and matches_indicator_reference(screenshot, "basalt_2x"):
+                logger.info(f"'2x' indicator matched reference in screenshot {i}")
                 found_2x = True
+                break
         assert found_2x, (
-            f"Expected '2x' indicator in at least one repeat screenshot after 2 Down presses, got: {all_2x_texts}"
+            "Expected '2x' indicator matching reference mask in at least one "
+            "repeat screenshot after 2 Down presses."
         )
 
         # 3. Verify the header shows "00:20" after restart (original 10s + 10s repeat)
