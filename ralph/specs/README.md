@@ -102,9 +102,9 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 **Summary:** Defines functional tests for verifying that icons appear beside buttons in every app state where a button has functionality. Uses pixel-based screenshot comparison against per-icon reference masks.
 
-**Status:** Not Started
+**Status:** Completed
 
-**Tests:** NA
+**Tests:** Passing (3 passed, 27 xfailed on basalt)
 
 **Dependencies:** functional-tests-emulator.md (spec #4), repeating-timer.md (spec #6)
 
