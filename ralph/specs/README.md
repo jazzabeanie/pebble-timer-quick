@@ -110,6 +110,21 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 ---
 
+### 8. Button Icons Implementation
+**File:** [button-icons.md](button-icons.md)
+
+**Keywords:** button icons, UX, visual feedback, assets, drawing, state machine, implementation, resource generation
+
+**Summary:** Defines the implementation details for adding visual icons to all button interactions, including asset generation and drawing logic changes.
+
+**Status:** Not Started
+
+**Tests:** test/functional/test_button_icons.py
+
+**Dependencies:** button-icon-tests.md (spec #7)
+
+---
+
 ## Adding New Specifications
 
 When creating a new spec file:
