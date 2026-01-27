@@ -119,7 +119,7 @@ $(cat "$SCRIPT_DIR/prompt.txt" 2>/dev/null)"
   fi
   
   echo "Iteration $i complete. Continuing..."
-  sleep 2
+  sleep 4h
 done
 
 echo ""
