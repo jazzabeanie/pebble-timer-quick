@@ -41,6 +41,101 @@
         "file": "images/action_bar_icon_snooze.png",
         "type": "png",
         "name": "IMAGE_SNOOZE_ICON"
+      },
+      {
+        "file": "images/icon_plus_1hr.png",
+        "type": "png",
+        "name": "IMAGE_ICON_PLUS_1HR"
+      },
+      {
+        "file": "images/icon_plus_20min.png",
+        "type": "png",
+        "name": "IMAGE_ICON_PLUS_20MIN"
+      },
+      {
+        "file": "images/icon_plus_5min.png",
+        "type": "png",
+        "name": "IMAGE_ICON_PLUS_5MIN"
+      },
+      {
+        "file": "images/icon_plus_1min.png",
+        "type": "png",
+        "name": "IMAGE_ICON_PLUS_1MIN"
+      },
+      {
+        "file": "images/icon_plus_30sec.png",
+        "type": "png",
+        "name": "IMAGE_ICON_PLUS_30SEC"
+      },
+      {
+        "file": "images/icon_plus_20sec.png",
+        "type": "png",
+        "name": "IMAGE_ICON_PLUS_20SEC"
+      },
+      {
+        "file": "images/icon_plus_5sec.png",
+        "type": "png",
+        "name": "IMAGE_ICON_PLUS_5SEC"
+      },
+      {
+        "file": "images/icon_plus_1sec.png",
+        "type": "png",
+        "name": "IMAGE_ICON_PLUS_1SEC"
+      },
+      {
+        "file": "images/icon_reset.png",
+        "type": "png",
+        "name": "IMAGE_ICON_RESET"
+      },
+      {
+        "file": "images/icon_quit.png",
+        "type": "png",
+        "name": "IMAGE_ICON_QUIT"
+      },
+      {
+        "file": "images/icon_edit.png",
+        "type": "png",
+        "name": "IMAGE_ICON_EDIT"
+      },
+      {
+        "file": "images/icon_bg.png",
+        "type": "png",
+        "name": "IMAGE_ICON_TO_BG"
+      },
+      {
+        "file": "images/icon_details.png",
+        "type": "png",
+        "name": "IMAGE_ICON_DETAILS"
+      },
+      {
+        "file": "images/icon_rep_en.png",
+        "type": "png",
+        "name": "IMAGE_ICON_REPEAT_ENABLE"
+      },
+      {
+        "file": "images/icon_plus_20_rep.png",
+        "type": "png",
+        "name": "IMAGE_ICON_PLUS_20_REP"
+      },
+      {
+        "file": "images/icon_plus_5_rep.png",
+        "type": "png",
+        "name": "IMAGE_ICON_PLUS_5_REP"
+      },
+      {
+        "file": "images/icon_plus_1_rep.png",
+        "type": "png",
+        "name": "IMAGE_ICON_PLUS_1_REP"
+      },
+      {
+        "file": "images/icon_rst_cnt.png",
+        "type": "png",
+        "name": "IMAGE_ICON_RESET_COUNT"
+      },
+      {
+        "file": "images/icon_direction.png",
+        "type": "png",
+        "name": "IMAGE_ICON_DIRECTION"
       }
     ]
   }

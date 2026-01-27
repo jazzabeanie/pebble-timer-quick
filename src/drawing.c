@@ -63,6 +63,27 @@ static struct {
   GBitmap     *pause_icon;        //< The pause icon to show when the timer is vibrating
   GBitmap     *silence_icon;      //< The silence icon to show when the timer is vibrating
   GBitmap     *snooze_icon;       //< The snooze icon to show when the timer is vibrating
+  // Button action icons
+  GBitmap     *icon_plus_1hr;
+  GBitmap     *icon_plus_20min;
+  GBitmap     *icon_plus_5min;
+  GBitmap     *icon_plus_1min;
+  GBitmap     *icon_plus_30sec;
+  GBitmap     *icon_plus_20sec;
+  GBitmap     *icon_plus_5sec;
+  GBitmap     *icon_plus_1sec;
+  GBitmap     *icon_reset;
+  GBitmap     *icon_quit;
+  GBitmap     *icon_edit;
+  GBitmap     *icon_to_bg;
+  GBitmap     *icon_details;
+  GBitmap     *icon_repeat_enable;
+  GBitmap     *icon_plus_20_rep;
+  GBitmap     *icon_plus_5_rep;
+  GBitmap     *icon_plus_1_rep;
+  GBitmap     *icon_reset_count;
+  GBitmap     *icon_direction;
+  GBitmap     *play_icon;
 } drawing_data;
 
 
@@ -357,6 +378,117 @@ static void prv_update_draw_state(Layer *layer) {
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+// Button Action Icons
+//
+
+// Icon position constants (basalt 144x168)
+#define ICON_BACK_X 5
+#define ICON_BACK_Y 10
+#define ICON_UP_X 114
+#define ICON_UP_Y 10
+#define ICON_SELECT_X 127
+#define ICON_SELECT_Y 76
+#define ICON_DOWN_X 114
+#define ICON_DOWN_Y 133
+#define ICON_STANDARD_SIZE 25
+#define ICON_SMALL_SIZE 15
+// Long press sub-icon positions (beside standard icon, toward screen center)
+#define LONG_UP_X 97
+#define LONG_UP_Y 15
+#define LONG_SELECT_X 110
+#define LONG_SELECT_Y 76
+#define LONG_DOWN_X 97
+#define LONG_DOWN_Y 138
+
+// Draw a bitmap icon at a given position
+static void prv_draw_icon(GContext *ctx, GBitmap *icon, int16_t x, int16_t y, int16_t w, int16_t h) {
+  if (icon) {
+    graphics_draw_bitmap_in_rect(ctx, icon, GRect(x, y, w, h));
+  }
+}
+
+// Draw action icons based on the current app state
+static void prv_draw_action_icons(GContext *ctx, GRect bounds) {
+  graphics_context_set_compositing_mode(ctx, GCompOpSet);
+
+  ControlMode mode = main_get_control_mode();
+  bool is_paused = timer_is_paused();
+  bool is_chrono = timer_is_chrono();
+  bool is_vibrating = timer_is_vibrating();
+
+  if (is_vibrating) {
+    // Alarm state icons are handled separately in drawing_render
+    return;
+  }
+
+  if (mode == ControlModeNew || mode == ControlModeEditSec) {
+    // New/EditSec mode: show increment icons
+    if (mode == ControlModeNew) {
+      prv_draw_icon(ctx, drawing_data.icon_plus_1hr, ICON_BACK_X, ICON_BACK_Y,
+                    ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+      prv_draw_icon(ctx, drawing_data.icon_plus_20min, ICON_UP_X, ICON_UP_Y,
+                    ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+      prv_draw_icon(ctx, drawing_data.icon_plus_5min, ICON_SELECT_X, ICON_SELECT_Y,
+                    ICON_SMALL_SIZE, ICON_SMALL_SIZE);
+      prv_draw_icon(ctx, drawing_data.icon_plus_1min, ICON_DOWN_X, ICON_DOWN_Y,
+                    ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+    } else {
+      // EditSec
+      prv_draw_icon(ctx, drawing_data.icon_plus_30sec, ICON_BACK_X, ICON_BACK_Y,
+                    ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+      prv_draw_icon(ctx, drawing_data.icon_plus_20sec, ICON_UP_X, ICON_UP_Y,
+                    ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+      prv_draw_icon(ctx, drawing_data.icon_plus_5sec, ICON_SELECT_X, ICON_SELECT_Y,
+                    ICON_SMALL_SIZE, ICON_SMALL_SIZE);
+      prv_draw_icon(ctx, drawing_data.icon_plus_1sec, ICON_DOWN_X, ICON_DOWN_Y,
+                    ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+    }
+    // Long press icons for New/EditSec
+    prv_draw_icon(ctx, drawing_data.icon_direction, LONG_UP_X, LONG_UP_Y,
+                  ICON_SMALL_SIZE, ICON_SMALL_SIZE);
+    prv_draw_icon(ctx, drawing_data.icon_reset, LONG_SELECT_X, LONG_SELECT_Y,
+                  ICON_SMALL_SIZE, ICON_SMALL_SIZE);
+    prv_draw_icon(ctx, drawing_data.icon_quit, LONG_DOWN_X, LONG_DOWN_Y,
+                  ICON_SMALL_SIZE, ICON_SMALL_SIZE);
+  } else if (mode == ControlModeCounting) {
+    // Counting mode icons
+    prv_draw_icon(ctx, drawing_data.icon_to_bg, ICON_BACK_X, ICON_BACK_Y,
+                  ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+    prv_draw_icon(ctx, drawing_data.icon_edit, ICON_UP_X, ICON_UP_Y,
+                  ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+    if (is_paused) {
+      prv_draw_icon(ctx, drawing_data.play_icon, ICON_SELECT_X, ICON_SELECT_Y,
+                    ICON_SMALL_SIZE, ICON_SMALL_SIZE);
+    } else {
+      prv_draw_icon(ctx, drawing_data.pause_icon, ICON_SELECT_X, ICON_SELECT_Y,
+                    ICON_SMALL_SIZE, ICON_SMALL_SIZE);
+    }
+    prv_draw_icon(ctx, drawing_data.icon_details, ICON_DOWN_X, ICON_DOWN_Y,
+                  ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+    // Long press icons
+    if (!is_chrono) {
+      prv_draw_icon(ctx, drawing_data.icon_repeat_enable, LONG_UP_X, LONG_UP_Y,
+                    ICON_SMALL_SIZE, ICON_SMALL_SIZE);
+    }
+    prv_draw_icon(ctx, drawing_data.icon_reset, LONG_SELECT_X, LONG_SELECT_Y,
+                  ICON_SMALL_SIZE, ICON_SMALL_SIZE);
+    prv_draw_icon(ctx, drawing_data.icon_quit, LONG_DOWN_X, LONG_DOWN_Y,
+                  ICON_SMALL_SIZE, ICON_SMALL_SIZE);
+  } else if (mode == ControlModeEditRepeat) {
+    // EditRepeat mode icons
+    prv_draw_icon(ctx, drawing_data.icon_reset_count, ICON_BACK_X, ICON_BACK_Y,
+                  ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+    prv_draw_icon(ctx, drawing_data.icon_plus_20_rep, ICON_UP_X, ICON_UP_Y,
+                  ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+    prv_draw_icon(ctx, drawing_data.icon_plus_5_rep, ICON_SELECT_X, ICON_SELECT_Y,
+                  ICON_SMALL_SIZE, ICON_SMALL_SIZE);
+    prv_draw_icon(ctx, drawing_data.icon_plus_1_rep, ICON_DOWN_X, ICON_DOWN_Y,
+                  ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+  }
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 // API Implementation
 //
 
@@ -398,6 +530,9 @@ void drawing_render(Layer *layer, GContext *ctx) {
   graphics_context_set_text_color(ctx, drawing_data.fore_color);
   prv_render_header_text(ctx, bounds);
   prv_render_footer_text(ctx, bounds);
+
+  // Draw button action icons
+  prv_draw_action_icons(ctx, bounds);
 
   // Draw repeat counter
   if (timer_data.is_repeating) {
@@ -442,9 +577,12 @@ void drawing_render(Layer *layer, GContext *ctx) {
     const int16_t middle_icon_padding_right = 2;
     const int16_t middle_icon_x_right = bounds.size.w - middle_icon_size.w - middle_icon_padding_right;
 
-    // Draw the reset icon (top right)
-    // GRect reset_rect = GRect(icon_x_right, icon_padding_top, icon_size.w, icon_size.h);
-    // graphics_draw_bitmap_in_rect(ctx, drawing_data.reset_icon, reset_rect);
+    // Draw the reset icon (top right, Up button standard press)
+    GRect reset_rect = GRect(icon_x_right, icon_padding_top, icon_size.w, icon_size.h);
+    graphics_draw_bitmap_in_rect(ctx, drawing_data.reset_icon, reset_rect);
+    // Draw the hold icon beside the reset icon (toward screen center)
+    prv_draw_icon(ctx, drawing_data.icon_reset, LONG_UP_X, LONG_UP_Y,
+                  ICON_SMALL_SIZE, ICON_SMALL_SIZE);
 
     // Draw the pause icon (middle right)
     // This calculates the Y coordinate to be perfectly centered vertically
@@ -502,11 +640,32 @@ void drawing_initialize(Layer *layer) {
   drawing_data.mid_color = PBL_IF_COLOR_ELSE(GColorMintGreen, GColorWhite);
   drawing_data.ring_color = PBL_IF_COLOR_ELSE(GColorGreen, GColorWhite);
   drawing_data.back_color = PBL_IF_COLOR_ELSE(GColorDarkGray, GColorBlack);
-  // load the reset icon
+  // load alarm icons
   drawing_data.reset_icon = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_REPEAT_ICON);
   drawing_data.pause_icon = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_PAUSE_ICON);
   drawing_data.silence_icon = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_SILENCE_ICON);
   drawing_data.snooze_icon = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_SNOOZE_ICON);
+  // load button action icons
+  drawing_data.icon_plus_1hr = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_PLUS_1HR);
+  drawing_data.icon_plus_20min = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_PLUS_20MIN);
+  drawing_data.icon_plus_5min = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_PLUS_5MIN);
+  drawing_data.icon_plus_1min = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_PLUS_1MIN);
+  drawing_data.icon_plus_30sec = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_PLUS_30SEC);
+  drawing_data.icon_plus_20sec = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_PLUS_20SEC);
+  drawing_data.icon_plus_5sec = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_PLUS_5SEC);
+  drawing_data.icon_plus_1sec = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_PLUS_1SEC);
+  drawing_data.icon_reset = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_RESET);
+  drawing_data.icon_quit = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_QUIT);
+  drawing_data.icon_edit = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_EDIT);
+  drawing_data.icon_to_bg = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_TO_BG);
+  drawing_data.icon_details = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_DETAILS);
+  drawing_data.icon_repeat_enable = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_REPEAT_ENABLE);
+  drawing_data.icon_plus_20_rep = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_PLUS_20_REP);
+  drawing_data.icon_plus_5_rep = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_PLUS_5_REP);
+  drawing_data.icon_plus_1_rep = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_PLUS_1_REP);
+  drawing_data.icon_reset_count = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_RESET_COUNT);
+  drawing_data.icon_direction = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_DIRECTION);
+  drawing_data.play_icon = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_PLAY_ICON);
   // set animation update callback
   animation_register_update_callback(&prv_animation_update_callback);
 }
@@ -517,5 +676,25 @@ void drawing_terminate(void) {
   gbitmap_destroy(drawing_data.pause_icon);
   gbitmap_destroy(drawing_data.silence_icon);
   gbitmap_destroy(drawing_data.snooze_icon);
+  gbitmap_destroy(drawing_data.icon_plus_1hr);
+  gbitmap_destroy(drawing_data.icon_plus_20min);
+  gbitmap_destroy(drawing_data.icon_plus_5min);
+  gbitmap_destroy(drawing_data.icon_plus_1min);
+  gbitmap_destroy(drawing_data.icon_plus_30sec);
+  gbitmap_destroy(drawing_data.icon_plus_20sec);
+  gbitmap_destroy(drawing_data.icon_plus_5sec);
+  gbitmap_destroy(drawing_data.icon_plus_1sec);
+  gbitmap_destroy(drawing_data.icon_reset);
+  gbitmap_destroy(drawing_data.icon_quit);
+  gbitmap_destroy(drawing_data.icon_edit);
+  gbitmap_destroy(drawing_data.icon_to_bg);
+  gbitmap_destroy(drawing_data.icon_details);
+  gbitmap_destroy(drawing_data.icon_repeat_enable);
+  gbitmap_destroy(drawing_data.icon_plus_20_rep);
+  gbitmap_destroy(drawing_data.icon_plus_5_rep);
+  gbitmap_destroy(drawing_data.icon_plus_1_rep);
+  gbitmap_destroy(drawing_data.icon_reset_count);
+  gbitmap_destroy(drawing_data.icon_direction);
+  gbitmap_destroy(drawing_data.play_icon);
   animation_stop_all();
 }

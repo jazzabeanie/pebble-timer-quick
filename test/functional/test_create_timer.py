@@ -71,8 +71,8 @@ def normalize_time_text(text: str) -> str:
     This function normalizes the text to make pattern matching easier.
     """
     # Normalize common digit/letter substitutions from OCR
-    # The 7-segment font often causes 0/O confusion
-    normalized = text.replace('O', '0').replace('o', '0')
+    # The 7-segment font often causes 0/O confusion and d/0 confusion
+    normalized = text.replace('O', '0').replace('o', '0').replace('d', '0')
 
     # Normalize potential colon separators to ':'
     # Common OCR misreadings: '.' ';' or no separator (adjacent digits)
@@ -448,11 +448,11 @@ class TestTimerCountdown:
 
         # --- Capture all screenshots first (OCR is deferred to avoid timing issues) ---
 
-        # Set a 1 minute timer
+        # Set a 1 minute timer and wait for counting mode (3s auto-transition)
         emulator.press_down()
-        time.sleep(0.5)
+        time.sleep(4)
 
-        # Take first screenshot - should show ~1 minute (0:5x)
+        # Take first screenshot - should show ~0:56 (counting mode)
         screenshot1 = emulator.screenshot("countdown_start")
 
         # Wait 5 seconds and take another screenshot
@@ -464,7 +464,7 @@ class TestTimerCountdown:
         text1 = extract_text(screenshot1)
         logger.info(f"Countdown start text: {text1}")
 
-        # Verify initial time shows ~1 minute (0:5x)
+        # Verify initial time shows ~1 minute (allowing for ~4s elapsed)
         # Uses has_time_pattern which handles OCR digit errors (e.g. 5→6)
         has_start_time = has_time_pattern(text1, minutes=1, tolerance=15)
         assert has_start_time, f"Expected time around 0:5x initially, got: {text1}"

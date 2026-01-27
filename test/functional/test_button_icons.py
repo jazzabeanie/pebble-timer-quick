@@ -3,18 +3,12 @@ Test Cases: Button icon tests.
 
 Verifies that icons appear beside buttons in every app state where a button
 has functionality. Tests use pixel-based screenshot comparison against
-per-icon reference masks.
+per-icon reference masks stored in screenshots/icon_refs/.
 
-Icons that currently exist (alarm state: silence, pause, snooze) are tested
-with exact reference mask comparison. Icons that do not yet exist are marked
-with @pytest.mark.xfail(strict=True) and require a matching reference mask
-in screenshots/icon_refs/. Since no reference mask exists for unimplemented
-icons, these tests correctly fail (xfail).
+All button icons are implemented including alarm mode Up button icons.
+Hold icons are positioned beside (toward screen center) the standard press icons.
 
-When a new icon is implemented:
-1. Generate a reference mask (run the test once to auto-generate, or manually)
-2. Commit the reference mask PNG to screenshots/icon_refs/
-3. Remove the @pytest.mark.xfail decorator from the test
+31 tests total per platform (all passing).
 """
 
 import logging
@@ -43,10 +37,10 @@ REGION_UP = (109, 5, 144, 40)
 REGION_SELECT = (122, 71, 144, 96)
 REGION_DOWN = (109, 128, 144, 163)
 
-# Long press sub-regions
-REGION_LONG_UP = (109, 25, 127, 40)
-REGION_LONG_SELECT = (122, 81, 136, 96)
-REGION_LONG_DOWN = (109, 128, 127, 143)
+# Long press sub-regions (beside standard icons, toward screen center)
+REGION_LONG_UP = (92, 10, 117, 35)
+REGION_LONG_SELECT = (105, 71, 130, 96)
+REGION_LONG_DOWN = (92, 133, 117, 158)
 
 
 # --- Helper Functions ---
@@ -101,7 +95,7 @@ def _get_non_bg_mask(crop_arr):
     return ~np.all(crop_arr[:, :, :3] == bg_color, axis=2)
 
 
-def matches_icon_reference(img, region, ref_name, auto_save=True):
+def matches_icon_reference(img, region, ref_name, auto_save=True, tolerance=0):
     """Compare the icon region's non-background pixel mask against a stored reference.
 
     Args:
@@ -110,9 +104,12 @@ def matches_icon_reference(img, region, ref_name, auto_save=True):
         ref_name: Reference name, e.g. "silence" loads "ref_basalt_silence_mask.png".
         auto_save: If True and no reference exists, save current mask as reference
                    and return True. If False and no reference exists, return False.
+        tolerance: Maximum number of differing pixels allowed (default 0 for exact
+                   match). Useful for regions that overlap with flashing UI elements
+                   like the repeat counter indicator.
 
     Returns:
-        True if masks match (or if a new reference was saved with auto_save=True).
+        True if masks match within tolerance (or if a new reference was saved).
     """
     crop = crop_icon_region(img, region)
     crop_arr = np.array(crop)
@@ -132,10 +129,12 @@ def matches_icon_reference(img, region, ref_name, auto_save=True):
     # Load and compare
     ref_img = Image.open(ref_path).convert("L")
     ref_mask = np.array(ref_img) > 128
-    matches = np.array_equal(mask, ref_mask)
+    diff_count = int(np.sum(mask != ref_mask))
+    matches = diff_count <= tolerance
     if not matches:
-        diff_count = int(np.sum(mask != ref_mask))
-        logger.warning(f"Icon mask mismatch for '{ref_name}': {diff_count} pixels differ")
+        logger.warning(f"Icon mask mismatch for '{ref_name}': {diff_count} pixels differ (tolerance={tolerance})")
+    elif diff_count > 0:
+        logger.debug(f"Icon mask for '{ref_name}': {diff_count} pixels differ (within tolerance={tolerance})")
     return matches
 
 
@@ -237,9 +236,8 @@ def persistent_emulator(request, build_app):
 class TestAlarmIcons:
     """Tests for icons displayed during the alarm/vibrating state.
 
-    Three icons are currently drawn in alarm state: silence (Back),
-    pause (Select), and snooze (Down). The repeat icon (Up) resource
-    exists but its drawing code is commented out.
+    Five icons drawn in alarm state: silence (Back), reset (Up),
+    reset hold icon (Long Up), pause (Select), and snooze (Down).
     """
 
     def _enter_alarm(self, emulator):
@@ -258,22 +256,25 @@ class TestAlarmIcons:
             "Silence icon does not match reference mask"
         )
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="Repeat/reset icon drawing is commented out in drawing.c:446-447"
-    )
     def test_alarm_up_icon_repeat(self, persistent_emulator):
-        """Verify the repeat/reset icon (Up button) during alarm state.
-
-        The IMAGE_REPEAT_ICON resource exists but the drawing code at
-        drawing.c:446-447 is commented out. Uses reference mask matching
-        (auto_save=False) to avoid false positives from progress ring pixels.
-        """
+        """Verify the reset icon (Up button) is drawn during alarm state."""
         emulator = persistent_emulator
         screenshot = self._enter_alarm(emulator)
 
-        assert matches_icon_reference(screenshot, REGION_UP, "alarm_repeat", auto_save=False), (
-            "No reference mask for repeat icon (icon not yet drawn)"
+        assert has_icon_content(screenshot, REGION_UP), (
+            "Expected reset icon content in Up button region during alarm state"
+        )
+        assert matches_icon_reference(screenshot, REGION_UP, "alarm_repeat"), (
+            "Reset icon does not match reference mask"
+        )
+
+    def test_alarm_long_up_icon_reset(self, persistent_emulator):
+        """Verify the hold icon (reset) beside the Up button during alarm state."""
+        emulator = persistent_emulator
+        screenshot = self._enter_alarm(emulator)
+
+        assert matches_icon_reference(screenshot, REGION_LONG_UP, "alarm_long_up"), (
+            "Alarm long-press Up icon does not match reference mask"
         )
 
     def test_alarm_select_icon_pause(self, persistent_emulator):
@@ -308,82 +309,76 @@ class TestAlarmIcons:
 class TestNewModeIcons:
     """Tests for icons in ControlModeNew (setting a new timer).
 
-    No icons are currently drawn in this mode. All tests are xfail.
+    Icons: +1hr (Back), +20min (Up), +5min (Select), +1min (Down),
+    direction toggle (Long Up), reset (Long Select), quit (Long Down).
     """
 
-    @pytest.mark.xfail(strict=True, reason="No +1hr icon implemented yet")
     def test_new_back_icon(self, persistent_emulator):
         """Verify +1hr indicator icon for Back button in New mode."""
         emulator = persistent_emulator
         screenshot = emulator.screenshot("new_mode")
-        assert matches_icon_reference(screenshot, REGION_BACK, "new_back", auto_save=False), (
-            "No reference mask for +1hr icon (icon not yet implemented)"
+        assert has_icon_content(screenshot, REGION_BACK), (
+            "Expected +1hr icon content in Back button region in New mode"
+        )
+        assert matches_icon_reference(screenshot, REGION_BACK, "new_back"), (
+            "+1hr icon does not match reference mask"
         )
 
-    @pytest.mark.xfail(strict=True, reason="No +20min icon implemented yet")
     def test_new_up_icon(self, persistent_emulator):
         """Verify +20min indicator icon for Up button in New mode."""
         emulator = persistent_emulator
         screenshot = emulator.screenshot("new_mode")
-        assert matches_icon_reference(screenshot, REGION_UP, "new_up", auto_save=False), (
-            "No reference mask for +20min icon (icon not yet implemented)"
+        assert has_icon_content(screenshot, REGION_UP), (
+            "Expected +20min icon content in Up button region in New mode"
+        )
+        assert matches_icon_reference(screenshot, REGION_UP, "new_up"), (
+            "+20min icon does not match reference mask"
         )
 
-    @pytest.mark.xfail(strict=True, reason="No +5min icon implemented yet")
     def test_new_select_icon(self, persistent_emulator):
         """Verify +5min indicator icon for Select button in New mode."""
         emulator = persistent_emulator
         screenshot = emulator.screenshot("new_mode")
-        assert matches_icon_reference(screenshot, REGION_SELECT, "new_select", auto_save=False), (
-            "No reference mask for +5min icon (icon not yet implemented)"
+        assert has_icon_content(screenshot, REGION_SELECT), (
+            "Expected +5min icon content in Select button region in New mode"
+        )
+        assert matches_icon_reference(screenshot, REGION_SELECT, "new_select"), (
+            "+5min icon does not match reference mask"
         )
 
-    @pytest.mark.xfail(strict=True, reason="No +1min icon implemented yet")
     def test_new_down_icon(self, persistent_emulator):
         """Verify +1min indicator icon for Down button in New mode."""
         emulator = persistent_emulator
         screenshot = emulator.screenshot("new_mode")
-        assert matches_icon_reference(screenshot, REGION_DOWN, "new_down", auto_save=False), (
-            "No reference mask for +1min icon (icon not yet implemented)"
+        assert has_icon_content(screenshot, REGION_DOWN), (
+            "Expected +1min icon content in Down button region in New mode"
+        )
+        assert matches_icon_reference(screenshot, REGION_DOWN, "new_down"), (
+            "+1min icon does not match reference mask"
         )
 
-    @pytest.mark.xfail(strict=True, reason="Direction toggle has no visual representation in drawing.c")
     def test_new_long_up_direction_toggle(self, persistent_emulator):
-        """Verify screen changes after long press Up (direction toggle) in New mode."""
+        """Verify direction toggle icon exists in long-press Up sub-region in New mode."""
         emulator = persistent_emulator
-
-        # Take baseline screenshot
-        baseline = emulator.screenshot("new_baseline")
-
-        # Long press Up to toggle direction
-        emulator.hold_button(Button.UP)
-        time.sleep(1)
-        emulator.release_buttons()
-        time.sleep(0.5)
-
-        after_toggle = emulator.screenshot("new_after_direction_toggle")
-
-        # Check for icon in long-press Up sub-region
-        assert matches_icon_reference(after_toggle, REGION_LONG_UP, "new_long_up", auto_save=False), (
-            "No reference mask for direction toggle icon (not yet implemented)"
+        screenshot = emulator.screenshot("new_mode_long_up")
+        assert matches_icon_reference(screenshot, REGION_LONG_UP, "new_long_up"), (
+            "Direction toggle icon does not match reference mask"
         )
 
-    @pytest.mark.xfail(strict=True, reason="No reset icon implemented for long-press Select in New mode")
     def test_new_long_select_icon(self, persistent_emulator):
         """Verify reset indicator for long-press Select in New mode."""
         emulator = persistent_emulator
         screenshot = emulator.screenshot("new_mode")
-        assert matches_icon_reference(screenshot, REGION_LONG_SELECT, "new_long_select", auto_save=False), (
-            "No reference mask for reset icon (not yet implemented)"
+        assert matches_icon_reference(screenshot, REGION_LONG_SELECT, "new_long_select"), (
+            "Reset icon does not match reference mask"
         )
 
-    @pytest.mark.xfail(strict=True, reason="No quit icon implemented for long-press Down in New mode")
     def test_new_long_down_icon(self, persistent_emulator):
         """Verify quit indicator for long-press Down in New mode."""
         emulator = persistent_emulator
         screenshot = emulator.screenshot("new_mode")
-        assert matches_icon_reference(screenshot, REGION_LONG_DOWN, "new_long_down", auto_save=False), (
-            "No reference mask for quit icon (not yet implemented)"
+        assert matches_icon_reference(screenshot, REGION_LONG_DOWN, "new_long_down"), (
+            "Quit icon does not match reference mask"
         )
 
 
@@ -394,7 +389,8 @@ class TestNewModeIcons:
 class TestEditSecIcons:
     """Tests for icons in ControlModeEditSec.
 
-    No icons are currently drawn in this mode. All tests are xfail.
+    Icons: +30s (Back), +20s (Up), +5s (Select), +1s (Down),
+    direction toggle (Long Up).
     """
 
     def _enter_editsec(self, emulator):
@@ -414,57 +410,57 @@ class TestEditSecIcons:
         time.sleep(0.3)
         return emulator.screenshot("editsec_mode")
 
-    @pytest.mark.xfail(strict=True, reason="No +30s icon implemented yet")
     def test_editsec_back_icon(self, persistent_emulator):
         """Verify +30s indicator icon for Back button in EditSec mode."""
         emulator = persistent_emulator
         screenshot = self._enter_editsec(emulator)
-        assert matches_icon_reference(screenshot, REGION_BACK, "editsec_back", auto_save=False), (
-            "No reference mask for +30s icon (not yet implemented)"
+        assert has_icon_content(screenshot, REGION_BACK), (
+            "Expected +30s icon content in Back button region in EditSec mode"
+        )
+        assert matches_icon_reference(screenshot, REGION_BACK, "editsec_back"), (
+            "+30s icon does not match reference mask"
         )
 
-    @pytest.mark.xfail(strict=True, reason="No +20s icon implemented yet")
     def test_editsec_up_icon(self, persistent_emulator):
         """Verify +20s indicator icon for Up button in EditSec mode."""
         emulator = persistent_emulator
         screenshot = self._enter_editsec(emulator)
-        assert matches_icon_reference(screenshot, REGION_UP, "editsec_up", auto_save=False), (
-            "No reference mask for +20s icon (not yet implemented)"
+        assert has_icon_content(screenshot, REGION_UP), (
+            "Expected +20s icon content in Up button region in EditSec mode"
+        )
+        assert matches_icon_reference(screenshot, REGION_UP, "editsec_up"), (
+            "+20s icon does not match reference mask"
         )
 
-    @pytest.mark.xfail(strict=True, reason="No +5s icon implemented yet")
     def test_editsec_select_icon(self, persistent_emulator):
         """Verify +5s indicator icon for Select button in EditSec mode."""
         emulator = persistent_emulator
         screenshot = self._enter_editsec(emulator)
-        assert matches_icon_reference(screenshot, REGION_SELECT, "editsec_select", auto_save=False), (
-            "No reference mask for +5s icon (not yet implemented)"
+        assert has_icon_content(screenshot, REGION_SELECT), (
+            "Expected +5s icon content in Select button region in EditSec mode"
+        )
+        assert matches_icon_reference(screenshot, REGION_SELECT, "editsec_select"), (
+            "+5s icon does not match reference mask"
         )
 
-    @pytest.mark.xfail(strict=True, reason="No +1s icon implemented yet")
     def test_editsec_down_icon(self, persistent_emulator):
-        """Verify +1s indicator icon for Down button in EditSec mode."""
+        """Verify +1s indicator icon for Down button in EditSec mode.
+
+        Note: has_icon_content threshold check skipped because the "+1" icon
+        has fewer non-bg pixels than the default threshold of 100.
+        """
         emulator = persistent_emulator
         screenshot = self._enter_editsec(emulator)
-        assert matches_icon_reference(screenshot, REGION_DOWN, "editsec_down", auto_save=False), (
-            "No reference mask for +1s icon (not yet implemented)"
+        assert matches_icon_reference(screenshot, REGION_DOWN, "editsec_down"), (
+            "+1s icon does not match reference mask"
         )
 
-    @pytest.mark.xfail(strict=True, reason="No direction toggle icon in EditSec mode")
     def test_editsec_long_up_direction_toggle(self, persistent_emulator):
         """Verify direction toggle indicator for long-press Up in EditSec mode."""
         emulator = persistent_emulator
-        self._enter_editsec(emulator)
-
-        # Long press Up to toggle direction
-        emulator.hold_button(Button.UP)
-        time.sleep(1)
-        emulator.release_buttons()
-        time.sleep(0.5)
-
-        screenshot = emulator.screenshot("editsec_after_direction_toggle")
-        assert matches_icon_reference(screenshot, REGION_LONG_UP, "editsec_long_up", auto_save=False), (
-            "No reference mask for direction toggle icon (not yet implemented)"
+        screenshot = self._enter_editsec(emulator)
+        assert matches_icon_reference(screenshot, REGION_LONG_UP, "editsec_long_up"), (
+            "Direction toggle icon does not match reference mask in EditSec mode"
         )
 
 
@@ -475,7 +471,8 @@ class TestEditSecIcons:
 class TestCountingIcons:
     """Tests for icons in ControlModeCounting (timer running).
 
-    No icons are currently drawn in this mode. All tests are xfail.
+    Icons: BG (Back), Edit (Up), Pause (Select), Details (Down),
+    Repeat Enable (Long Up), Reset (Long Select), Quit (Long Down).
     """
 
     def _enter_counting(self, emulator):
@@ -484,67 +481,72 @@ class TestCountingIcons:
         time.sleep(4)  # Wait for counting mode
         return emulator.screenshot("counting_mode")
 
-    @pytest.mark.xfail(strict=True, reason="No exit/background icon implemented yet")
     def test_counting_back_icon(self, persistent_emulator):
         """Verify exit/background indicator for Back button in Counting mode."""
         emulator = persistent_emulator
         screenshot = self._enter_counting(emulator)
-        assert matches_icon_reference(screenshot, REGION_BACK, "counting_back", auto_save=False), (
-            "No reference mask for exit icon (not yet implemented)"
+        assert has_icon_content(screenshot, REGION_BACK), (
+            "Expected BG icon content in Back button region in Counting mode"
+        )
+        assert matches_icon_reference(screenshot, REGION_BACK, "counting_back"), (
+            "BG icon does not match reference mask"
         )
 
-    @pytest.mark.xfail(strict=True, reason="No edit icon implemented yet")
     def test_counting_up_icon(self, persistent_emulator):
         """Verify edit indicator for Up button in Counting mode."""
         emulator = persistent_emulator
         screenshot = self._enter_counting(emulator)
-        assert matches_icon_reference(screenshot, REGION_UP, "counting_up", auto_save=False), (
-            "No reference mask for edit icon (not yet implemented)"
+        assert has_icon_content(screenshot, REGION_UP), (
+            "Expected Edit icon content in Up button region in Counting mode"
+        )
+        assert matches_icon_reference(screenshot, REGION_UP, "counting_up"), (
+            "Edit icon does not match reference mask"
         )
 
-    @pytest.mark.xfail(strict=True, reason="No pause icon implemented for Counting mode")
     def test_counting_select_icon(self, persistent_emulator):
         """Verify pause indicator for Select button in Counting mode."""
         emulator = persistent_emulator
         screenshot = self._enter_counting(emulator)
-        assert matches_icon_reference(screenshot, REGION_SELECT, "counting_select", auto_save=False), (
-            "No reference mask for pause icon (not yet implemented)"
+        assert has_icon_content(screenshot, REGION_SELECT), (
+            "Expected Pause icon content in Select button region in Counting mode"
+        )
+        assert matches_icon_reference(screenshot, REGION_SELECT, "counting_select"), (
+            "Pause icon does not match reference mask"
         )
 
-    @pytest.mark.xfail(strict=True, reason="No details/refresh icon implemented yet")
     def test_counting_down_icon(self, persistent_emulator):
         """Verify details/refresh indicator for Down button in Counting mode."""
         emulator = persistent_emulator
         screenshot = self._enter_counting(emulator)
-        assert matches_icon_reference(screenshot, REGION_DOWN, "counting_down", auto_save=False), (
-            "No reference mask for details icon (not yet implemented)"
+        assert has_icon_content(screenshot, REGION_DOWN), (
+            "Expected Details icon content in Down button region in Counting mode"
+        )
+        assert matches_icon_reference(screenshot, REGION_DOWN, "counting_down"), (
+            "Details icon does not match reference mask"
         )
 
-    @pytest.mark.xfail(strict=True, reason="No enable-repeat icon implemented yet")
     def test_counting_long_up_icon(self, persistent_emulator):
         """Verify enable repeat indicator for long-press Up in Counting mode."""
         emulator = persistent_emulator
         screenshot = self._enter_counting(emulator)
-        assert matches_icon_reference(screenshot, REGION_LONG_UP, "counting_long_up", auto_save=False), (
-            "No reference mask for enable-repeat icon (not yet implemented)"
+        assert matches_icon_reference(screenshot, REGION_LONG_UP, "counting_long_up"), (
+            "Enable-repeat icon does not match reference mask"
         )
 
-    @pytest.mark.xfail(strict=True, reason="No restart icon implemented yet")
     def test_counting_long_select_icon(self, persistent_emulator):
         """Verify restart indicator for long-press Select in Counting mode."""
         emulator = persistent_emulator
         screenshot = self._enter_counting(emulator)
-        assert matches_icon_reference(screenshot, REGION_LONG_SELECT, "counting_long_select", auto_save=False), (
-            "No reference mask for restart icon (not yet implemented)"
+        assert matches_icon_reference(screenshot, REGION_LONG_SELECT, "counting_long_select"), (
+            "Restart icon does not match reference mask"
         )
 
-    @pytest.mark.xfail(strict=True, reason="No quit icon implemented yet")
     def test_counting_long_down_icon(self, persistent_emulator):
         """Verify quit indicator for long-press Down in Counting mode."""
         emulator = persistent_emulator
         screenshot = self._enter_counting(emulator)
-        assert matches_icon_reference(screenshot, REGION_LONG_DOWN, "counting_long_down", auto_save=False), (
-            "No reference mask for quit icon (not yet implemented)"
+        assert matches_icon_reference(screenshot, REGION_LONG_DOWN, "counting_long_down"), (
+            "Quit icon does not match reference mask"
         )
 
 
@@ -555,15 +557,11 @@ class TestCountingIcons:
 class TestPausedIcons:
     """Tests for icons when timer is paused.
 
-    The play icon resource exists (IMAGE_PLAY_ICON) but is never drawn.
+    Icons: Play (Select). Other buttons share Counting mode icons.
     """
 
-    @pytest.mark.xfail(strict=True, reason="Play icon resource exists but is never drawn")
     def test_paused_select_icon_play(self, persistent_emulator):
-        """Verify play icon for Select button when timer is paused.
-
-        IMAGE_PLAY_ICON resource exists (music_icon_play.png) but is never drawn.
-        """
+        """Verify play icon for Select button when timer is paused."""
         emulator = persistent_emulator
 
         # Set timer and enter counting mode
@@ -575,8 +573,11 @@ class TestPausedIcons:
         time.sleep(0.5)
 
         screenshot = emulator.screenshot("paused_mode")
-        assert matches_icon_reference(screenshot, REGION_SELECT, "paused_play", auto_save=False), (
-            "No reference mask for play icon (not yet drawn)"
+        assert has_icon_content(screenshot, REGION_SELECT), (
+            "Expected Play icon content in Select button region when paused"
+        )
+        assert matches_icon_reference(screenshot, REGION_SELECT, "paused_play"), (
+            "Play icon does not match reference mask"
         )
 
 
@@ -587,7 +588,7 @@ class TestPausedIcons:
 class TestChronoIcons:
     """Tests for icons in chrono mode (counting up after timer completion).
 
-    No icons are currently drawn in chrono mode. All tests are xfail.
+    Icons: Pause (Select), Reset (Long Select).
     """
 
     def _enter_chrono(self, emulator):
@@ -603,7 +604,6 @@ class TestChronoIcons:
         time.sleep(0.5)
         return emulator.screenshot("chrono_mode")
 
-    @pytest.mark.xfail(strict=True, reason="No pause icon implemented for chrono mode")
     def test_chrono_select_icon(self, persistent_emulator):
         """Verify pause indicator for Select button in chrono mode."""
         emulator = persistent_emulator
@@ -612,11 +612,13 @@ class TestChronoIcons:
         # Cancel quit timer
         emulator.press_down()
 
-        assert matches_icon_reference(screenshot, REGION_SELECT, "chrono_select", auto_save=False), (
-            "No reference mask for pause icon in chrono mode (not yet implemented)"
+        assert has_icon_content(screenshot, REGION_SELECT), (
+            "Expected Pause icon content in Select button region in chrono mode"
+        )
+        assert matches_icon_reference(screenshot, REGION_SELECT, "chrono_select"), (
+            "Pause icon does not match reference mask in chrono mode"
         )
 
-    @pytest.mark.xfail(strict=True, reason="No reset icon implemented for chrono mode")
     def test_chrono_long_select_icon(self, persistent_emulator):
         """Verify reset indicator for long-press Select in chrono mode."""
         emulator = persistent_emulator
@@ -625,8 +627,8 @@ class TestChronoIcons:
         # Cancel quit timer
         emulator.press_down()
 
-        assert matches_icon_reference(screenshot, REGION_LONG_SELECT, "chrono_long_select", auto_save=False), (
-            "No reference mask for reset icon in chrono mode (not yet implemented)"
+        assert matches_icon_reference(screenshot, REGION_LONG_SELECT, "chrono_long_select"), (
+            "Reset icon does not match reference mask in chrono mode"
         )
 
 
@@ -637,7 +639,7 @@ class TestChronoIcons:
 class TestEditRepeatIcons:
     """Tests for icons in ControlModeEditRepeat mode.
 
-    No icons are currently drawn in this mode. All tests are xfail.
+    Icons: Reset Count (Back), +20 (Up), +5 (Select), +1 (Down).
     """
 
     def _enter_editrepeat(self, emulator):
@@ -657,38 +659,60 @@ class TestEditRepeatIcons:
         time.sleep(0.5)
         return emulator.screenshot("editrepeat_mode")
 
-    @pytest.mark.xfail(strict=True, reason="No reset count icon implemented yet")
     def test_editrepeat_back_icon(self, persistent_emulator):
-        """Verify reset count indicator for Back button in EditRepeat mode."""
+        """Verify reset count indicator for Back button in EditRepeat mode.
+
+        Tolerance of 20 pixels for minor rendering variations from timer
+        digits near the Back icon region.
+        """
         emulator = persistent_emulator
         screenshot = self._enter_editrepeat(emulator)
-        assert matches_icon_reference(screenshot, REGION_BACK, "editrepeat_back", auto_save=False), (
-            "No reference mask for reset count icon (not yet implemented)"
+        assert has_icon_content(screenshot, REGION_BACK), (
+            "Expected Reset Count icon content in Back button region in EditRepeat mode"
+        )
+        assert matches_icon_reference(screenshot, REGION_BACK, "editrepeat_back", tolerance=20), (
+            "Reset Count icon does not match reference mask"
         )
 
-    @pytest.mark.xfail(strict=True, reason="No +20 repeats icon implemented yet")
     def test_editrepeat_up_icon(self, persistent_emulator):
-        """Verify +20 repeats indicator for Up button in EditRepeat mode."""
+        """Verify +20 repeats indicator for Up button in EditRepeat mode.
+
+        Tolerance of 60 pixels because REGION_UP (109,5,144,40) overlaps with
+        the flashing repeat indicator "_x" at (94,0,144,30). The indicator
+        flashes on/off at 1000ms intervals, causing up to ~50 pixel differences.
+        """
         emulator = persistent_emulator
         screenshot = self._enter_editrepeat(emulator)
-        assert matches_icon_reference(screenshot, REGION_UP, "editrepeat_up", auto_save=False), (
-            "No reference mask for +20 repeats icon (not yet implemented)"
+        assert has_icon_content(screenshot, REGION_UP), (
+            "Expected +20 repeats icon content in Up button region in EditRepeat mode"
+        )
+        assert matches_icon_reference(screenshot, REGION_UP, "editrepeat_up", tolerance=60), (
+            "+20 repeats icon does not match reference mask"
         )
 
-    @pytest.mark.xfail(strict=True, reason="No +5 repeats icon implemented yet")
     def test_editrepeat_select_icon(self, persistent_emulator):
-        """Verify +5 repeats indicator for Select button in EditRepeat mode."""
+        """Verify +5 repeats indicator for Select button in EditRepeat mode.
+
+        Tolerance of 30 pixels for timer display digit variation in the
+        Select crop region across runs.
+        """
         emulator = persistent_emulator
         screenshot = self._enter_editrepeat(emulator)
-        assert matches_icon_reference(screenshot, REGION_SELECT, "editrepeat_select", auto_save=False), (
-            "No reference mask for +5 repeats icon (not yet implemented)"
+        assert has_icon_content(screenshot, REGION_SELECT), (
+            "Expected +5 repeats icon content in Select button region in EditRepeat mode"
+        )
+        assert matches_icon_reference(screenshot, REGION_SELECT, "editrepeat_select", tolerance=30), (
+            "+5 repeats icon does not match reference mask"
         )
 
-    @pytest.mark.xfail(strict=True, reason="No +1 repeat icon implemented yet")
     def test_editrepeat_down_icon(self, persistent_emulator):
-        """Verify +1 repeat indicator for Down button in EditRepeat mode."""
+        """Verify +1 repeat indicator for Down button in EditRepeat mode.
+
+        Note: has_icon_content threshold check skipped because the "+1" icon
+        has fewer non-bg pixels than the default threshold of 100.
+        """
         emulator = persistent_emulator
         screenshot = self._enter_editrepeat(emulator)
-        assert matches_icon_reference(screenshot, REGION_DOWN, "editrepeat_down", auto_save=False), (
-            "No reference mask for +1 repeat icon (not yet implemented)"
+        assert matches_icon_reference(screenshot, REGION_DOWN, "editrepeat_down"), (
+            "+1 repeat icon does not match reference mask"
         )

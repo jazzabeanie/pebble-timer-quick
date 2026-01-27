@@ -30,11 +30,11 @@ Long press indicators should be small icons positioned slightly inside the stand
 
 | Button | Standard Crop | Long-Press Sub-Region |
 |--------|--------------|----------------------|
-| Up | `(109, 5, 144, 40)` | `(109, 25, 127, 40)` |
-| Select | `(122, 71, 144, 96)` | `(122, 81, 136, 96)` |
-| Down | `(109, 128, 144, 163)` | `(109, 128, 127, 143)` |
+| Up | `(109, 5, 144, 40)` | `(92, 10, 117, 35)` |
+| Select | `(122, 71, 144, 96)` | `(105, 71, 130, 96)` |
+| Down | `(109, 128, 144, 163)` | `(92, 133, 117, 158)` |
 
-**Note:** Long press sub-regions are estimates. They should be refined when long-press icons are actually implemented. The Back button has no long-press handler in most states, so no long-press sub-region is defined for it.
+**Note:** Long press sub-regions are positioned beside (toward screen center) the standard icon. The 15x15 hold icon sits to the left of the 25x25 standard icon with a 2px gap. The Back button has no long-press handler in most states, so no long-press sub-region is defined for it.
 
 ### 2. Test Infrastructure
 
@@ -72,11 +72,12 @@ Enter state by: Setting a short timer (e.g., 4 seconds via the `short_timer` pat
 | Test Function | Button | Icon | Expected |
 |---------------|--------|------|----------|
 | `test_alarm_back_icon_silence` | Back | Silence icon (25x25) | **pass** - icon exists and is drawn |
-| `test_alarm_up_icon_repeat` | Up | Repeat/reset icon (25x25) | **xfail** - resource exists (`IMAGE_REPEAT_ICON`) but drawing is commented out at `drawing.c:446-447` |
+| `test_alarm_up_icon_repeat` | Up | Reset icon (25x25, IMAGE_REPEAT_ICON) | **pass** - icon drawn at Up standard position |
+| `test_alarm_long_up_icon_reset` | Long Up | "Rst" hold icon (15x15, IMAGE_ICON_RESET) | **pass** - hold icon beside Up standard icon |
 | `test_alarm_select_icon_pause` | Select | Pause icon (15x15) | **pass** - icon exists and is drawn |
 | `test_alarm_down_icon_snooze` | Down | Snooze icon (25x25) | **pass** - icon exists and is drawn |
 
-**Reference masks needed:** `ref_basalt_silence_mask.png`, `ref_basalt_pause_mask.png`, `ref_basalt_snooze_mask.png`
+**Reference masks needed:** `ref_basalt_silence_mask.png`, `ref_basalt_alarm_repeat_mask.png`, `ref_basalt_alarm_long_up_mask.png`, `ref_basalt_pause_mask.png`, `ref_basalt_snooze_mask.png`
 
 **Setup for alarm tests:**
 1. Reset app (hold Down)
@@ -241,3 +242,7 @@ test/functional/
   - **Reference masks generated**: `ref_basalt_silence_mask.png`, `ref_basalt_pause_mask.png`, `ref_basalt_snooze_mask.png` auto-saved to `screenshots/icon_refs/` on first run.
   - **Spec correction**: Detection method updated. The spec originally proposed using pixel counting (`has_icon_content`) for xfail tests, but this produces false positives because timer display digits extend into icon crop regions. Changed to reference mask matching (`matches_icon_reference` with `auto_save=False`) which correctly fails when no reference exists.
   - **strict=True on all xfail**: All `@pytest.mark.xfail` markers use `strict=True` to catch unexpected passes (XPASS) as failures, ensuring tests correctly reflect icon implementation status.
+- 2026-01-28: Updated test suite to 31 tests (all passing on basalt). Changes:
+  - **Hold icon crop regions updated**: Long-press sub-regions changed to match new beside-center positions: Long Up (92,10,117,35), Long Select (105,71,130,96), Long Down (92,133,117,158).
+  - **Alarm Up test updated**: `test_alarm_up_icon_repeat` changed from xfail to pass (reset icon now drawn). Added `test_alarm_long_up_icon_reset` for the hold "Rst" icon.
+  - **Spec table updated**: Long-press sub-regions table corrected, alarm test table updated with both Up and Long Up tests.

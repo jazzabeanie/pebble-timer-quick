@@ -104,7 +104,7 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 **Status:** Completed
 
-**Tests:** Passing (3 passed, 27 xfailed on basalt)
+**Tests:** Passing (31 tests on basalt)
 
 **Dependencies:** functional-tests-emulator.md (spec #4), repeating-timer.md (spec #6)
 
@@ -117,9 +117,9 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 **Summary:** Defines the implementation details for adding visual icons to all button interactions, including asset generation and drawing logic changes.
 
-**Status:** Not Started
+**Status:** Completed
 
-**Tests:** test/functional/test_button_icons.py
+**Tests:** Passing (31 tests on basalt) — test/functional/test_button_icons.py
 
 **Dependencies:** button-icon-tests.md (spec #7)
 
