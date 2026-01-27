@@ -115,9 +115,9 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 **Keywords:** button icons, UX, visual feedback, assets, drawing, state machine, implementation, resource generation
 
-**Summary:** Defines the implementation details for adding visual icons to all button interactions, including asset generation and drawing logic changes.
+**Summary:** Defines the implementation details for adding visual icons to all button interactions, including asset generation and drawing logic changes. **Note:** The long-press select icon is currently disabled due to display overlap (see Known Issues in spec).
 
-**Status:** Completed
+**Status:** Completed (with known issues)
 
 **Tests:** Passing (31 tests on basalt) — test/functional/test_button_icons.py
 
