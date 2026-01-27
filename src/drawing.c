@@ -446,8 +446,9 @@ static void prv_draw_action_icons(GContext *ctx, GRect bounds) {
     // Long press icons for New/EditSec
     prv_draw_icon(ctx, drawing_data.icon_direction, LONG_UP_X, LONG_UP_Y,
                   ICON_SMALL_SIZE, ICON_SMALL_SIZE);
-    prv_draw_icon(ctx, drawing_data.icon_reset, LONG_SELECT_X, LONG_SELECT_Y,
-                  ICON_SMALL_SIZE, ICON_SMALL_SIZE);
+    // TODO: overlaps the display and a new solution is needed
+    // prv_draw_icon(ctx, drawing_data.icon_reset, LONG_SELECT_X, LONG_SELECT_Y,
+    //               ICON_SMALL_SIZE, ICON_SMALL_SIZE);
     prv_draw_icon(ctx, drawing_data.icon_quit, LONG_DOWN_X, LONG_DOWN_Y,
                   ICON_SMALL_SIZE, ICON_SMALL_SIZE);
   } else if (mode == ControlModeCounting) {
@@ -470,8 +471,9 @@ static void prv_draw_action_icons(GContext *ctx, GRect bounds) {
       prv_draw_icon(ctx, drawing_data.icon_repeat_enable, LONG_UP_X, LONG_UP_Y,
                     ICON_SMALL_SIZE, ICON_SMALL_SIZE);
     }
-    prv_draw_icon(ctx, drawing_data.icon_reset, LONG_SELECT_X, LONG_SELECT_Y,
-                  ICON_SMALL_SIZE, ICON_SMALL_SIZE);
+    // TODO: overlaps the display and a new solution is needed
+    // prv_draw_icon(ctx, drawing_data.icon_reset, LONG_SELECT_X, LONG_SELECT_Y,
+    //               ICON_SMALL_SIZE, ICON_SMALL_SIZE);
     prv_draw_icon(ctx, drawing_data.icon_quit, LONG_DOWN_X, LONG_DOWN_Y,
                   ICON_SMALL_SIZE, ICON_SMALL_SIZE);
   } else if (mode == ControlModeEditRepeat) {
