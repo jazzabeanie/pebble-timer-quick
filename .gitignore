@@ -5,3 +5,4 @@ build
 .claude/
 test/functional/screenshots/*
 !test/functional/screenshots/references/
+tmp/
