@@ -367,6 +367,7 @@ class TestNewModeIcons:
 
     def test_new_long_select_icon(self, persistent_emulator):
         """Verify reset indicator for long-press Select in New mode."""
+        pytest.skip("Long press select icon disabled due to display overlap (see button-icons.md)")
         emulator = persistent_emulator
         screenshot = emulator.screenshot("new_mode")
         assert matches_icon_reference(screenshot, REGION_LONG_SELECT, "new_long_select"), (
@@ -535,6 +536,7 @@ class TestCountingIcons:
 
     def test_counting_long_select_icon(self, persistent_emulator):
         """Verify restart indicator for long-press Select in Counting mode."""
+        pytest.skip("Long press select icon disabled due to display overlap (see button-icons.md)")
         emulator = persistent_emulator
         screenshot = self._enter_counting(emulator)
         assert matches_icon_reference(screenshot, REGION_LONG_SELECT, "counting_long_select"), (
@@ -621,6 +623,7 @@ class TestChronoIcons:
 
     def test_chrono_long_select_icon(self, persistent_emulator):
         """Verify reset indicator for long-press Select in chrono mode."""
+        pytest.skip("Long press select icon disabled due to display overlap (see button-icons.md)")
         emulator = persistent_emulator
         screenshot = self._enter_chrono(emulator)
 
