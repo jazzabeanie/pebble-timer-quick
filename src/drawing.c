@@ -398,7 +398,7 @@ static void prv_update_draw_state(Layer *layer) {
 #define LONG_SELECT_X 110
 #define LONG_SELECT_Y 76
 #define LONG_DOWN_X 97
-#define LONG_DOWN_Y 150
+#define LONG_DOWN_Y 145
 
 // Draw a bitmap icon at a given position
 static void prv_draw_icon(GContext *ctx, GBitmap *icon, int16_t x, int16_t y, int16_t w, int16_t h) {

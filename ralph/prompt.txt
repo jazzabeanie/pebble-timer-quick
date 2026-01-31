@@ -1,5 +1,7 @@
 # AI Agent Instructions - Ralph Wiggum Loop
 
+Your task is to work on a spec detail in the ./ralph/spec folder. Choose the most import spec to work on, and one that will make implementing future specs easier.
+
 ## Initial Review
 Before beginning any work, carefully study the following files in order:
 1. **context.md** - Read the context file to understand recent changes, key components, and important decisions
@@ -7,7 +9,7 @@ Before beginning any work, carefully study the following files in order:
 3. **specs/[CURRENT_SPEC].md** - Read the specific specification file you have been asked to implement in its entirety
 
 ## Pre-Implementation Check
-**STOP AND FLAG** if you discover any features marked as "In Progress" that the user may have assumed to be completed. Confirm the actual status with the user before proceeding. Check the specs/README.md file for current status of all features.
+If you find specs that are in marked as "In Progress", work on completing these. If you have been asked to work on a specific spec, **STOP AND FLAG** if you discover any features marked as "In Progress" that the user may have assumed to be completed. Confirm the actual status with the user before proceeding. Check the specs/README.md file for current status of all features.
 
 ## IMPORTANT: Testing Requirements
 - CREATE new tests for any new functionality you implement
@@ -43,6 +45,9 @@ Before beginning any work, carefully study the following files in order:
   - Update the status field for the current spec (Not Started → In Progress → Completed)
   - Update the Tests field (NA → Failing → Passing)
   - If you added clarifications to the spec, ensure keywords and summary are still accurate
+
+### Update Code Documentation
+- Review the README.md file in the root of the project to ensure it reflects the current state of the project.
 
 ## Quality Checklist
 Before completing your work, verify:
