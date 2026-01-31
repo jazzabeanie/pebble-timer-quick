@@ -125,6 +125,21 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 ---
 
+### 9. Edit Mode Reset
+**File:** [edit-mode-reset.md](edit-mode-reset.md)
+
+**Keywords:** edit mode, reset, long press select, ControlModeNew, ControlModeEditSec, pause, seconds editing, quick reset, timer reset
+
+**Summary:** Defines a feature where long pressing select in edit mode (`ControlModeNew`) resets the timer to 0:00 in paused edit seconds mode. Long press select in `ControlModeEditSec` and `ControlModeEditRepeat` does nothing.
+
+**Status:** Not Started
+
+**Tests:** NA
+
+**Dependencies:** functional-tests-emulator.md (spec #4), timer-workflow-tests.md (spec #5)
+
+---
+
 ## Adding New Specifications
 
 When creating a new spec file:
