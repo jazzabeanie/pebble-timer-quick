@@ -20,19 +20,27 @@ LIBS = -lcmocka
 # Source files
 TEST_SRCS = test_timer.c
 TIMER_SRCS = $(SRC_DIR)/timer.c
+MAIN_LOGIC_SRCS = test_main_logic.c
 
 # Output
 TEST_BIN = run_tests
+MAIN_LOGIC_BIN = run_test_main_logic
 
-.PHONY: all test clean
+.PHONY: all test test_main_logic clean
 
-all: $(TEST_BIN)
+all: $(TEST_BIN) $(MAIN_LOGIC_BIN)
 
 $(TEST_BIN): $(TEST_SRCS) $(TIMER_SRCS)
+	$(CC) $(CFLAGS) $(INCLUDES) $^ -o $@ $(LDFLAGS) $(LIBS)
+
+$(MAIN_LOGIC_BIN): $(MAIN_LOGIC_SRCS) $(TIMER_SRCS)
 	$(CC) $(CFLAGS) $(INCLUDES) $^ -o $@ $(LDFLAGS) $(LIBS)
 
 test: $(TEST_BIN)
 	./$(TEST_BIN)
 
+test_main_logic: $(MAIN_LOGIC_BIN)
+	./$(MAIN_LOGIC_BIN)
+
 clean:
-	rm -f $(TEST_BIN)
+	rm -f $(TEST_BIN) $(MAIN_LOGIC_BIN)
