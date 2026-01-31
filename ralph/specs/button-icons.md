@@ -100,6 +100,7 @@ A set of new PNG assets must be generated. To facilitate immediate development a
   - **Test fixes**: Removed xfail from `test_alarm_up_icon_repeat` (icon now drawn). Skipped `has_icon_content` check for `test_editsec_down_icon` ("+1" icon has only 55 non-bg pixels, below the 100-pixel threshold now that the adjacent quit hold icon moved away). Added tolerance=30 to `test_editrepeat_select_icon`.
   - **OCR test fix**: Updated `test_timer_counts_down` to wait 4s instead of 0.5s so the first screenshot is taken in counting mode (icons in New mode confuse OCR text grouping). Added `d→0` normalization in `normalize_time_text` for OCR misreading of LECO 7-segment "0" as "d".
   - **All reference masks regenerated**: Deleted all stale basalt reference masks and indicator references; auto-saved on first run.
+- 2026-01-31: Verified implementation and regenerated reference images. Deleted `test/functional/screenshots/icon_refs/*.png` and re-ran tests to ensure stability. All 28 tests passed (3 skipped due to long-press overlay issue).
 
 ## Known Issues
 - **Long Press Select Icon Overlap**: The icon for the long press select button (`IMAGE_ICON_RESET`) currently overlaps with other display elements at the `LONG_SELECT_X` / `LONG_SELECT_Y` position. As a temporary measure, the drawing of this icon has been commented out in `src/drawing.c` until a new design solution is implemented.

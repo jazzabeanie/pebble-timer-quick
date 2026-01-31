@@ -123,7 +123,7 @@ Currently the phase of work is to very that the existing implementation was done
   if [[ "$TOOL" == "amp" ]]; then
     OUTPUT=$(echo "$FULL_PROMPT" | amp --dangerously-allow-all 2>&1 | tee /dev/stderr) || true
   elif [[ "$TOOL" == "gemini" ]]; then
-    OUTPUT=$(echo "$FULL_PROMPT" | gemini --yolo 2>&1 | tee /dev/stderr) || true
+    OUTPUT=$(echo "$FULL_PROMPT" | gemini --model gemini-3-pro-preview --yolo 2>&1 | tee /dev/stderr) || true
   else
     # Claude Code: use --dangerously-skip-permissions for autonomous operation, --print for output
     OUTPUT=$(echo "$FULL_PROMPT" | claude --dangerously-skip-permissions --print 2>&1 | tee /dev/stderr) || true

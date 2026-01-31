@@ -250,55 +250,6 @@ def matches_indicator_reference(img: Image.Image, ref_name: str) -> bool:
     return np.array_equal(mask, ref_mask)
 
 
-@pytest.fixture(scope="module", params=PLATFORMS)
-def persistent_emulator(request, build_app):
-    """
-    Module-scoped fixture that launches the emulator once per platform.
-
-    The fixture performs a "warm-up" cycle:
-    1. Wipe storage, install app
-    2. Long press Down to quit the app (sets app state for next launch)
-
-    The app is left closed after warmup. The _reset_app_between_tests autouse
-    fixture handles opening/closing the app before/after each test.
-    """
-    platform = request.param
-    platform_opt = request.config.getoption("--platform")
-    if platform_opt and platform != platform_opt:
-        pytest.skip(f"Skipping test for {platform} since --platform={platform_opt} was specified.")
-
-    save_screenshots = request.config.getoption("--save-screenshots")
-    helper = EmulatorHelper(platform, save_screenshots)
-
-    # Warm-up cycle to clear any stale state and set initial persist state
-    logger.info(f"[{platform}] Starting warm-up cycle to clear stale state")
-    helper.wipe()
-    helper.install()
-    logger.info(f"[{platform}] Waiting for emulator to stabilize (2s)")
-    time.sleep(2)  # Allow emulator to stabilize
-
-    # Long press Down button to quit the app - this sets the app's persist state
-    # (reset_on_init=true ensures the timer is reset on next launch)
-    logger.info(f"[{platform}] Holding down button to quit app and set persist state")
-    helper.hold_button(Button.DOWN)
-    time.sleep(1)
-    helper.release_buttons()
-    logger.info(f"[{platform}] App quit via long press, persist state set")
-    time.sleep(0.5)
-
-    # Navigate to launcher: after first quit the watch lands on the watchface.
-    # Press SELECT to enter the launcher so open_app_via_menu() can launch
-    # the app with a single SELECT press.
-    helper.press_select()
-    time.sleep(0.5)
-
-    logger.info(f"[{platform}] Emulator ready for tests")
-
-    yield helper
-
-    # Teardown: kill emulator
-    logger.info(f"[{platform}] Tearing down - killing emulator")
-    helper.kill()
 
 
 class TestCreateTimer:

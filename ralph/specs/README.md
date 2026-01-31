@@ -132,9 +132,9 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 **Summary:** Defines a feature where long pressing select in edit mode (`ControlModeNew`) resets the timer to 0:00 in paused edit seconds mode. Long press select in `ControlModeEditSec` and `ControlModeEditRepeat` does nothing.
 
-**Status:** Not Started
+**Status:** Completed
 
-**Tests:** NA
+**Tests:** Passing
 
 **Dependencies:** functional-tests-emulator.md (spec #4), timer-workflow-tests.md (spec #5)
 

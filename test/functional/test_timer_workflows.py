@@ -755,3 +755,226 @@ class TestEnableRepeatingTimer:
         assert "00:30" in second_normalized or "00 30" in second_normalized, (
             f"Expected header '00:30' indicating second repeat restart (10s + 10s + 10s), got: {second_restart_text}"
         )
+
+
+class TestEditModeReset:
+    """Test 9: Edit mode reset via long press select."""
+
+    def test_long_press_select_in_edit_mode_resets_to_edit_seconds(self, persistent_emulator):
+        """
+        Verify that long pressing select while in ControlModeNew (editing an existing
+        timer) resets to 0:00 in edit seconds mode (ControlModeEditSec).
+
+        Steps:
+        1. Set a 2-minute timer using Down button twice
+        2. Wait 4 seconds for auto-start (transition to ControlModeCounting)
+        3. Press Up button to enter edit mode (ControlModeNew)
+        4. Long press Select → timer resets to 0:00, enters edit seconds mode
+        5. Press Back button → adds 60 seconds (confirms edit seconds mode)
+
+        Key verification: Back button adds 60 seconds (not 60 minutes), confirming
+        we are in edit seconds mode and not minutes mode.
+        """
+        emulator = persistent_emulator
+
+        # Step 1: Set a 2-minute timer
+        emulator.press_down()
+        emulator.press_down()
+
+        # Step 2: Wait for auto-start (3s inactivity timer + buffer)
+        time.sleep(4)
+
+        # Step 3: Press Up to enter edit mode
+        emulator.press_up()
+        time.sleep(0.5)
+        edit_mode_screenshot = emulator.screenshot("edit_mode_before_reset")
+
+        # Step 4: Long press Select to reset to 0:00 in edit seconds mode
+        emulator.hold_button(Button.SELECT)
+        time.sleep(1)  # Hold for BUTTON_HOLD_RESET_MS (750ms) + buffer
+        emulator.release_buttons()
+        time.sleep(0.3)
+        after_reset_screenshot = emulator.screenshot("after_reset_to_edit_sec")
+
+        # Step 5: Press Back to add 60 seconds (confirms edit seconds mode)
+        emulator.press_back()
+        time.sleep(0.3)
+        after_back_screenshot = emulator.screenshot("after_back_press")
+
+        # --- Perform OCR assertions ---
+
+        # Verify we were in edit mode initially
+        edit_text = extract_text(edit_mode_screenshot)
+        logger.info(f"Edit mode text: {edit_text}")
+        assert "Edit" in edit_text, f"Expected 'Edit' header in edit mode, got: {edit_text}"
+
+        # Verify timer shows 0:00 after reset
+        # Note: "0:00" OCR can be tricky - verify by checking the display changed
+        reset_text = extract_text(after_reset_screenshot)
+        logger.info(f"After reset text: {reset_text}")
+        normalized_reset = normalize_time_text(reset_text)
+        logger.info(f"After reset normalized: {normalized_reset}")
+
+        # The key verification is that after pressing Back, the time shows 1:00
+        # (60 seconds), which confirms we were in edit seconds mode (not minutes)
+
+        # Verify Back button adds 60 seconds (confirms edit seconds mode)
+        # Should show "1:00" (60 seconds), not "1:00:00" (60 minutes)
+        back_text = extract_text(after_back_screenshot)
+        logger.info(f"After Back press text: {back_text}")
+        normalized_back = normalize_time_text(back_text)
+        logger.info(f"After Back press normalized: {normalized_back}")
+        # Check for 1:00 pattern (60 seconds added)
+        has_one_minute = has_time_pattern(back_text, minutes=1, tolerance=5)
+        assert has_one_minute, (
+            f"Expected '1:00' after Back press (60s added in edit sec mode), got: {back_text}"
+        )
+        # Also verify header still shows "Edit" (still in edit mode)
+        assert "Edit" in back_text, (
+            f"Expected 'Edit' header after Back press, got: {back_text}"
+        )
+
+
+class TestEditSecModeNoOp:
+    """Test 10: Long press select in ControlModeEditSec does nothing."""
+
+    def test_long_press_select_in_edit_sec_mode_does_nothing(self, persistent_emulator):
+        """
+        Verify that long pressing select in ControlModeEditSec has no effect.
+
+        Steps:
+        1. Set a 2-minute timer and wait for countdown
+        2. Press Select to pause the timer
+        3. Long press Select to reset to chrono 0:00
+        4. Press Up to enter edit mode → enters ControlModeEditSec (since chrono was paused at 0:00)
+        5. Press Down to add seconds (e.g., "0:01")
+        6. Long press Select → no change, timer still shows same value
+
+        Key verification: The timer value should not change after long press in
+        ControlModeEditSec.
+        """
+        emulator = persistent_emulator
+
+        # Step 1: Set a 2-minute timer and wait for countdown mode
+        emulator.press_down()
+        emulator.press_down()
+        time.sleep(4)  # Wait for auto-start
+
+        # Step 2: Press Select to pause
+        emulator.press_select()
+        time.sleep(0.3)
+
+        # Step 3: Long press Select to reset to chrono 0:00 (paused)
+        emulator.hold_button(Button.SELECT)
+        time.sleep(1)
+        emulator.release_buttons()
+        time.sleep(0.3)
+
+        # Step 4: Press Up to enter edit mode
+        # Since chrono is paused at 0:00, this enters ControlModeEditSec
+        emulator.press_up()
+        time.sleep(0.3)
+
+        # Step 5: Press Down to add 1 second
+        emulator.press_down()
+        time.sleep(0.3)
+        before_long_press = emulator.screenshot("edit_sec_before_long_press")
+
+        # Step 6: Long press Select → should do nothing
+        emulator.hold_button(Button.SELECT)
+        time.sleep(1)
+        emulator.release_buttons()
+        time.sleep(0.3)
+        after_long_press = emulator.screenshot("edit_sec_after_long_press")
+
+        # --- Perform assertions ---
+
+        # Verify both screenshots show the same timer value
+        before_text = extract_text(before_long_press)
+        logger.info(f"Before long press: {before_text}")
+        after_text = extract_text(after_long_press)
+        logger.info(f"After long press: {after_text}")
+
+        # Compare the timer display area (crop out footer with wall clock time)
+        before_cropped = before_long_press.crop(
+            (0, 0, before_long_press.width, int(before_long_press.height * 0.75))
+        )
+        after_cropped = after_long_press.crop(
+            (0, 0, after_long_press.width, int(after_long_press.height * 0.75))
+        )
+
+        assert before_cropped.tobytes() == after_cropped.tobytes(), (
+            f"Timer display should NOT change after long press in ControlModeEditSec. "
+            f"Before: {before_text}, After: {after_text}"
+        )
+
+
+class TestEditRepeatModeNoOp:
+    """Test 11: Long press select in ControlModeEditRepeat does nothing."""
+
+    def test_long_press_select_in_edit_repeat_mode_does_nothing(self, persistent_emulator):
+        """
+        Verify that long pressing select in ControlModeEditRepeat has no effect.
+
+        Steps:
+        1. Set a 2-minute timer and wait for countdown
+        2. Long press Up to enable repeat mode → enters ControlModeEditRepeat
+        3. Capture current timer value
+        4. Long press Select → no change, still in repeat edit mode
+
+        Key verification: The timer value should not change and repeat mode should
+        still be active after long press.
+        """
+        emulator = persistent_emulator
+
+        # Step 1: Set a 2-minute timer and wait for countdown
+        emulator.press_down()
+        emulator.press_down()
+        time.sleep(4)  # Wait for auto-start
+
+        # Step 2: Long press Up to enable repeat mode
+        emulator.hold_button(Button.UP)
+        time.sleep(1)
+        emulator.release_buttons()
+        time.sleep(0.5)  # Allow flash indicator to appear
+
+        before_long_press = emulator.screenshot("edit_repeat_before_long_press")
+
+        # Step 3: Long press Select → should do nothing
+        emulator.hold_button(Button.SELECT)
+        time.sleep(1)
+        emulator.release_buttons()
+        time.sleep(0.3)
+
+        after_long_press = emulator.screenshot("edit_repeat_after_long_press")
+
+        # --- Perform assertions ---
+
+        before_text = extract_text(before_long_press)
+        logger.info(f"Before long press: {before_text}")
+        after_text = extract_text(after_long_press)
+        logger.info(f"After long press: {after_text}")
+
+        # Verify repeat indicator is present in both screenshots
+        assert has_repeat_indicator(before_long_press), (
+            "Expected repeat indicator before long press in ControlModeEditRepeat"
+        )
+        assert has_repeat_indicator(after_long_press), (
+            "Expected repeat indicator after long press (still in ControlModeEditRepeat)"
+        )
+
+        # Compare timer values - should be the same
+        # Note: The repeat indicator flashes, so we compare the main timer area only
+        # Crop to center area avoiding the indicator region (top-right corner)
+        # basalt indicator region is (94, 0, 144, 30)
+        before_main = before_long_press.crop(
+            (0, 30, 94, int(before_long_press.height * 0.75))
+        )
+        after_main = after_long_press.crop(
+            (0, 30, 94, int(after_long_press.height * 0.75))
+        )
+
+        assert before_main.tobytes() == after_main.tobytes(), (
+            f"Timer display should NOT change after long press in ControlModeEditRepeat. "
+            f"Before: {before_text}, After: {after_text}"
+        )

@@ -376,6 +376,28 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
   main_data.is_reverse_direction = false;
+
+  // No-op in ControlModeEditSec or ControlModeEditRepeat
+  if (main_data.control_mode == ControlModeEditSec ||
+      main_data.control_mode == ControlModeEditRepeat) {
+    drawing_update();
+    layer_mark_dirty(main_data.layer);
+    return;
+  }
+
+  // In ControlModeNew: reset to 0:00 in paused edit seconds mode
+  if (main_data.control_mode == ControlModeNew) {
+    timer_reset();
+    timer_data.start_ms = 0;  // Pause it
+    main_data.control_mode = ControlModeEditSec;
+    prv_stop_new_expire_timer();
+    main_data.is_editing_existing_timer = true;
+    main_data.timer_length_modified_in_edit_mode = false;
+    drawing_update();
+    layer_mark_dirty(main_data.layer);
+    return;
+  }
+
   if (main_data.control_mode == ControlModeCounting) {
     if (timer_is_chrono()) {
       if (timer_is_paused()) {
