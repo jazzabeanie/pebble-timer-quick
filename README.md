@@ -48,16 +48,24 @@ Unit tests use [cmocka](https://cmocka.org/) and can be run without the Pebble S
 
 **Dependencies:** `gcc` and `make` (typically pre-installed on Linux; on Debian/Ubuntu: `sudo apt install build-essential`). The cmocka library is pre-installed in `vendor/cmocka_install/`.
 
-To run the tests:
+To run all tests:
 
 ```bash
 cd test
 make test
 ```
 
-This will compile and run the test suite for the timer logic.
+To run a specific test suite:
 
-To clean up test artifacts (removes the compiled `run_tests` binary):
+```bash
+# Run legacy timer logic tests
+make test_timer
+
+# Run main app logic tests (including bug fixes)
+make test_main
+```
+
+To clean up test artifacts (removes the compiled binaries):
 
 ```bash
 cd test
