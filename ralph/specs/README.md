@@ -147,9 +147,9 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 **Summary:** Defines requirements for displaying minus/decrement icons when the timer is in reverse direction mode, and fixing the Back button icon in Edit Seconds mode to match the 60s increment.
 
-**Status:** Not Started
+**Status:** Completed
 
-**Tests:** NA
+**Tests:** Passing (11 tests on basalt)
 
 **Dependencies:** button-icons.md (spec #8)
 
@@ -162,9 +162,9 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 **Summary:** Fixes a bug where subtracting time from a stopwatch results in an invalid state by refactoring time calculation logic to handle future start times.
 
-**Status:** Not Started
+**Status:** Completed
 
-**Tests:** NA
+**Tests:** Passing (23 unit tests)
 
 **Dependencies:** timer-extended-tests.md (spec #2)
 

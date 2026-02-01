@@ -183,6 +183,11 @@ bool main_is_last_interaction_down(void) {
   return main_data.last_interaction_was_down;
 }
 
+// Get whether the app is in reverse direction mode
+bool main_is_reverse_direction(void) {
+  return main_data.is_reverse_direction;
+}
+
 // Background layer update procedure
 static void prv_layer_update_proc_handler(Layer *layer, GContext *ctx) {
   // render the timer's visuals

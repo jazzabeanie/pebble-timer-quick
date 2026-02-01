@@ -69,3 +69,34 @@ New PNG assets must be generated. The naming convention should follow the existi
 
 ## Dependencies
 *   `ralph/specs/button-icons.md` (Basis for current icon system)
+
+## Progress
+
+### 2026-02-01: Implementation Completed
+All requirements have been implemented and verified:
+
+1.  **Assets Created**: Generated 9 new PNG icon files:
+    - `icon_minus_1hr.png`, `icon_minus_20min.png`, `icon_minus_5min.png`, `icon_minus_1min.png`
+    - `icon_plus_60sec.png` (replaces +30), `icon_minus_60sec.png`
+    - `icon_minus_20sec.png`, `icon_minus_5sec.png`, `icon_minus_1sec.png`
+
+2.  **Manifest Updated**: Added all 9 new resources to `appinfo.json`.
+
+3.  **State Exposed**: Implemented `main_is_reverse_direction()` in `src/main.c` and `src/main.h`.
+
+4.  **Drawing Logic Updated**: Modified `src/drawing.c`:
+    - Added 9 new `GBitmap` pointers to `drawing_data` struct
+    - Updated `drawing_initialize()` to load new bitmaps
+    - Updated `drawing_terminate()` to free new bitmaps
+    - Refactored `prv_draw_action_icons()` to conditionally draw +/- icons based on `main_is_reverse_direction()`
+    - Fixed EditSec Back button to use `+60` icon instead of `+30`
+
+5.  **Functional Tests Created**: Added `test/functional/test_directional_icons.py` with 11 tests:
+    - `TestNewModeForwardIcons`: Verifies icons exist in forward direction
+    - `TestNewModeReverseIcons`: Verifies -1h, -20, -5m, -1m icons appear after toggle
+    - `TestEditSecModeForwardIcons`: Verifies +60 fix and other icons
+    - `TestEditSecModeReverseIcons`: Verifies -60, -20, -5, -1 icons appear after toggle
+
+6.  **Tests Passing**: All 11 directional icon tests pass on basalt. All 23 unit tests pass. Existing button icon tests (17 tested) pass.
+
+**Note**: The `IMAGE_ICON_PLUS_30SEC` resource was NOT removed as it may still be in use or needed for backward compatibility. This cleanup can be done in a future iteration if confirmed safe.

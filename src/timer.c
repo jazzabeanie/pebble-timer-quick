@@ -46,13 +46,27 @@ void timer_get_time_parts(uint16_t *hr, uint16_t *min, uint16_t *sec) {
 // Get the timer time in milliseconds assuming the following conditions
 // 1. when the timer is running, start_ms represents the epoch when it was started
 // 2. when it is paused, start_ms represents the negative of the time is has been running
+// 3. when start_ms > epoch(), timer is running with a future start time (countdown created by subtracting from chrono)
 int64_t timer_get_value_ms(void) {
-  int64_t value = timer_data.length_ms - epoch() +
-    (((timer_data.start_ms + epoch() - 1) % epoch()) + 1);
-  if (value < 0) {
-    return -value;
+  // Calculate elapsed time based on timer state
+  int64_t elapsed;
+  if (timer_data.start_ms > 0) {
+    // Running timer: elapsed = current time - start time
+    // Note: elapsed can be negative if start_ms is in the future
+    elapsed = epoch() - timer_data.start_ms;
+  } else {
+    // Paused timer: start_ms stores the negative of elapsed time
+    elapsed = -timer_data.start_ms;
   }
-  return value;
+
+  // Calculate raw value: positive = countdown time remaining, negative = chrono time elapsed
+  int64_t raw_value = timer_data.length_ms - elapsed;
+
+  // Return absolute value
+  if (raw_value < 0) {
+    return -raw_value;
+  }
+  return raw_value;
 }
 
 // Get the total timer time in milliseconds
@@ -67,9 +81,19 @@ bool timer_is_vibrating(void) {
 
 // Check if timer is in stopwatch mode
 bool timer_is_chrono(void) {
-  // see timer_get_timer_parts for explanation of equation
-  return timer_data.length_ms - (int64_t)epoch() +
-    ((timer_data.start_ms + (int64_t)epoch() - 1) % (int64_t)epoch() + 1) <= 0;
+  // Calculate elapsed time based on timer state
+  int64_t elapsed;
+  if (timer_data.start_ms > 0) {
+    // Running timer: elapsed = current time - start time
+    // Note: elapsed can be negative if start_ms is in the future
+    elapsed = epoch() - timer_data.start_ms;
+  } else {
+    // Paused timer: start_ms stores the negative of elapsed time
+    elapsed = -timer_data.start_ms;
+  }
+
+  // Chrono mode when elapsed time exceeds length (raw_value <= 0)
+  return timer_data.length_ms - elapsed <= 0;
 }
 
 // Check if timer or stopwatch is paused

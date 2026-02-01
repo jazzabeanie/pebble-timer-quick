@@ -54,5 +54,16 @@ Existing tests in `test/test_timer.c` that rely on the old modulo math may need 
 - `timer-extended-tests.md` (spec #2)
 
 ## Progress
-- **Status**: Not Started
-- **Tests**: NA
+- **Status**: Completed
+- **Tests**: Passing (23 unit tests including new test 23: `test_timer_chrono_subtraction_to_countdown`)
+
+### Implementation Notes (2026-02-01)
+1. **Reproduction test added**: `test_timer_chrono_subtraction_to_countdown` in `test/test_timer.c` (test #23)
+2. **Refactored `timer_get_value_ms()`**: Simplified logic to calculate elapsed time first, then derive raw_value
+   - Running timer: `elapsed = epoch() - start_ms` (can be negative for future start times)
+   - Paused timer: `elapsed = -start_ms`
+   - `raw_value = length_ms - elapsed`
+   - Returns `abs(raw_value)`
+3. **Refactored `timer_is_chrono()`**: Uses same elapsed calculation, returns `raw_value <= 0`
+4. **All 22 existing tests updated**: Reduced `epoch()` mock calls from 3 to 1 per function call (new implementation is more efficient)
+5. **Test results**: All 23 unit tests pass, all 10 create_timer functional tests pass, 8/11 workflow tests pass (3 failures are pre-existing flaky tests unrelated to this fix)

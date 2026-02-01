@@ -136,6 +136,51 @@
         "file": "images/icon_direction.png",
         "type": "png",
         "name": "IMAGE_ICON_DIRECTION"
+      },
+      {
+        "file": "images/icon_minus_1hr.png",
+        "type": "png",
+        "name": "IMAGE_ICON_MINUS_1HR"
+      },
+      {
+        "file": "images/icon_minus_20min.png",
+        "type": "png",
+        "name": "IMAGE_ICON_MINUS_20MIN"
+      },
+      {
+        "file": "images/icon_minus_5min.png",
+        "type": "png",
+        "name": "IMAGE_ICON_MINUS_5MIN"
+      },
+      {
+        "file": "images/icon_minus_1min.png",
+        "type": "png",
+        "name": "IMAGE_ICON_MINUS_1MIN"
+      },
+      {
+        "file": "images/icon_plus_60sec.png",
+        "type": "png",
+        "name": "IMAGE_ICON_PLUS_60SEC"
+      },
+      {
+        "file": "images/icon_minus_60sec.png",
+        "type": "png",
+        "name": "IMAGE_ICON_MINUS_60SEC"
+      },
+      {
+        "file": "images/icon_minus_20sec.png",
+        "type": "png",
+        "name": "IMAGE_ICON_MINUS_20SEC"
+      },
+      {
+        "file": "images/icon_minus_5sec.png",
+        "type": "png",
+        "name": "IMAGE_ICON_MINUS_5SEC"
+      },
+      {
+        "file": "images/icon_minus_1sec.png",
+        "type": "png",
+        "name": "IMAGE_ICON_MINUS_1SEC"
       }
     ]
   }

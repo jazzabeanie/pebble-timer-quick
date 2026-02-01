@@ -6,3 +6,5 @@ build
 test/functional/screenshots/*
 !test/functional/screenshots/references/
 tmp/
+test/run_test_main
+test/run_test_timer

@@ -84,6 +84,16 @@ static struct {
   GBitmap     *icon_reset_count;
   GBitmap     *icon_direction;
   GBitmap     *play_icon;
+  // Minus (reverse direction) icons
+  GBitmap     *icon_minus_1hr;
+  GBitmap     *icon_minus_20min;
+  GBitmap     *icon_minus_5min;
+  GBitmap     *icon_minus_1min;
+  GBitmap     *icon_plus_60sec;
+  GBitmap     *icon_minus_60sec;
+  GBitmap     *icon_minus_20sec;
+  GBitmap     *icon_minus_5sec;
+  GBitmap     *icon_minus_1sec;
 } drawing_data;
 
 
@@ -422,26 +432,49 @@ static void prv_draw_action_icons(GContext *ctx, GRect bounds) {
   }
 
   if (mode == ControlModeNew || mode == ControlModeEditSec) {
-    // New/EditSec mode: show increment icons
+    // New/EditSec mode: show increment or decrement icons based on direction
+    bool is_reverse = main_is_reverse_direction();
     if (mode == ControlModeNew) {
-      prv_draw_icon(ctx, drawing_data.icon_plus_1hr, ICON_BACK_X, ICON_BACK_Y,
-                    ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
-      prv_draw_icon(ctx, drawing_data.icon_plus_20min, ICON_UP_X, ICON_UP_Y,
-                    ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
-      prv_draw_icon(ctx, drawing_data.icon_plus_5min, ICON_SELECT_X, ICON_SELECT_Y,
-                    ICON_SMALL_SIZE, ICON_SMALL_SIZE);
-      prv_draw_icon(ctx, drawing_data.icon_plus_1min, ICON_DOWN_X, ICON_DOWN_Y,
-                    ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+      if (is_reverse) {
+        prv_draw_icon(ctx, drawing_data.icon_minus_1hr, ICON_BACK_X, ICON_BACK_Y,
+                      ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+        prv_draw_icon(ctx, drawing_data.icon_minus_20min, ICON_UP_X, ICON_UP_Y,
+                      ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+        prv_draw_icon(ctx, drawing_data.icon_minus_5min, ICON_SELECT_X, ICON_SELECT_Y,
+                      ICON_SMALL_SIZE, ICON_SMALL_SIZE);
+        prv_draw_icon(ctx, drawing_data.icon_minus_1min, ICON_DOWN_X, ICON_DOWN_Y,
+                      ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+      } else {
+        prv_draw_icon(ctx, drawing_data.icon_plus_1hr, ICON_BACK_X, ICON_BACK_Y,
+                      ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+        prv_draw_icon(ctx, drawing_data.icon_plus_20min, ICON_UP_X, ICON_UP_Y,
+                      ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+        prv_draw_icon(ctx, drawing_data.icon_plus_5min, ICON_SELECT_X, ICON_SELECT_Y,
+                      ICON_SMALL_SIZE, ICON_SMALL_SIZE);
+        prv_draw_icon(ctx, drawing_data.icon_plus_1min, ICON_DOWN_X, ICON_DOWN_Y,
+                      ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+      }
     } else {
-      // EditSec
-      prv_draw_icon(ctx, drawing_data.icon_plus_30sec, ICON_BACK_X, ICON_BACK_Y,
-                    ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
-      prv_draw_icon(ctx, drawing_data.icon_plus_20sec, ICON_UP_X, ICON_UP_Y,
-                    ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
-      prv_draw_icon(ctx, drawing_data.icon_plus_5sec, ICON_SELECT_X, ICON_SELECT_Y,
-                    ICON_SMALL_SIZE, ICON_SMALL_SIZE);
-      prv_draw_icon(ctx, drawing_data.icon_plus_1sec, ICON_DOWN_X, ICON_DOWN_Y,
-                    ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+      // EditSec - also fix the Back button icon (+60 instead of +30)
+      if (is_reverse) {
+        prv_draw_icon(ctx, drawing_data.icon_minus_60sec, ICON_BACK_X, ICON_BACK_Y,
+                      ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+        prv_draw_icon(ctx, drawing_data.icon_minus_20sec, ICON_UP_X, ICON_UP_Y,
+                      ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+        prv_draw_icon(ctx, drawing_data.icon_minus_5sec, ICON_SELECT_X, ICON_SELECT_Y,
+                      ICON_SMALL_SIZE, ICON_SMALL_SIZE);
+        prv_draw_icon(ctx, drawing_data.icon_minus_1sec, ICON_DOWN_X, ICON_DOWN_Y,
+                      ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+      } else {
+        prv_draw_icon(ctx, drawing_data.icon_plus_60sec, ICON_BACK_X, ICON_BACK_Y,
+                      ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+        prv_draw_icon(ctx, drawing_data.icon_plus_20sec, ICON_UP_X, ICON_UP_Y,
+                      ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+        prv_draw_icon(ctx, drawing_data.icon_plus_5sec, ICON_SELECT_X, ICON_SELECT_Y,
+                      ICON_SMALL_SIZE, ICON_SMALL_SIZE);
+        prv_draw_icon(ctx, drawing_data.icon_plus_1sec, ICON_DOWN_X, ICON_DOWN_Y,
+                      ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+      }
     }
     // Long press icons for New/EditSec
     prv_draw_icon(ctx, drawing_data.icon_direction, LONG_UP_X, LONG_UP_Y,
@@ -668,6 +701,16 @@ void drawing_initialize(Layer *layer) {
   drawing_data.icon_reset_count = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_RESET_COUNT);
   drawing_data.icon_direction = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_DIRECTION);
   drawing_data.play_icon = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_PLAY_ICON);
+  // load minus (reverse direction) icons
+  drawing_data.icon_minus_1hr = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_MINUS_1HR);
+  drawing_data.icon_minus_20min = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_MINUS_20MIN);
+  drawing_data.icon_minus_5min = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_MINUS_5MIN);
+  drawing_data.icon_minus_1min = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_MINUS_1MIN);
+  drawing_data.icon_plus_60sec = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_PLUS_60SEC);
+  drawing_data.icon_minus_60sec = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_MINUS_60SEC);
+  drawing_data.icon_minus_20sec = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_MINUS_20SEC);
+  drawing_data.icon_minus_5sec = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_MINUS_5SEC);
+  drawing_data.icon_minus_1sec = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_MINUS_1SEC);
   // set animation update callback
   animation_register_update_callback(&prv_animation_update_callback);
 }
@@ -698,5 +741,14 @@ void drawing_terminate(void) {
   gbitmap_destroy(drawing_data.icon_reset_count);
   gbitmap_destroy(drawing_data.icon_direction);
   gbitmap_destroy(drawing_data.play_icon);
+  gbitmap_destroy(drawing_data.icon_minus_1hr);
+  gbitmap_destroy(drawing_data.icon_minus_20min);
+  gbitmap_destroy(drawing_data.icon_minus_5min);
+  gbitmap_destroy(drawing_data.icon_minus_1min);
+  gbitmap_destroy(drawing_data.icon_plus_60sec);
+  gbitmap_destroy(drawing_data.icon_minus_60sec);
+  gbitmap_destroy(drawing_data.icon_minus_20sec);
+  gbitmap_destroy(drawing_data.icon_minus_5sec);
+  gbitmap_destroy(drawing_data.icon_minus_1sec);
   animation_stop_all();
 }
