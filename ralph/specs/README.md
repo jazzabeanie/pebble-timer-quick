@@ -140,6 +140,21 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 ---
 
+### 10. Directional Button Icons
+**File:** [directional-icons.md](directional-icons.md)
+
+**Keywords:** button icons, reverse direction, minus icons, UI feedback, state machine, drawing
+
+**Summary:** Defines requirements for displaying minus/decrement icons when the timer is in reverse direction mode, and fixing the Back button icon in Edit Seconds mode to match the 60s increment.
+
+**Status:** Not Started
+
+**Tests:** NA
+
+**Dependencies:** button-icons.md (spec #8)
+
+---
+
 ## Adding New Specifications
 
 When creating a new spec file:
