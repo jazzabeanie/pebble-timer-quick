@@ -391,7 +391,7 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
     timer_data.start_ms = 0;  // Pause it
     main_data.control_mode = ControlModeEditSec;
     prv_stop_new_expire_timer();
-    main_data.is_editing_existing_timer = true;
+    main_data.is_editing_existing_timer = false;
     main_data.timer_length_modified_in_edit_mode = false;
     drawing_update();
     layer_mark_dirty(main_data.layer);
