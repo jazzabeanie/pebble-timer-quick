@@ -155,6 +155,21 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 ---
 
+### 11. Stopwatch Subtraction Fix
+**File:** [stopwatch-subtraction.md](stopwatch-subtraction.md)
+
+**Keywords:** stopwatch, chrono, countdown, subtraction, timer_is_chrono, timer_get_value_ms, start_ms, future start
+
+**Summary:** Fixes a bug where subtracting time from a stopwatch results in an invalid state by refactoring time calculation logic to handle future start times.
+
+**Status:** Not Started
+
+**Tests:** NA
+
+**Dependencies:** timer-extended-tests.md (spec #2)
+
+---
+
 ## Adding New Specifications
 
 When creating a new spec file:
