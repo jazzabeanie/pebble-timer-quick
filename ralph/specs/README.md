@@ -170,6 +170,21 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 ---
 
+### 12. Multi-Platform Interaction Stability
+**File:** [multi-platform-stability.md](multi-platform-stability.md)
+
+**Keywords:** multi-platform, stability, functional tests, long-press, repeat timer, chrono subtraction, icon verification
+
+**Summary:** Addresses widespread functional test failures across multiple platforms by ensuring robust state transitions, coordinating raw vs. long-press button handlers, and making verification logic (pixel masks, crop regions) platform-agnostic.
+
+**Status:** In Progress
+
+**Tests:** Failing (22 failures across multiple suites)
+
+**Dependencies:** button-icons.md (spec #8), edit-mode-reset.md (spec #9), directional-icons.md (spec #10), stopwatch-subtraction.md (spec #11)
+
+---
+
 ## Adding New Specifications
 
 When creating a new spec file:
