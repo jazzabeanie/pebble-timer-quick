@@ -318,22 +318,14 @@ class EmulatorHelper:
 
     def open_app_via_menu(self):
         """
-        Re-open the app by navigating through the Pebble launcher menu.
-
-        This method is used after quitting the app (long-press down) to re-launch
-        it WITHOUT using install(), which would clear the app's persisted state.
-
-        After quitting via long-press Down, the Pebble returns to the launcher
-        with the previously-run app already selected, so a single SELECT press
-        launches it.
-
-        If the app auto-quit (e.g. chrono auto-background), the Pebble also
-        returns to the launcher with the app selected, so SELECT still works.
+        Re-open the app using the install command.
+        
+        This is more reliable than menu navigation which can be flaky
+        if the emulator lands on the wrong screen.
         """
-        logger.info(f"[{self.platform}] Opening app via menu navigation")
-        self.press_select()
-        time.sleep(1)  # Allow time for app to fully load
-        logger.info(f"[{self.platform}] App opened via menu")
+        logger.info(f"[{self.platform}] Opening app via install (preserving state)")
+        self.install()
+        logger.info(f"[{self.platform}] App opened via install")
 
     def screenshot(self, name: str = None) -> Image.Image:
         """Take a screenshot and return as PIL Image."""
@@ -442,12 +434,6 @@ def persistent_emulator(request, build_app):
     time.sleep(1)
     helper.release_buttons()
     logger.info(f"[{platform}] App quit via long press, persist state set")
-    time.sleep(0.5)
-
-    # Navigate to launcher: after first quit the watch lands on the watchface.
-    # Press SELECT to enter the launcher so open_app_via_menu() can launch
-    # the app with a single SELECT press.
-    helper.press_select()
     time.sleep(0.5)
 
     logger.info(f"[{platform}] Emulator ready for tests")

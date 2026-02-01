@@ -11,7 +11,7 @@
 #include "timer.h"
 #include "utility.h"
 
-#define PERSIST_VERSION 3
+#define PERSIST_VERSION 4
 #define PERSIST_VERSION_KEY 4342896
 #define PERSIST_TIMER_KEY_V2_DATA 58734
 #define PERSIST_TIMER_KEY 58736
@@ -45,18 +45,17 @@ void timer_get_time_parts(uint16_t *hr, uint16_t *min, uint16_t *sec) {
 
 // Get the timer time in milliseconds assuming the following conditions
 // 1. when the timer is running, start_ms represents the epoch when it was started
-// 2. when it is paused, start_ms represents the negative of the time is has been running
-// 3. when start_ms > epoch(), timer is running with a future start time (countdown created by subtracting from chrono)
+// 2. when it is paused, start_ms represents the time is has been running (elapsed)
 int64_t timer_get_value_ms(void) {
   // Calculate elapsed time based on timer state
   int64_t elapsed;
-  if (timer_data.start_ms > 0) {
+  if (!timer_data.is_paused) {
     // Running timer: elapsed = current time - start time
     // Note: elapsed can be negative if start_ms is in the future
     elapsed = epoch() - timer_data.start_ms;
   } else {
-    // Paused timer: start_ms stores the negative of elapsed time
-    elapsed = -timer_data.start_ms;
+    // Paused timer: start_ms stores the elapsed time
+    elapsed = timer_data.start_ms;
   }
 
   // Calculate raw value: positive = countdown time remaining, negative = chrono time elapsed
@@ -76,20 +75,20 @@ int64_t timer_get_length_ms(void) {
 
 // Check if the timer is vibrating
 bool timer_is_vibrating(void) {
-  return timer_is_chrono() && !timer_is_paused() && timer_data.can_vibrate;
+  return timer_is_chrono() && !timer_data.is_paused && timer_data.can_vibrate;
 }
 
 // Check if timer is in stopwatch mode
 bool timer_is_chrono(void) {
   // Calculate elapsed time based on timer state
   int64_t elapsed;
-  if (timer_data.start_ms > 0) {
+  if (!timer_data.is_paused) {
     // Running timer: elapsed = current time - start time
     // Note: elapsed can be negative if start_ms is in the future
     elapsed = epoch() - timer_data.start_ms;
   } else {
-    // Paused timer: start_ms stores the negative of elapsed time
-    elapsed = -timer_data.start_ms;
+    // Paused timer: start_ms stores the elapsed time
+    elapsed = timer_data.start_ms;
   }
 
   // Chrono mode when elapsed time exceeds length (raw_value <= 0)
@@ -98,7 +97,7 @@ bool timer_is_chrono(void) {
 
 // Check if timer or stopwatch is paused
 bool timer_is_paused(void) {
-  return timer_data.start_ms <= 0;
+  return timer_data.is_paused;
 }
 
 // Check if the timer is elapsed and vibrate if this is the first call after elapsing
@@ -156,11 +155,11 @@ void timer_increment(int64_t increment) {
   //   timer_data.length_ms += step;
   // }
   // timer_data.length_ms += step;
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "in timer_increment, timer_data.start_ms = %lld", timer_data.start_ms);
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "in timer_increment, timer_data.length_ms = %lld", timer_data.length_ms);
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "in timer_increment, increment = %lld", increment);
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "in timer_increment, timer_data.start_ms = %lld", (long long)timer_data.start_ms);
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "in timer_increment, timer_data.length_ms = %lld", (long long)timer_data.length_ms);
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "in timer_increment, increment = %lld", (long long)increment);
   timer_data.length_ms += increment;
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "in timer_increment, new timer_data.length_ms = %lld", timer_data.length_ms);
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "in timer_increment, new timer_data.length_ms = %lld", (long long)timer_data.length_ms);
   // if at zero, remove any leftover milliseconds
   if (timer_get_value_ms() < MSEC_IN_SEC) {
     timer_reset();
@@ -173,22 +172,31 @@ void timer_increment(int64_t increment) {
 
 // Increment stopwatch (chrono) value currently being edited by adjusting start time
 void timer_increment_chrono(int64_t increment) {
-  // adjust start time to effectively add time to the stopwatch
-  timer_data.start_ms -= increment;
+  // adjust start time or elapsed time effectively add time to the stopwatch
+  if (!timer_data.is_paused) {
+    timer_data.start_ms -= increment;
+  } else {
+    timer_data.start_ms += increment;
+  }
 }
 
 // Toggle play pause state for timer
 void timer_toggle_play_pause(void) {
-  if (timer_data.start_ms > 0) {
-    timer_data.start_ms -= epoch();
+  if (!timer_data.is_paused) {
+    // Pause: store elapsed time in start_ms
+    timer_data.start_ms = epoch() - timer_data.start_ms;
+    timer_data.is_paused = true;
   } else {
-    timer_data.start_ms += epoch();
+    // Resume: store start epoch in start_ms
+    timer_data.start_ms = epoch() - timer_data.start_ms;
+    timer_data.is_paused = false;
   }
 }
 
 //! Rewind the timer back to its original value
 void timer_rewind(void) {
-  timer_data.start_ms = 0;  // this also pauses the timer
+  timer_data.start_ms = 0;
+  timer_data.is_paused = true;
   // enable vibration
   if (timer_data.length_ms) {
     timer_data.can_vibrate = true;
@@ -205,10 +213,8 @@ void timer_restart(void) {
       timer_data.length_ms = 0;
   }
 
-  if (timer_is_paused()) {
-      // If paused, remain paused (start_ms <= 0 means paused)
-      // For countdown: start_ms=0 means value = length_ms
-      // For chrono: start_ms=0 means value = length_ms = 0
+  if (timer_data.is_paused) {
+      // If paused, reset elapsed time to 0
       timer_data.start_ms = 0;
   } else {
       // If running, restart running from now
@@ -229,8 +235,8 @@ void timer_restart(void) {
 void timer_reset(void) {
   timer_data.length_ms = 0;
   timer_data.base_length_ms = 0;
-  // timer_data.start_ms = 0;  // other code infers the timer is paused by start_ms = 0
-  timer_data.start_ms = epoch();
+  timer_data.start_ms = 0;
+  timer_data.is_paused = true;
   // disable vibration
   timer_data.can_vibrate = false;
   timer_data.auto_snooze_count = 0;
@@ -262,25 +268,20 @@ void timer_reset_auto_snooze(void) {
 
 // Read the timer from persistent storage
 void timer_persist_read(void) {
-  // --- Destructive Update Logic ---
-  // 1. If the old V2 key exists, delete it.
-  if (persist_exists(PERSIST_TIMER_KEY_V2_DATA)) {
-    APP_LOG(APP_LOG_LEVEL_INFO, "Deleting old V2 data.");
-    persist_delete(PERSIST_TIMER_KEY_V2_DATA);
-  }
-  // 2. If the old V1 key exists, delete it.
-  if (persist_exists(PERSIST_TIMER_KEY_V1_LEGACY)) {
-    APP_LOG(APP_LOG_LEVEL_INFO, "Deleting old V1 data.");
-    persist_delete(PERSIST_TIMER_KEY_V1_LEGACY);
+  // Check version
+  int version = persist_read_int(PERSIST_VERSION_KEY);
+  if (version < PERSIST_VERSION) {
+    APP_LOG(APP_LOG_LEVEL_INFO, "Old version (%d), resetting data.", version);
+    timer_reset();
+    return;
   }
 
-  // TODO: can I remove deleting old key code once all devices have been updated?
-  // --- Now, just try to load the new (V3) data ---
+  // --- Now, just try to load the current data ---
   if (persist_exists(PERSIST_TIMER_KEY)) {
-    // User has run the new app before, load their new V3 data
+    // User has run the current app before, load their data
     persist_read_data(PERSIST_TIMER_KEY, &timer_data, sizeof(timer_data));
   } else {
-    // First time running V3 (or no data saved), reset to default
+    // No data saved, reset to default
     timer_reset();
   }
 }

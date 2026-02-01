@@ -66,17 +66,24 @@ def normalize_time_text(text: str) -> str:
 
     The LECO 7-segment font can cause various misreadings:
     - Colon ':' may be read as '.', ';', or omitted entirely
-    - Digits may have common substitutions (0/O, 1/l, 5/S, etc.)
+    - Digits may have common substitutions (0/O, 1/l/L, 5/S, etc.)
 
     This function normalizes the text to make pattern matching easier.
     """
     # Normalize common digit/letter substitutions from OCR
     # The 7-segment font often causes 0/O confusion and d/0 confusion
+    # Also 1/l/L confusion
     normalized = text.replace('O', '0').replace('o', '0').replace('d', '0')
+    normalized = normalized.replace('l', '1').replace('L', '1').replace('I', '1')
+    normalized = normalized.replace('S', '5').replace('s', '5')
 
     # Normalize potential colon separators to ':'
     # Common OCR misreadings: '.' ';' or no separator (adjacent digits)
     normalized = normalized.replace(';', ':').replace('.', ':')
+
+    # Remove any character that is not a digit, colon, space, or minus sign
+    import re
+    normalized = re.sub(r'[^0-9:\-\s]', '', normalized)
 
     return normalized
 
@@ -155,20 +162,26 @@ def has_time_pattern(text: str, minutes: int, tolerance: int = 10, seconds: int 
 # top-right corner of the display. OCR is unreliable for detecting this small
 # flashing text, so we use direct pixel analysis instead.
 #
-# For basalt (144x168): the indicator is rendered at GRect(94, 0, 50, 30).
 # The indicator text is pure white (255,255,255) against the green background.
 
-# Indicator crop region (matches drawing.c GRect(bounds.size.w - 50, 0, 50, 30))
-INDICATOR_CROP_BASALT = (94, 0, 144, 30)
+# Indicator crop regions per platform
+INDICATOR_REGIONS = {
+    "aplite": (94, 0, 144, 30),
+    "basalt": (94, 0, 144, 30),
+    "chalk": (130, 0, 180, 30),
+    "diorite": (94, 0, 144, 30),
+    "emery": (150, 0, 200, 30),
+}
 
 # Minimum white pixel count to consider indicator visible
 INDICATOR_WHITE_THRESHOLD = 20
 
 
-def _get_indicator_crop(img: Image.Image) -> "np.ndarray":
+def _get_indicator_crop(img: Image.Image, platform: str = "basalt") -> "np.ndarray":
     """Crop the top-right indicator region and return as numpy array."""
     import numpy as np
-    crop = img.crop(INDICATOR_CROP_BASALT)
+    region = INDICATOR_REGIONS.get(platform, INDICATOR_REGIONS["basalt"])
+    crop = img.crop(region)
     return np.array(crop)
 
 
@@ -178,54 +191,56 @@ def _get_white_mask(crop_arr: "np.ndarray") -> "np.ndarray":
     return np.all(crop_arr[:, :, :3] == 255, axis=2)
 
 
-def has_repeat_indicator(img: Image.Image) -> bool:
+def has_repeat_indicator(img: Image.Image, platform: str = "basalt") -> bool:
     """Check if any repeat indicator is visible in the screenshot.
 
     Detects the presence of white text pixels in the top-right indicator region.
     Returns True if the white pixel count exceeds the threshold.
     """
     import numpy as np
-    crop_arr = _get_indicator_crop(img)
+    crop_arr = _get_indicator_crop(img, platform)
     mask = _get_white_mask(crop_arr)
     count = int(np.sum(mask))
     logger.debug(f"Indicator white pixel count: {count}")
     return count >= INDICATOR_WHITE_THRESHOLD
 
 
-def load_indicator_reference(name: str) -> "np.ndarray | None":
+def load_indicator_reference(name: str, platform: str = "basalt") -> "np.ndarray | None":
     """Load a reference white pixel mask for indicator comparison.
 
     Args:
-        name: Reference name, e.g. "basalt_2x" loads "ref_basalt_2x_mask.png"
+        name: Reference name, e.g. "2x"
+        platform: The emulator platform name.
 
     Returns:
         Boolean numpy array (height x width) where True = white pixel expected,
         or None if the reference file does not exist yet.
     """
     import numpy as np
-    ref_path = REFERENCES_DIR / f"ref_{name}_mask.png"
+    ref_path = REFERENCES_DIR / f"ref_{platform}_{name}_mask.png"
     if not ref_path.exists():
         return None
     ref_img = Image.open(ref_path).convert("L")
     return np.array(ref_img) > 128
 
 
-def save_indicator_reference(name: str, mask: "np.ndarray") -> None:
+def save_indicator_reference(name: str, mask: "np.ndarray", platform: str = "basalt") -> None:
     """Save a white pixel mask as the reference for future comparisons.
 
     Args:
-        name: Reference name, e.g. "basalt_2x" saves "ref_basalt_2x_mask.png"
+        name: Reference name, e.g. "2x"
         mask: Boolean numpy array (height x width) where True = white pixel.
+        platform: The emulator platform name.
     """
     import numpy as np
-    ref_path = REFERENCES_DIR / f"ref_{name}_mask.png"
+    ref_path = REFERENCES_DIR / f"ref_{platform}_{name}_mask.png"
     # Convert boolean mask to uint8 image (True=255, False=0)
     mask_img = Image.fromarray((mask.astype(np.uint8) * 255))
     mask_img.save(ref_path)
     logger.info(f"Saved indicator reference to {ref_path}")
 
 
-def matches_indicator_reference(img: Image.Image, ref_name: str) -> bool:
+def matches_indicator_reference(img: Image.Image, ref_name: str, platform: str = "basalt", tolerance: int = 5) -> bool:
     """Check if the indicator in a screenshot matches a named reference.
 
     Extracts the white pixel mask from the screenshot's indicator region
@@ -234,20 +249,30 @@ def matches_indicator_reference(img: Image.Image, ref_name: str) -> bool:
 
     Args:
         img: Full Pebble screenshot.
-        ref_name: Reference name, e.g. "basalt_2x".
+        ref_name: Reference name, e.g. "2x".
+        platform: The emulator platform name.
+        tolerance: Maximum number of differing pixels allowed.
 
     Returns:
-        True if the white pixel masks match (or if a new reference was saved).
+        True if the white pixel masks match within tolerance (or if a new reference was saved).
     """
     import numpy as np
-    crop_arr = _get_indicator_crop(img)
+    crop_arr = _get_indicator_crop(img, platform)
     mask = _get_white_mask(crop_arr)
-    ref_mask = load_indicator_reference(ref_name)
+    ref_mask = load_indicator_reference(ref_name, platform)
     if ref_mask is None:
-        logger.info(f"No reference found for '{ref_name}', saving current mask as reference")
-        save_indicator_reference(ref_name, mask)
+        logger.info(f"No reference found for '{platform}_{ref_name}', saving current mask as reference")
+        save_indicator_reference(ref_name, mask, platform)
         return True
-    return np.array_equal(mask, ref_mask)
+    
+    if mask.shape != ref_mask.shape:
+        return False
+        
+    diff_count = int(np.sum(mask != ref_mask))
+    matches = diff_count <= tolerance
+    if not matches:
+        logger.warning(f"Indicator mask mismatch for '{ref_name}' on {platform}: {diff_count} pixels differ (tolerance={tolerance})")
+    return matches
 
 
 

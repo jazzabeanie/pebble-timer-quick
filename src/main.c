@@ -15,8 +15,8 @@
 
 // Main constants
 #define AUTO_BACKGROUND_TIMER_LENGTH_MS (MSEC_IN_MIN * 20)
-#define AUTO_BACKGROUND_CHRONO 1
-#define QUIT_DELAY_MS 7000
+#define AUTO_BACKGROUND_CHRONO 0
+#define QUIT_DELAY_MS 60000
 #define BUTTON_HOLD_REPEAT_MS 100
 #define UP_BUTTON_INCREMENT_MS MSEC_IN_MIN * 20
 #define SELECT_BUTTON_INCREMENT_MS MSEC_IN_MIN * 5
@@ -70,7 +70,7 @@ static void prv_update_timer(int64_t increment) {
   if (main_data.is_reverse_direction) {
     increment = -increment;
   }
-  if (main_data.is_editing_existing_timer && timer_is_chrono()) {
+  if (main_data.control_mode != ControlModeEditSec && main_data.is_editing_existing_timer && timer_data.base_length_ms == 0) {
     timer_increment_chrono(increment);
   } else {
     timer_increment(increment);
@@ -120,6 +120,9 @@ static void prv_new_expire_callback(void *data) {
       }
     }
     main_data.control_mode = ControlModeCounting;
+    if (timer_is_paused()) {
+      timer_toggle_play_pause();
+    }
 
     // Exit if timer is longer than AUTO_BACKGROUND_TIMER_LENGTH_MS, after a delay
     if (timer_data.length_ms > AUTO_BACKGROUND_TIMER_LENGTH_MS || (timer_is_chrono() && AUTO_BACKGROUND_CHRONO)) {
@@ -279,7 +282,7 @@ static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) 
   if (timer_is_vibrating()) {
     // Check if we have a "base" duration to add
     if (timer_data.base_length_ms > 0) {
-      APP_LOG(APP_LOG_LEVEL_DEBUG, "Up long press: Extending timer by %lld ms.", timer_data.base_length_ms);
+      APP_LOG(APP_LOG_LEVEL_DEBUG, "Up long press: Extending timer by %lld ms.", (long long)timer_data.base_length_ms);
       vibes_cancel(); // Stop the alarm vibration
       timer_data.is_repeating = false;
       timer_data.repeat_count = 0;
@@ -391,12 +394,13 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
   }
 
   // In ControlModeNew: reset to 0:00 in paused edit seconds mode
-  if (main_data.control_mode == ControlModeNew) {
+  if (main_get_control_mode() == ControlModeNew) {
     timer_reset();
-    timer_data.start_ms = 0;  // Pause it
+    timer_data.start_ms = 0;  // Pause at 0 elapsed
+    timer_data.is_paused = true;
     main_data.control_mode = ControlModeEditSec;
     prv_stop_new_expire_timer();
-    main_data.is_editing_existing_timer = false;
+    main_data.is_editing_existing_timer = true;
     main_data.timer_length_modified_in_edit_mode = false;
     drawing_update();
     layer_mark_dirty(main_data.layer);
@@ -408,7 +412,8 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
       if (timer_is_paused()) {
         // Paused Chrono -> Paused New Timer (0:00) -> Edit Seconds
         timer_reset();
-        timer_data.start_ms = 0; // Pause it
+        timer_data.start_ms = 0; // Pause at 0 elapsed
+        timer_data.is_paused = true;
         main_data.control_mode = ControlModeEditSec;
         prv_stop_new_expire_timer();
       } else {
@@ -652,8 +657,8 @@ static void prv_initialize(void) {
   wakeup_cancel_all();
   // load timer
   timer_persist_read();
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "Timer data: length_ms=%lld, start_ms=%lld, elapsed=%d, can_vibrate=%d",
-          timer_data.length_ms, timer_data.start_ms, timer_data.elapsed, timer_data.can_vibrate);
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "Timer data: length_ms=%lld, start_ms=%lld, is_paused=%d, can_vibrate=%d",
+          (long long)timer_data.length_ms, (long long)timer_data.start_ms, timer_data.is_paused, timer_data.can_vibrate);
   // set initial states
   if (timer_data.reset_on_init) {
     // Check if timer needs to be reset from a previous long press
@@ -731,4 +736,5 @@ int main(void) {
   prv_initialize();
   app_event_loop();
   prv_terminate();
+  return 0;
 }

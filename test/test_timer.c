@@ -14,6 +14,10 @@ uint64_t epoch(void) {
 }
 
 // Mock persistence functions (stubs)
+int32_t persist_read_int(const uint32_t key) {
+    return (int32_t)mock();
+}
+
 status_t persist_write_int(const uint32_t key, const int32_t value) {
     return 0;
 }
@@ -65,25 +69,22 @@ static void test_timer_reset(void **state) {
     timer_data.length_ms = 1000;
     timer_data.can_vibrate = true;
 
-    // timer_reset() calls epoch() once
-    will_return(epoch, 10000);
-
+    // timer_reset() no longer calls epoch()
     timer_reset();
 
     assert_int_equal(timer_get_length_ms(), 0);
     assert_false(timer_data.can_vibrate);
+    assert_true(timer_data.is_paused);
+    assert_int_equal(timer_data.start_ms, 0);
 }
 
 // 2. test_timer_increment
 // Purpose: Verify that timer_increment() correctly increases the timer's length.
 static void test_timer_increment(void **state) {
-    // Setup: timer starts at 0, paused (start_ms = 0)
-    timer_data.start_ms = 0;
-    timer_data.length_ms = 0;
+    // Setup: timer starts at 0, paused (is_paused = true)
+    timer_reset();
 
     // timer_increment calls timer_get_value_ms which calls epoch() 0 times when paused
-    // When paused (start_ms <= 0), timer_get_value_ms returns length_ms - (-start_ms) = length_ms
-    // No epoch() calls needed for paused state
     timer_increment(5000);
 
     assert_int_equal(timer_get_length_ms(), 5000);
@@ -91,16 +92,18 @@ static void test_timer_increment(void **state) {
 
 // 3. test_timer_pause
 // Purpose: Verify that timer_toggle_play_pause() correctly pauses a running timer.
-// Note: timer_reset() leaves the timer in a RUNNING state (start_ms = epoch()).
-// So: Reset -> Increment -> (already running) -> Delay -> Toggle(Pause) -> Check
 static void test_timer_pause(void **state) {
     // Step 1: Call timer_reset()
-    // This sets start_ms = epoch(), length_ms = 0, and leaves timer RUNNING
-    will_return(epoch, 10000);
     timer_reset();
+    // State: start_ms=0, length_ms=0, PAUSED
+
+    // Step 2: Start the timer
+    // Since it's paused at 0, toggle will set start_ms = epoch() - 0 = 10000
+    will_return(epoch, 10000);
+    timer_toggle_play_pause();
     // State: start_ms=10000, length_ms=0, RUNNING
 
-    // Step 2: Call timer_increment(10000)
+    // Step 3: Call timer_increment(10000)
     // timer_increment calls timer_get_value_ms which calls epoch() 1 time for running timer
     will_return(epoch, 10000);
     timer_increment(10000);
@@ -109,16 +112,15 @@ static void test_timer_pause(void **state) {
     // Timer is already running. Let it run for 2 seconds.
     // Simulate time passing to T=12000
 
-    // Step 3: Call timer_toggle_play_pause() to PAUSE the timer
-    // Since start_ms > 0 (running), toggle will subtract epoch (pause it)
-    // start_ms = 10000 - 12000 = -2000 (negative means paused with 2s elapsed)
+    // Step 4: Call timer_toggle_play_pause() to PAUSE the timer
+    // Since is_paused=false, toggle will calculate start_ms = 12000 - 10000 = 2000 (elapsed)
     will_return(epoch, 12000);
     timer_toggle_play_pause();
-    // State: start_ms=-2000 (paused), length_ms=10000
+    // State: start_ms=2000 (paused elapsed), length_ms=10000, is_paused=true
 
-    // Step 4: Check timer value
-    // When paused (start_ms <= 0), no epoch() call needed
-    // elapsed = -start_ms = 2000
+    // Step 5: Check timer value
+    // When paused (is_paused=true), no epoch() call needed
+    // elapsed = start_ms = 2000
     // value = length_ms - elapsed = 10000 - 2000 = 8000
     int64_t value = timer_get_value_ms();
 
@@ -128,26 +130,25 @@ static void test_timer_pause(void **state) {
 
 // 4. test_timer_start
 // Purpose: Verify that the timer value decreases after starting.
-// Note: timer_reset() leaves timer RUNNING, so we don't need to call toggle to start.
 static void test_timer_start(void **state) {
     // Step 1: Call timer_reset()
-    will_return(epoch, 10000);
     timer_reset();
-    // State: start_ms=10000, length_ms=0, RUNNING
+    // State: start_ms=0, length_ms=0, PAUSED
 
-    // Step 2: Call timer_increment(10000)
-    // timer_increment calls timer_get_value_ms which calls epoch() 1 time for running timer
+    // Step 2: Start the timer
+    will_return(epoch, 10000);
+    timer_toggle_play_pause();
+    // State: start_ms=10000, RUNNING
+
+    // Step 3: Call timer_increment(10000)
     will_return(epoch, 10000);
     timer_increment(10000);
     // State: start_ms=10000, length_ms=10000, RUNNING
 
-    // Step 3: Simulate delay 2s by advancing epoch to 12000
-    // The timer is already running from reset
+    // Step 4: Simulate delay 2s by advancing epoch to 12000
+    // The timer is already running
 
-    // Step 4: Check timer value
-    // When running (start_ms > 0), epoch() is called once
-    // elapsed = epoch() - start_ms = 12000 - 10000 = 2000
-    // value = length_ms - elapsed = 10000 - 2000 = 8000
+    // Step 5: Check timer value
     will_return(epoch, 12000);
     int64_t value = timer_get_value_ms();
 
@@ -159,18 +160,17 @@ static void test_timer_start(void **state) {
 // Purpose: Verify that timer_get_time_parts() correctly converts milliseconds to hours, minutes, seconds.
 static void test_timer_get_time_parts(void **state) {
     // Setup: reset timer
-    will_return(epoch, 10000);
     timer_reset();
 
+    // Start timer at T=10000
+    will_return(epoch, 10000);
+    timer_toggle_play_pause();
+
     // Increment to 1 hour, 1 minute, 1 second = 3661000 ms
-    // timer_increment calls timer_get_value_ms which calls epoch() 1 time for running timer
     will_return(epoch, 10000);
     timer_increment(3661000);
 
     // timer_get_time_parts calls timer_get_value_ms which calls epoch() 1 time
-    // Since timer is running with start_ms=10000, epoch=10000:
-    // elapsed = epoch() - start_ms = 10000 - 10000 = 0
-    // value = length_ms - elapsed = 3661000 - 0 = 3661000
     will_return(epoch, 10000);
 
     uint16_t hr, min, sec;
@@ -185,17 +185,17 @@ static void test_timer_get_time_parts(void **state) {
 // Purpose: Verify that timer_is_chrono() returns false when timer has positive remaining time.
 static void test_timer_is_chrono_false(void **state) {
     // Setup: reset timer
-    will_return(epoch, 10000);
     timer_reset();
 
+    // Start timer
+    will_return(epoch, 10000);
+    timer_toggle_play_pause();
+
     // Increment to 60000 ms (1 minute)
-    // timer_increment calls timer_get_value_ms which calls epoch() 1 time for running timer
     will_return(epoch, 10000);
     timer_increment(60000);
 
     // timer_is_chrono calls epoch() 1 time for running timer
-    // elapsed = epoch() - start_ms = 10000 - 10000 = 0
-    // raw_value = length_ms - elapsed = 60000 - 0 = 60000 > 0, so not chrono
     will_return(epoch, 10000);
 
     assert_false(timer_is_chrono());
@@ -204,22 +204,18 @@ static void test_timer_is_chrono_false(void **state) {
 // 7. test_timer_is_chrono_true
 // Purpose: Verify that timer_is_chrono() returns true when timer has elapsed past zero.
 static void test_timer_is_chrono_true(void **state) {
-    // Setup: reset timer at T=10000
-    will_return(epoch, 10000);
+    // Setup: reset timer
     timer_reset();
-    // State: start_ms=10000, length_ms=0, RUNNING
+
+    // Start timer
+    will_return(epoch, 10000);
+    timer_toggle_play_pause();
 
     // Increment to 5000 ms (5 seconds)
-    // timer_increment calls timer_get_value_ms which calls epoch() 1 time for running timer
     will_return(epoch, 10000);
     timer_increment(5000);
-    // State: start_ms=10000, length_ms=5000, RUNNING
 
     // Simulate delay of 10 seconds (timer runs past zero)
-    // At T=20000, timer has been running for 10s but only had 5s
-    // timer_is_chrono calls epoch() 1 time
-    // elapsed = epoch() - start_ms = 20000 - 10000 = 10000
-    // raw_value = length_ms - elapsed = 5000 - 10000 = -5000 <= 0, so IS chrono
     will_return(epoch, 20000);
 
     assert_true(timer_is_chrono());
@@ -228,12 +224,14 @@ static void test_timer_is_chrono_true(void **state) {
 // 8. test_timer_is_vibrating
 // Purpose: Verify that timer_is_vibrating() returns true only when all conditions are met.
 static void test_timer_is_vibrating(void **state) {
-    // Setup: reset timer at T=10000
-    will_return(epoch, 10000);
+    // Setup: reset timer
     timer_reset();
 
+    // Start timer
+    will_return(epoch, 10000);
+    timer_toggle_play_pause();
+
     // Increment to 5000 ms
-    // timer_increment calls timer_get_value_ms which calls epoch() 1 time for running timer
     will_return(epoch, 10000);
     timer_increment(5000);
 
@@ -241,21 +239,13 @@ static void test_timer_is_vibrating(void **state) {
     // Set can_vibrate = true
     timer_data.can_vibrate = true;
 
-    // timer_is_vibrating calls timer_is_chrono (1 epoch call) and timer_is_paused (0 calls)
-    // timer_is_chrono: elapsed = 20000 - 10000 = 10000, raw = 5000 - 10000 = -5000 <= 0
     will_return(epoch, 20000);
 
     assert_true(timer_is_vibrating());
 
     // Now pause the timer
-    // timer_toggle_play_pause: start_ms = 10000 - 20000 = -10000 (paused)
     will_return(epoch, 20000);
     timer_toggle_play_pause();
-
-    // timer_is_vibrating should return false (paused)
-    // timer_is_chrono is called for paused timer: no epoch() call needed
-    // elapsed = -(-10000) = 10000, raw = 5000 - 10000 = -5000 <= 0, so chrono=true
-    // But timer_is_paused returns true first (short-circuit), so timer_is_vibrating returns false
 
     assert_false(timer_is_vibrating());
 }
@@ -263,10 +253,13 @@ static void test_timer_is_vibrating(void **state) {
 // 9. test_timer_increment_chrono
 // Purpose: Verify that timer_increment_chrono() adjusts the stopwatch by modifying start_ms.
 static void test_timer_increment_chrono(void **state) {
-    // Setup: reset timer at T=10000 (timer starts running)
-    will_return(epoch, 10000);
+    // Setup: reset timer
     timer_reset();
-    // State: start_ms=10000
+
+    // Start timer
+    will_return(epoch, 10000);
+    timer_toggle_play_pause();
+    // State: start_ms=10000, is_paused=false
 
     // Record initial start_ms
     int64_t initial_start_ms = timer_data.start_ms;
@@ -284,14 +277,16 @@ static void test_timer_increment_chrono(void **state) {
 // Purpose: Verify that timer_rewind() pauses the timer and resets start_ms to 0.
 static void test_timer_rewind(void **state) {
     // Setup: reset timer
-    will_return(epoch, 10000);
     timer_reset();
 
+    // Start timer
+    will_return(epoch, 10000);
+    timer_toggle_play_pause();
+
     // Increment to 60000 ms (1 minute)
-    // timer_increment calls timer_get_value_ms which calls epoch() 1 time for running timer
     will_return(epoch, 10000);
     timer_increment(60000);
-    // State: start_ms=10000, length_ms=60000, can_vibrate=true
+    // State: start_ms=10000, length_ms=60000, can_vibrate=true, is_paused=false
 
     // Simulate delay of 5 seconds (time at T=15000)
     // But rewind doesn't need epoch calls
@@ -299,8 +294,9 @@ static void test_timer_rewind(void **state) {
     // Call timer_rewind()
     timer_rewind();
 
-    // Assert start_ms == 0 (paused)
+    // Assert start_ms == 0 (paused elapsed)
     assert_int_equal(timer_data.start_ms, 0);
+    assert_true(timer_data.is_paused);
     // Assert can_vibrate == true (since length > 0)
     assert_true(timer_data.can_vibrate);
 }
@@ -309,11 +305,13 @@ static void test_timer_rewind(void **state) {
 // Purpose: Verify that timer_restart() restores a countdown timer to its base length.
 static void test_timer_restart_countdown(void **state) {
     // Setup: reset timer
-    will_return(epoch, 10000);
     timer_reset();
 
+    // Start timer
+    will_return(epoch, 10000);
+    timer_toggle_play_pause();
+
     // Increment to 60000 ms (1 minute)
-    // timer_increment calls timer_get_value_ms which calls epoch() 1 time for running timer
     will_return(epoch, 10000);
     timer_increment(60000);
 
@@ -331,7 +329,7 @@ static void test_timer_restart_countdown(void **state) {
     // Assert length_ms == 60000 (restored to base)
     assert_int_equal(timer_data.length_ms, 60000);
     // Assert timer is running (start_ms > 0)
-    assert_true(timer_data.start_ms > 0);
+    assert_false(timer_data.is_paused);
     assert_int_equal(timer_data.start_ms, 40000);
 }
 
@@ -339,14 +337,17 @@ static void test_timer_restart_countdown(void **state) {
 // Purpose: Verify that timer_restart() resets a chrono timer to 0.
 static void test_timer_restart_chrono(void **state) {
     // Setup: reset timer
-    will_return(epoch, 10000);
     timer_reset();
+
+    // Start timer
+    will_return(epoch, 10000);
+    timer_toggle_play_pause();
 
     // Set base_length_ms = 0 (chrono mode)
     timer_data.base_length_ms = 0;
 
     // Simulate delay of 10 seconds (chrono running)
-    // Timer is running from reset
+    // Timer is running
 
     // Call timer_restart()
     // timer_restart calls timer_is_paused then epoch()
@@ -361,11 +362,13 @@ static void test_timer_restart_chrono(void **state) {
 // Purpose: Verify that timer_check_elapsed() triggers vibration when conditions are met.
 static void test_timer_check_elapsed_vibrates(void **state) {
     // Setup: reset timer at T=10000
-    will_return(epoch, 10000);
     timer_reset();
 
+    // Start timer
+    will_return(epoch, 10000);
+    timer_toggle_play_pause();
+
     // Increment to 5000 ms
-    // timer_increment calls timer_get_value_ms which calls epoch() 1 time for running timer
     will_return(epoch, 10000);
     timer_increment(5000);
 
@@ -394,11 +397,13 @@ static void test_timer_check_elapsed_vibrates(void **state) {
 // This is the actual behavior of the code - the snooze adds time and re-arms vibration.
 static void test_timer_check_elapsed_auto_snooze(void **state) {
     // Setup: reset timer at T=10000
-    will_return(epoch, 10000);
     timer_reset();
 
+    // Start timer
+    will_return(epoch, 10000);
+    timer_toggle_play_pause();
+
     // Increment to 5000 ms
-    // timer_increment calls timer_get_value_ms which calls epoch() 1 time for running timer
     will_return(epoch, 10000);
     timer_increment(5000);
 
@@ -431,11 +436,13 @@ static void test_timer_check_elapsed_auto_snooze(void **state) {
 // Purpose: Verify that timer_check_elapsed() handles repeating timers correctly.
 static void test_timer_check_elapsed_repeat(void **state) {
     // Setup: reset timer at T=10000
-    will_return(epoch, 10000);
     timer_reset();
 
+    // Start timer
+    will_return(epoch, 10000);
+    timer_toggle_play_pause();
+
     // Increment to 5000 ms
-    // timer_increment calls timer_get_value_ms which calls epoch() 1 time for running timer
     will_return(epoch, 10000);
     timer_increment(5000);
 
@@ -468,11 +475,13 @@ static void test_timer_check_elapsed_repeat(void **state) {
 // Purpose: Verify that timers with values between 1-59 seconds work correctly.
 static void test_timer_sub_minute_valid(void **state) {
     // Setup: reset timer
-    will_return(epoch, 10000);
     timer_reset();
 
+    // Start timer
+    will_return(epoch, 10000);
+    timer_toggle_play_pause();
+
     // Increment to 30000 ms (30 seconds)
-    // timer_increment calls timer_get_value_ms which calls epoch() 1 time for running timer
     will_return(epoch, 10000);
     timer_increment(30000);
 
@@ -480,7 +489,6 @@ static void test_timer_sub_minute_valid(void **state) {
     assert_int_equal(timer_get_length_ms(), 30000);
 
     // Assert value is approximately 30000
-    // timer_get_value_ms at same epoch returns 30000 (1 epoch call)
     will_return(epoch, 10000);
     int64_t value = timer_get_value_ms();
     assert_true(value >= 29000 && value <= 31000);
@@ -490,14 +498,15 @@ static void test_timer_sub_minute_valid(void **state) {
 // Purpose: Verify that timers with values less than 1 second auto-reset.
 static void test_timer_sub_second_resets(void **state) {
     // Setup: reset timer
-    will_return(epoch, 10000);
     timer_reset();
+
+    // Start timer
+    will_return(epoch, 10000);
+    timer_toggle_play_pause();
 
     // Increment to 500 ms
     // timer_increment calls timer_get_value_ms (1 epoch call)
     // After incrementing, value is 500ms which is < 1000, so timer_reset is called
-    // timer_reset calls epoch once
-    will_return(epoch, 10000);
     will_return(epoch, 10000);
     timer_increment(500);
 
@@ -509,11 +518,13 @@ static void test_timer_sub_second_resets(void **state) {
 // Purpose: Verify that a running timer auto-resets when it crosses below 1 second.
 static void test_timer_crosses_sub_second_resets(void **state) {
     // Setup: reset timer
-    will_return(epoch, 10000);
     timer_reset();
 
+    // Start timer
+    will_return(epoch, 10000);
+    timer_toggle_play_pause();
+
     // Increment to 2000 ms (2 seconds)
-    // timer_increment calls timer_get_value_ms (1 epoch call)
     will_return(epoch, 10000);
     timer_increment(2000);
 
@@ -521,10 +532,7 @@ static void test_timer_crosses_sub_second_resets(void **state) {
     // At T=11500: elapsed = 11500 - 10000 = 1500, value = 2000 - 1500 = 500ms
 
     // Call timer_increment(0) to trigger the check
-    // timer_increment calls timer_get_value_ms (1 epoch call)
-    // value will be < 1000, so timer_reset is called (1 epoch call)
     will_return(epoch, 11500);
-    will_return(epoch, 11500);  // timer_reset call
     timer_increment(0);
 
     // Assert length == 0 (auto-reset triggered)
@@ -536,11 +544,13 @@ static void test_timer_crosses_sub_second_resets(void **state) {
 // When repeat_count == 1, the timer has completed its last repeat and should vibrate normally.
 static void test_timer_check_elapsed_repeat_final(void **state) {
     // Setup: reset timer at T=10000
-    will_return(epoch, 10000);
     timer_reset();
 
+    // Start timer
+    will_return(epoch, 10000);
+    timer_toggle_play_pause();
+
     // Increment to 5000 ms
-    // timer_increment calls timer_get_value_ms (1 epoch call)
     will_return(epoch, 10000);
     timer_increment(5000);
 
@@ -551,12 +561,6 @@ static void test_timer_check_elapsed_repeat_final(void **state) {
     timer_data.can_vibrate = true;
 
     // Simulate delay of 7 seconds (enter chrono)
-    // timer_check_elapsed calls:
-    // 1. timer_is_chrono (1 epoch call)
-    // 2. timer_is_paused (0 calls)
-    // 3. repeat_count is 1, NOT > 1, so skip repeat restart
-    // 4. timer_get_value_ms (1 epoch call) -> returns ~2000ms (under 30s)
-    // 5. Vibrates with custom pattern
     will_return(epoch, 17000);
     will_return(epoch, 17000);
 
@@ -578,9 +582,7 @@ static void test_timer_reset_clears_repeat(void **state) {
     timer_data.length_ms = 60000;
     timer_data.base_length_ms = 60000;
 
-    // timer_reset() calls epoch() once
-    will_return(epoch, 10000);
-
+    // timer_reset() no longer calls epoch()
     timer_reset();
 
     // Assert repeat state is cleared
@@ -593,11 +595,13 @@ static void test_timer_reset_clears_repeat(void **state) {
 // After this, the next elapsed check with count=1 should NOT restart.
 static void test_timer_check_elapsed_repeat_decrements_to_final(void **state) {
     // Setup: reset timer at T=10000
-    will_return(epoch, 10000);
     timer_reset();
 
+    // Start timer
+    will_return(epoch, 10000);
+    timer_toggle_play_pause();
+
     // Increment to 5000 ms
-    // timer_increment calls timer_get_value_ms (1 epoch call)
     will_return(epoch, 10000);
     timer_increment(5000);
 
@@ -608,11 +612,6 @@ static void test_timer_check_elapsed_repeat_decrements_to_final(void **state) {
     timer_data.can_vibrate = true;
 
     // Simulate delay of 7 seconds (enter chrono)
-    // timer_check_elapsed calls:
-    // 1. timer_is_chrono (1 epoch call)
-    // 2. timer_is_paused (0 calls)
-    // 3. repeat_count=2 > 1, so decrement and restart
-    // 4. timer_increment(base_length_ms) calls timer_get_value_ms (1 epoch call)
     will_return(epoch, 17000);
     // timer_increment inside check_elapsed
     will_return(epoch, 17000);
@@ -634,11 +633,13 @@ static void test_timer_check_elapsed_repeat_decrements_to_final(void **state) {
 // This is equivalent to 1x (no actual repeat), so the timer should vibrate normally.
 static void test_timer_check_elapsed_repeat_zero_count(void **state) {
     // Setup: reset timer at T=10000
-    will_return(epoch, 10000);
     timer_reset();
 
+    // Start timer
+    will_return(epoch, 10000);
+    timer_toggle_play_pause();
+
     // Increment to 5000 ms
-    // timer_increment calls timer_get_value_ms (1 epoch call)
     will_return(epoch, 10000);
     timer_increment(5000);
 
@@ -649,12 +650,6 @@ static void test_timer_check_elapsed_repeat_zero_count(void **state) {
     timer_data.can_vibrate = true;
 
     // Simulate delay of 7 seconds (enter chrono)
-    // timer_check_elapsed calls:
-    // 1. timer_is_chrono (1 epoch call)
-    // 2. timer_is_paused (0 calls)
-    // 3. repeat_count is 0, NOT > 1, so skip repeat restart
-    // 4. timer_get_value_ms (1 epoch call) -> returns ~2000ms (under 30s)
-    // 5. Vibrates with custom pattern (normal vibration)
     will_return(epoch, 17000);
     will_return(epoch, 17000);
 
@@ -676,6 +671,7 @@ static void test_timer_chrono_subtraction_to_countdown(void **state) {
     // epoch() = 100000, start_ms = 95000 (started 5 seconds ago), length_ms = 0
     timer_data.length_ms = 0;
     timer_data.start_ms = 95000;
+    timer_data.is_paused = false;
 
     // Verify initial state is chrono (timer_is_chrono checks raw_value <= 0)
     // elapsed = epoch() - start_ms = 100000 - 95000 = 5000
@@ -709,6 +705,40 @@ static void test_timer_chrono_subtraction_to_countdown(void **state) {
     assert_int_equal(value, 55000);
 }
 
+// 24. test_timer_chrono_subtraction_paused_to_countdown
+// Purpose: Verify that subtracting time from a PAUSED chrono correctly converts it to a paused countdown.
+static void test_timer_chrono_subtraction_paused_to_countdown(void **state) {
+    // Setup: chrono timer with 5 seconds elapsed, PAUSED
+    // start_ms = 5000 (elapsed), length_ms = 0, is_paused = true
+    timer_data.length_ms = 0;
+    timer_data.start_ms = 5000;
+    timer_data.is_paused = true;
+
+    // Verify initial state is chrono and paused
+    assert_true(timer_is_paused());
+    // timer_is_chrono for paused timer: no epoch() call needed
+    assert_true(timer_is_chrono());
+
+    // Subtract 1 minute (60 seconds) from the chrono
+    // This should convert it to a countdown timer with ~55 seconds remaining, still PAUSED
+    timer_increment_chrono(-60000);
+
+    // New logic: start_ms += increment -> 5000 + (-60000) = -55000 (elapsed)
+    assert_int_equal(timer_data.start_ms, -55000);
+
+    // Check: timer should still be PAUSED
+    assert_true(timer_is_paused());
+
+    // Check: timer_is_chrono should return FALSE (it's now a countdown)
+    // elapsed = start_ms = -55000
+    // raw_value = length_ms - elapsed = 0 - (-55000) = 55000 > 0
+    assert_false(timer_is_chrono());
+
+    // Check: timer_get_value_ms should return 55000
+    int64_t value = timer_get_value_ms();
+    assert_int_equal(value, 55000);
+}
+
 int main(void) {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test_setup_teardown(test_timer_reset, setup, teardown),
@@ -734,6 +764,7 @@ int main(void) {
         cmocka_unit_test_setup_teardown(test_timer_check_elapsed_repeat_decrements_to_final, setup, teardown),
         cmocka_unit_test_setup_teardown(test_timer_check_elapsed_repeat_zero_count, setup, teardown),
         cmocka_unit_test_setup_teardown(test_timer_chrono_subtraction_to_countdown, setup, teardown),
+        cmocka_unit_test_setup_teardown(test_timer_chrono_subtraction_paused_to_countdown, setup, teardown),
     };
 
     return cmocka_run_group_tests(tests, NULL, NULL);

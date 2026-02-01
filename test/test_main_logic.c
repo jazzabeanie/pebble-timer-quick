@@ -50,6 +50,7 @@ void vibes_cancel(void) {}
 void vibes_short_pulse(void) {}
 
 // Persistence (Stubs)
+int32_t persist_read_int(const uint32_t key) { return 0; }
 status_t persist_write_int(const uint32_t key, const int32_t value) { return 0; }
 int persist_write_data(const uint32_t key, const void *data, const size_t size) { return size; }
 bool persist_exists(const uint32_t key) { return false; }

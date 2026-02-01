@@ -23,6 +23,7 @@ typedef struct {
   int8_t      auto_snooze_count; //< Count of how many times the timer has auto-snoozed
   bool        is_repeating;   //< A flag to indicate that the timer is in repeat mode
   uint8_t     repeat_count;   //< A counter to track the number of times the timer has repeated
+  bool        is_paused;      //< A flag to indicate if the timer is paused
 } Timer;
 extern Timer timer_data;
 

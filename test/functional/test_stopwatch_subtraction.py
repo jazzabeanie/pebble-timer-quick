@@ -53,33 +53,38 @@ class TestStopwatchSubtraction:
         """
         emulator = persistent_emulator
 
-        # --- Phase 1: Enter chrono mode ---
         # Wait for the 3-second inactivity timeout to transition from New mode
         # to chrono mode (counting up from 0:00).
-        # Note: We need to capture screenshots quickly due to the 7-second
-        # auto-background timer for chrono mode.
         time.sleep(3.5)
+
+        # Pause the timer to ensure stable display for verification
+        emulator.press_select()
+        time.sleep(0.5)
 
         # Take screenshot to verify we're in chrono mode
         chrono_screenshot = emulator.screenshot("chrono_before_subtraction")
+
+        # Press Down to cancel auto-background timer
+        emulator.press_down()
+        time.sleep(0.3)
 
         # --- Phase 2: Enter edit mode and enable reverse direction ---
         # Press Up to enter edit mode for the existing chrono timer
         # This sets is_editing_existing_timer = true and control_mode = ControlModeNew
         emulator.press_up()
-        time.sleep(0.3)
+        time.sleep(0.5)
 
         # Long press Up to toggle reverse direction (so Down subtracts instead of adds)
         emulator.hold_button(Button.UP)
-        time.sleep(1.0)  # Hold for BUTTON_HOLD_RESET_MS (1000ms)
+        time.sleep(2.0)  # Hold for BUTTON_HOLD_RESET_MS (1000ms) + plenty of buffer
         emulator.release_buttons()
-        time.sleep(0.3)
+        time.sleep(0.8)
 
         # --- Phase 3: Subtract time ---
         # Press Down to subtract 1 minute (calls timer_increment_chrono(-60000))
         # This should convert the chrono to a countdown
         emulator.press_down()
-        time.sleep(0.5)
+        time.sleep(1.0)
 
         # Take screenshot after subtraction
         after_subtraction = emulator.screenshot("after_subtraction")
@@ -135,21 +140,27 @@ class TestStopwatchSubtraction:
         # Wait for chrono mode
         time.sleep(3.5)
 
+        # Pause the timer
+        emulator.press_select()
+        time.sleep(0.5)
+
         # Enter edit mode
         emulator.press_up()
         time.sleep(0.3)
 
         # Enable reverse direction
         emulator.hold_button(Button.UP)
-        time.sleep(1.0)
+        time.sleep(2.0)
         emulator.release_buttons()
-        time.sleep(0.3)
+        time.sleep(0.8)
 
         # Subtract 3 minutes (press Down 3 times)
         emulator.press_down()
+        time.sleep(0.8)
         emulator.press_down()
+        time.sleep(0.8)
         emulator.press_down()
-        time.sleep(0.5)
+        time.sleep(1.0)
 
         after_subtraction = emulator.screenshot("after_3min_subtraction")
 

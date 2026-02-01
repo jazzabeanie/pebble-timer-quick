@@ -112,7 +112,7 @@ static void prv_render_header_text(GContext *ctx, GRect bounds) {
   // draw text
   static char s_time_buffer[16]; // Buffer for formatted time
   char *buff;
-  if (main_get_control_mode() == ControlModeNew || main_get_control_mode() == ControlModeEditSec) {
+  if (main_get_control_mode() == ControlModeNew || main_get_control_mode() == ControlModeEditSec || main_get_control_mode() == ControlModeEditRepeat) {
     if (main_is_editing_existing_timer()) {
       buff = "Edit";
     } else {
@@ -218,7 +218,7 @@ static void prv_main_text_update_state(Layer *layer) {
   //         buff[0], buff[1], buff[2], buff[3], buff[4], buff[5]);
 
   // calculate new sizes for all text elements
-  char tot_buff[12];
+  char tot_buff[32];
   snprintf(tot_buff, sizeof(tot_buff), "%s%s%s%s%s%s", buff[0], buff[1], buff[2], buff[3], buff[4], buff[5]);
   
   // APP_LOG(APP_LOG_LEVEL_DEBUG, "tot_buff: %s (prv_main_text_update_state)", tot_buff);
@@ -431,93 +431,111 @@ static void prv_draw_action_icons(GContext *ctx, GRect bounds) {
     return;
   }
 
+  // Calculate relative positions
+  const int16_t icon_back_x = 5;
+  const int16_t icon_back_y = 10;
+  const int16_t icon_up_x = bounds.size.w - ICON_STANDARD_SIZE - 5;
+  const int16_t icon_up_y = 10;
+  const int16_t icon_select_x = bounds.size.w - ICON_SMALL_SIZE - 2;
+  const int16_t icon_select_y = (bounds.size.h - ICON_SMALL_SIZE) / 2;
+  const int16_t icon_down_x = bounds.size.w - ICON_STANDARD_SIZE - 5;
+  const int16_t icon_down_y = bounds.size.h - ICON_STANDARD_SIZE - 10;
+
+  // Long press sub-icon positions (beside standard icons, toward screen center)
+  const int16_t long_up_x = icon_up_x - ICON_SMALL_SIZE - 2;
+  const int16_t long_up_y = icon_up_y;
+  const int16_t long_select_x = icon_select_x - ICON_SMALL_SIZE - 2;
+  const int16_t long_select_y = icon_select_y;
+  const int16_t long_down_x = icon_down_x - ICON_SMALL_SIZE - 2;
+  const int16_t long_down_y = icon_down_y + 12;
+
   if (mode == ControlModeNew || mode == ControlModeEditSec) {
     // New/EditSec mode: show increment or decrement icons based on direction
     bool is_reverse = main_is_reverse_direction();
     if (mode == ControlModeNew) {
       if (is_reverse) {
-        prv_draw_icon(ctx, drawing_data.icon_minus_1hr, ICON_BACK_X, ICON_BACK_Y,
+        prv_draw_icon(ctx, drawing_data.icon_minus_1hr, icon_back_x, icon_back_y,
                       ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
-        prv_draw_icon(ctx, drawing_data.icon_minus_20min, ICON_UP_X, ICON_UP_Y,
+        prv_draw_icon(ctx, drawing_data.icon_minus_20min, icon_up_x, icon_up_y,
                       ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
-        prv_draw_icon(ctx, drawing_data.icon_minus_5min, ICON_SELECT_X, ICON_SELECT_Y,
+        prv_draw_icon(ctx, drawing_data.icon_minus_5min, icon_select_x, icon_select_y,
                       ICON_SMALL_SIZE, ICON_SMALL_SIZE);
-        prv_draw_icon(ctx, drawing_data.icon_minus_1min, ICON_DOWN_X, ICON_DOWN_Y,
+        prv_draw_icon(ctx, drawing_data.icon_minus_1min, icon_down_x, icon_down_y,
                       ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
       } else {
-        prv_draw_icon(ctx, drawing_data.icon_plus_1hr, ICON_BACK_X, ICON_BACK_Y,
+        prv_draw_icon(ctx, drawing_data.icon_plus_1hr, icon_back_x, icon_back_y,
                       ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
-        prv_draw_icon(ctx, drawing_data.icon_plus_20min, ICON_UP_X, ICON_UP_Y,
+        prv_draw_icon(ctx, drawing_data.icon_plus_20min, icon_up_x, icon_up_y,
                       ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
-        prv_draw_icon(ctx, drawing_data.icon_plus_5min, ICON_SELECT_X, ICON_SELECT_Y,
+        prv_draw_icon(ctx, drawing_data.icon_plus_5min, icon_select_x, icon_select_y,
                       ICON_SMALL_SIZE, ICON_SMALL_SIZE);
-        prv_draw_icon(ctx, drawing_data.icon_plus_1min, ICON_DOWN_X, ICON_DOWN_Y,
+        prv_draw_icon(ctx, drawing_data.icon_plus_1min, icon_down_x, icon_down_y,
                       ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
       }
     } else {
       // EditSec - also fix the Back button icon (+60 instead of +30)
       if (is_reverse) {
-        prv_draw_icon(ctx, drawing_data.icon_minus_60sec, ICON_BACK_X, ICON_BACK_Y,
+        prv_draw_icon(ctx, drawing_data.icon_minus_60sec, icon_back_x, icon_back_y,
                       ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
-        prv_draw_icon(ctx, drawing_data.icon_minus_20sec, ICON_UP_X, ICON_UP_Y,
+        prv_draw_icon(ctx, drawing_data.icon_minus_20sec, icon_up_x, icon_up_y,
                       ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
-        prv_draw_icon(ctx, drawing_data.icon_minus_5sec, ICON_SELECT_X, ICON_SELECT_Y,
+        prv_draw_icon(ctx, drawing_data.icon_minus_5sec, icon_select_x, icon_select_y,
                       ICON_SMALL_SIZE, ICON_SMALL_SIZE);
-        prv_draw_icon(ctx, drawing_data.icon_minus_1sec, ICON_DOWN_X, ICON_DOWN_Y,
+        prv_draw_icon(ctx, drawing_data.icon_minus_1sec, icon_down_x, icon_down_y,
                       ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
       } else {
-        prv_draw_icon(ctx, drawing_data.icon_plus_60sec, ICON_BACK_X, ICON_BACK_Y,
+        prv_draw_icon(ctx, drawing_data.icon_plus_60sec, icon_back_x, icon_back_y,
                       ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
-        prv_draw_icon(ctx, drawing_data.icon_plus_20sec, ICON_UP_X, ICON_UP_Y,
+        prv_draw_icon(ctx, drawing_data.icon_plus_20sec, icon_up_x, icon_up_y,
                       ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
-        prv_draw_icon(ctx, drawing_data.icon_plus_5sec, ICON_SELECT_X, ICON_SELECT_Y,
+        prv_draw_icon(ctx, drawing_data.icon_plus_5sec, icon_select_x, icon_select_y,
                       ICON_SMALL_SIZE, ICON_SMALL_SIZE);
-        prv_draw_icon(ctx, drawing_data.icon_plus_1sec, ICON_DOWN_X, ICON_DOWN_Y,
+        prv_draw_icon(ctx, drawing_data.icon_plus_1sec, icon_down_x, icon_down_y,
                       ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
       }
     }
     // Long press icons for New/EditSec
-    prv_draw_icon(ctx, drawing_data.icon_direction, LONG_UP_X, LONG_UP_Y,
+    prv_draw_icon(ctx, drawing_data.icon_direction, long_up_x, long_up_y,
                   ICON_SMALL_SIZE, ICON_SMALL_SIZE);
     // TODO: overlaps the display and a new solution is needed
-    // prv_draw_icon(ctx, drawing_data.icon_reset, LONG_SELECT_X, LONG_SELECT_Y,
+    // prv_draw_icon(ctx, drawing_data.icon_reset, long_select_x, long_select_y,
     //               ICON_SMALL_SIZE, ICON_SMALL_SIZE);
-    prv_draw_icon(ctx, drawing_data.icon_quit, LONG_DOWN_X, LONG_DOWN_Y,
+    prv_draw_icon(ctx, drawing_data.icon_quit, long_down_x, long_down_y,
                   ICON_SMALL_SIZE, ICON_SMALL_SIZE);
   } else if (mode == ControlModeCounting) {
     // Counting mode icons
-    prv_draw_icon(ctx, drawing_data.icon_to_bg, ICON_BACK_X, ICON_BACK_Y,
+    prv_draw_icon(ctx, drawing_data.icon_to_bg, icon_back_x, icon_back_y,
                   ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
-    prv_draw_icon(ctx, drawing_data.icon_edit, ICON_UP_X, ICON_UP_Y,
+    prv_draw_icon(ctx, drawing_data.icon_edit, icon_up_x, icon_up_y,
                   ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
     if (is_paused) {
-      prv_draw_icon(ctx, drawing_data.play_icon, ICON_SELECT_X, ICON_SELECT_Y,
+      prv_draw_icon(ctx, drawing_data.play_icon, icon_select_x, icon_select_y,
                     ICON_SMALL_SIZE, ICON_SMALL_SIZE);
     } else {
-      prv_draw_icon(ctx, drawing_data.pause_icon, ICON_SELECT_X, ICON_SELECT_Y,
+      prv_draw_icon(ctx, drawing_data.pause_icon, icon_select_x, icon_select_y,
                     ICON_SMALL_SIZE, ICON_SMALL_SIZE);
     }
-    prv_draw_icon(ctx, drawing_data.icon_details, ICON_DOWN_X, ICON_DOWN_Y,
+    prv_draw_icon(ctx, drawing_data.icon_details, icon_down_x, icon_down_y,
                   ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
     // Long press icons
     if (!is_chrono) {
-      prv_draw_icon(ctx, drawing_data.icon_repeat_enable, LONG_UP_X, LONG_UP_Y,
+      prv_draw_icon(ctx, drawing_data.icon_repeat_enable, long_up_x, long_up_y,
                     ICON_SMALL_SIZE, ICON_SMALL_SIZE);
     }
     // TODO: overlaps the display and a new solution is needed
-    // prv_draw_icon(ctx, drawing_data.icon_reset, LONG_SELECT_X, LONG_SELECT_Y,
+    // prv_draw_icon(ctx, drawing_data.icon_reset, long_select_x, long_select_y,
     //               ICON_SMALL_SIZE, ICON_SMALL_SIZE);
-    prv_draw_icon(ctx, drawing_data.icon_quit, LONG_DOWN_X, LONG_DOWN_Y,
+    prv_draw_icon(ctx, drawing_data.icon_quit, long_down_x, long_down_y,
                   ICON_SMALL_SIZE, ICON_SMALL_SIZE);
   } else if (mode == ControlModeEditRepeat) {
     // EditRepeat mode icons
-    prv_draw_icon(ctx, drawing_data.icon_reset_count, ICON_BACK_X, ICON_BACK_Y,
+    prv_draw_icon(ctx, drawing_data.icon_reset_count, icon_back_x, icon_back_y,
                   ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
-    prv_draw_icon(ctx, drawing_data.icon_plus_20_rep, ICON_UP_X, ICON_UP_Y,
+    prv_draw_icon(ctx, drawing_data.icon_plus_20_rep, icon_up_x, icon_up_y,
                   ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
-    prv_draw_icon(ctx, drawing_data.icon_plus_5_rep, ICON_SELECT_X, ICON_SELECT_Y,
+    prv_draw_icon(ctx, drawing_data.icon_plus_5_rep, icon_select_x, icon_select_y,
                   ICON_SMALL_SIZE, ICON_SMALL_SIZE);
-    prv_draw_icon(ctx, drawing_data.icon_plus_1_rep, ICON_DOWN_X, ICON_DOWN_Y,
+    prv_draw_icon(ctx, drawing_data.icon_plus_1_rep, icon_down_x, icon_down_y,
                   ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
   }
 }

@@ -30,17 +30,59 @@ SCREENSHOTS_DIR = Path(__file__).parent / "screenshots"
 ICON_REFS_DIR = SCREENSHOTS_DIR / "icon_refs"
 ICON_REFS_DIR.mkdir(parents=True, exist_ok=True)
 
-# --- Icon Crop Regions (basalt 144x168) ---
-# Standard press regions
-REGION_BACK = (0, 5, 35, 40)
-REGION_UP = (109, 5, 144, 40)
-REGION_SELECT = (122, 71, 144, 96)
-REGION_DOWN = (109, 128, 144, 163)
+# --- Icon Crop Regions ---
+# Regions are platform-specific to account for different screen resolutions.
+PLATFORM_REGIONS = {
+    "aplite": {
+        "BACK": (0, 5, 35, 40),
+        "UP": (109, 5, 144, 40),
+        "SELECT": (122, 71, 144, 96),
+        "DOWN": (109, 128, 144, 163),
+        "LONG_UP": (92, 10, 117, 35),
+        "LONG_SELECT": (105, 71, 130, 96),
+        "LONG_DOWN": (92, 133, 117, 158),
+    },
+    "basalt": {
+        "BACK": (0, 5, 35, 40),
+        "UP": (109, 5, 144, 40),
+        "SELECT": (122, 71, 144, 96),
+        "DOWN": (109, 128, 144, 163),
+        "LONG_UP": (92, 10, 117, 35),
+        "LONG_SELECT": (105, 71, 130, 96),
+        "LONG_DOWN": (92, 133, 117, 158),
+    },
+    "chalk": {
+        "BACK": (0, 5, 35, 40),
+        "UP": (145, 5, 180, 40),
+        "SELECT": (158, 77, 180, 102),
+        "DOWN": (145, 140, 180, 175),
+        "LONG_UP": (128, 5, 153, 30),
+        "LONG_SELECT": (141, 77, 166, 102),
+        "LONG_DOWN": (128, 145, 153, 170),
+    },
+    "diorite": {
+        "BACK": (0, 5, 35, 40),
+        "UP": (109, 5, 144, 40),
+        "SELECT": (122, 71, 144, 96),
+        "DOWN": (109, 128, 144, 163),
+        "LONG_UP": (92, 10, 117, 35),
+        "LONG_SELECT": (105, 71, 130, 96),
+        "LONG_DOWN": (92, 133, 117, 158),
+    },
+    "emery": {
+        "BACK": (0, 5, 35, 40),
+        "UP": (165, 5, 200, 40),
+        "SELECT": (178, 101, 200, 126),
+        "DOWN": (165, 183, 200, 218),
+        "LONG_UP": (148, 5, 173, 30),
+        "LONG_SELECT": (161, 101, 186, 126),
+        "LONG_DOWN": (148, 193, 173, 218),
+    }
+}
 
-# Long press sub-regions (beside standard icons, toward screen center)
-REGION_LONG_UP = (92, 10, 117, 35)
-REGION_LONG_SELECT = (105, 71, 130, 96)
-REGION_LONG_DOWN = (92, 133, 117, 158)
+def get_region(platform, name):
+    """Get the platform-specific crop region."""
+    return PLATFORM_REGIONS.get(platform, PLATFORM_REGIONS["basalt"])[name]
 
 
 # --- Helper Functions ---
@@ -95,13 +137,14 @@ def _get_non_bg_mask(crop_arr):
     return ~np.all(crop_arr[:, :, :3] == bg_color, axis=2)
 
 
-def matches_icon_reference(img, region, ref_name, auto_save=True, tolerance=0):
+def matches_icon_reference(img, region, ref_name, platform="basalt", auto_save=True, tolerance=10):
     """Compare the icon region's non-background pixel mask against a stored reference.
 
     Args:
         img: Full Pebble screenshot (PIL Image).
         region: Crop tuple (left, top, right, bottom).
         ref_name: Reference name, e.g. "silence" loads "ref_basalt_silence_mask.png".
+        platform: The emulator platform name.
         auto_save: If True and no reference exists, save current mask as reference
                    and return True. If False and no reference exists, return False.
         tolerance: Maximum number of differing pixels allowed (default 0 for exact
@@ -115,7 +158,7 @@ def matches_icon_reference(img, region, ref_name, auto_save=True, tolerance=0):
     crop_arr = np.array(crop)
     mask = _get_non_bg_mask(crop_arr)
 
-    ref_path = ICON_REFS_DIR / f"ref_basalt_{ref_name}_mask.png"
+    ref_path = ICON_REFS_DIR / f"ref_{platform}_{ref_name}_mask.png"
     if not ref_path.exists():
         if auto_save:
             mask_img = Image.fromarray((mask.astype(np.uint8) * 255))
@@ -132,9 +175,9 @@ def matches_icon_reference(img, region, ref_name, auto_save=True, tolerance=0):
     diff_count = int(np.sum(mask != ref_mask))
     matches = diff_count <= tolerance
     if not matches:
-        logger.warning(f"Icon mask mismatch for '{ref_name}': {diff_count} pixels differ (tolerance={tolerance})")
+        logger.warning(f"Icon mask mismatch for '{ref_name}' on {platform}: {diff_count} pixels differ (tolerance={tolerance})")
     elif diff_count > 0:
-        logger.debug(f"Icon mask for '{ref_name}': {diff_count} pixels differ (within tolerance={tolerance})")
+        logger.debug(f"Icon mask for '{ref_name}' on {platform}: {diff_count} pixels differ (within tolerance={tolerance})")
     return matches
 
 
@@ -247,57 +290,67 @@ class TestAlarmIcons:
     def test_alarm_back_icon_silence(self, persistent_emulator):
         """Verify the silence icon (Back button) is drawn during alarm state."""
         emulator = persistent_emulator
+        platform = emulator.platform
         screenshot = self._enter_alarm(emulator)
 
-        assert has_icon_content(screenshot, REGION_BACK), (
+        region = get_region(platform, "BACK")
+        assert has_icon_content(screenshot, region), (
             "Expected silence icon content in Back button region during alarm state"
         )
-        assert matches_icon_reference(screenshot, REGION_BACK, "silence"), (
+        assert matches_icon_reference(screenshot, region, "silence", platform=platform), (
             "Silence icon does not match reference mask"
         )
 
     def test_alarm_up_icon_repeat(self, persistent_emulator):
         """Verify the reset icon (Up button) is drawn during alarm state."""
         emulator = persistent_emulator
+        platform = emulator.platform
         screenshot = self._enter_alarm(emulator)
 
-        assert has_icon_content(screenshot, REGION_UP), (
+        region = get_region(platform, "UP")
+        assert has_icon_content(screenshot, region), (
             "Expected reset icon content in Up button region during alarm state"
         )
-        assert matches_icon_reference(screenshot, REGION_UP, "alarm_repeat"), (
+        assert matches_icon_reference(screenshot, region, "alarm_repeat", platform=platform), (
             "Reset icon does not match reference mask"
         )
 
     def test_alarm_long_up_icon_reset(self, persistent_emulator):
         """Verify the hold icon (reset) beside the Up button during alarm state."""
         emulator = persistent_emulator
+        platform = emulator.platform
         screenshot = self._enter_alarm(emulator)
 
-        assert matches_icon_reference(screenshot, REGION_LONG_UP, "alarm_long_up"), (
+        region = get_region(platform, "LONG_UP")
+        assert matches_icon_reference(screenshot, region, "alarm_long_up", platform=platform), (
             "Alarm long-press Up icon does not match reference mask"
         )
 
     def test_alarm_select_icon_pause(self, persistent_emulator):
         """Verify the pause icon (Select button) is drawn during alarm state."""
         emulator = persistent_emulator
+        platform = emulator.platform
         screenshot = self._enter_alarm(emulator)
 
-        assert has_icon_content(screenshot, REGION_SELECT), (
+        region = get_region(platform, "SELECT")
+        assert has_icon_content(screenshot, region), (
             "Expected pause icon content in Select button region during alarm state"
         )
-        assert matches_icon_reference(screenshot, REGION_SELECT, "pause"), (
+        assert matches_icon_reference(screenshot, region, "pause", platform=platform), (
             "Pause icon does not match reference mask"
         )
 
     def test_alarm_down_icon_snooze(self, persistent_emulator):
         """Verify the snooze icon (Down button) is drawn during alarm state."""
         emulator = persistent_emulator
+        platform = emulator.platform
         screenshot = self._enter_alarm(emulator)
 
-        assert has_icon_content(screenshot, REGION_DOWN), (
+        region = get_region(platform, "DOWN")
+        assert has_icon_content(screenshot, region), (
             "Expected snooze icon content in Down button region during alarm state"
         )
-        assert matches_icon_reference(screenshot, REGION_DOWN, "snooze"), (
+        assert matches_icon_reference(screenshot, region, "snooze", platform=platform), (
             "Snooze icon does not match reference mask"
         )
 
@@ -316,52 +369,62 @@ class TestNewModeIcons:
     def test_new_back_icon(self, persistent_emulator):
         """Verify +1hr indicator icon for Back button in New mode."""
         emulator = persistent_emulator
+        platform = emulator.platform
         screenshot = emulator.screenshot("new_mode")
-        assert has_icon_content(screenshot, REGION_BACK), (
+        region = get_region(platform, "BACK")
+        assert has_icon_content(screenshot, region), (
             "Expected +1hr icon content in Back button region in New mode"
         )
-        assert matches_icon_reference(screenshot, REGION_BACK, "new_back"), (
+        assert matches_icon_reference(screenshot, region, "new_back", platform=platform), (
             "+1hr icon does not match reference mask"
         )
 
     def test_new_up_icon(self, persistent_emulator):
         """Verify +20min indicator icon for Up button in New mode."""
         emulator = persistent_emulator
+        platform = emulator.platform
         screenshot = emulator.screenshot("new_mode")
-        assert has_icon_content(screenshot, REGION_UP), (
+        region = get_region(platform, "UP")
+        assert has_icon_content(screenshot, region), (
             "Expected +20min icon content in Up button region in New mode"
         )
-        assert matches_icon_reference(screenshot, REGION_UP, "new_up"), (
+        assert matches_icon_reference(screenshot, region, "new_up", platform=platform), (
             "+20min icon does not match reference mask"
         )
 
     def test_new_select_icon(self, persistent_emulator):
         """Verify +5min indicator icon for Select button in New mode."""
         emulator = persistent_emulator
+        platform = emulator.platform
         screenshot = emulator.screenshot("new_mode")
-        assert has_icon_content(screenshot, REGION_SELECT), (
+        region = get_region(platform, "SELECT")
+        assert has_icon_content(screenshot, region), (
             "Expected +5min icon content in Select button region in New mode"
         )
-        assert matches_icon_reference(screenshot, REGION_SELECT, "new_select"), (
+        assert matches_icon_reference(screenshot, region, "new_select", platform=platform), (
             "+5min icon does not match reference mask"
         )
 
     def test_new_down_icon(self, persistent_emulator):
         """Verify +1min indicator icon for Down button in New mode."""
         emulator = persistent_emulator
+        platform = emulator.platform
         screenshot = emulator.screenshot("new_mode")
-        assert has_icon_content(screenshot, REGION_DOWN), (
+        region = get_region(platform, "DOWN")
+        assert has_icon_content(screenshot, region), (
             "Expected +1min icon content in Down button region in New mode"
         )
-        assert matches_icon_reference(screenshot, REGION_DOWN, "new_down"), (
+        assert matches_icon_reference(screenshot, region, "new_down", platform=platform), (
             "+1min icon does not match reference mask"
         )
 
     def test_new_long_up_direction_toggle(self, persistent_emulator):
         """Verify direction toggle icon exists in long-press Up sub-region in New mode."""
         emulator = persistent_emulator
+        platform = emulator.platform
         screenshot = emulator.screenshot("new_mode_long_up")
-        assert matches_icon_reference(screenshot, REGION_LONG_UP, "new_long_up"), (
+        region = get_region(platform, "LONG_UP")
+        assert matches_icon_reference(screenshot, region, "new_long_up", platform=platform), (
             "Direction toggle icon does not match reference mask"
         )
 
@@ -369,16 +432,20 @@ class TestNewModeIcons:
         """Verify reset indicator for long-press Select in New mode."""
         pytest.skip("Long press select icon disabled due to display overlap (see button-icons.md)")
         emulator = persistent_emulator
+        platform = emulator.platform
         screenshot = emulator.screenshot("new_mode")
-        assert matches_icon_reference(screenshot, REGION_LONG_SELECT, "new_long_select"), (
+        region = get_region(platform, "LONG_SELECT")
+        assert matches_icon_reference(screenshot, region, "new_long_select", platform=platform), (
             "Reset icon does not match reference mask"
         )
 
     def test_new_long_down_icon(self, persistent_emulator):
         """Verify quit indicator for long-press Down in New mode."""
         emulator = persistent_emulator
+        platform = emulator.platform
         screenshot = emulator.screenshot("new_mode")
-        assert matches_icon_reference(screenshot, REGION_LONG_DOWN, "new_long_down"), (
+        region = get_region(platform, "LONG_DOWN")
+        assert matches_icon_reference(screenshot, region, "new_long_down", platform=platform), (
             "Quit icon does not match reference mask"
         )
 
@@ -390,7 +457,7 @@ class TestNewModeIcons:
 class TestEditSecIcons:
     """Tests for icons in ControlModeEditSec.
 
-    Icons: +30s (Back), +20s (Up), +5s (Select), +1s (Down),
+    Icons: +60s (Back), +20s (Up), +5s (Select), +1s (Down),
     direction toggle (Long Up).
     """
 
@@ -412,35 +479,41 @@ class TestEditSecIcons:
         return emulator.screenshot("editsec_mode")
 
     def test_editsec_back_icon(self, persistent_emulator):
-        """Verify +30s indicator icon for Back button in EditSec mode."""
+        """Verify +60s indicator icon for Back button in EditSec mode."""
         emulator = persistent_emulator
+        platform = emulator.platform
         screenshot = self._enter_editsec(emulator)
-        assert has_icon_content(screenshot, REGION_BACK), (
-            "Expected +30s icon content in Back button region in EditSec mode"
+        region = get_region(platform, "BACK")
+        assert has_icon_content(screenshot, region), (
+            "Expected +60s icon content in Back button region in EditSec mode"
         )
-        assert matches_icon_reference(screenshot, REGION_BACK, "editsec_back"), (
-            "+30s icon does not match reference mask"
+        assert matches_icon_reference(screenshot, region, "editsec_back_plus60", platform=platform), (
+            "+60s icon does not match reference mask"
         )
 
     def test_editsec_up_icon(self, persistent_emulator):
         """Verify +20s indicator icon for Up button in EditSec mode."""
         emulator = persistent_emulator
+        platform = emulator.platform
         screenshot = self._enter_editsec(emulator)
-        assert has_icon_content(screenshot, REGION_UP), (
+        region = get_region(platform, "UP")
+        assert has_icon_content(screenshot, region), (
             "Expected +20s icon content in Up button region in EditSec mode"
         )
-        assert matches_icon_reference(screenshot, REGION_UP, "editsec_up"), (
+        assert matches_icon_reference(screenshot, region, "editsec_up", platform=platform), (
             "+20s icon does not match reference mask"
         )
 
     def test_editsec_select_icon(self, persistent_emulator):
         """Verify +5s indicator icon for Select button in EditSec mode."""
         emulator = persistent_emulator
+        platform = emulator.platform
         screenshot = self._enter_editsec(emulator)
-        assert has_icon_content(screenshot, REGION_SELECT), (
+        region = get_region(platform, "SELECT")
+        assert has_icon_content(screenshot, region), (
             "Expected +5s icon content in Select button region in EditSec mode"
         )
-        assert matches_icon_reference(screenshot, REGION_SELECT, "editsec_select"), (
+        assert matches_icon_reference(screenshot, region, "editsec_select", platform=platform), (
             "+5s icon does not match reference mask"
         )
 
@@ -451,16 +524,20 @@ class TestEditSecIcons:
         has fewer non-bg pixels than the default threshold of 100.
         """
         emulator = persistent_emulator
+        platform = emulator.platform
         screenshot = self._enter_editsec(emulator)
-        assert matches_icon_reference(screenshot, REGION_DOWN, "editsec_down"), (
+        region = get_region(platform, "DOWN")
+        assert matches_icon_reference(screenshot, region, "editsec_down", platform=platform), (
             "+1s icon does not match reference mask"
         )
 
     def test_editsec_long_up_direction_toggle(self, persistent_emulator):
         """Verify direction toggle indicator for long-press Up in EditSec mode."""
         emulator = persistent_emulator
+        platform = emulator.platform
         screenshot = self._enter_editsec(emulator)
-        assert matches_icon_reference(screenshot, REGION_LONG_UP, "editsec_long_up"), (
+        region = get_region(platform, "LONG_UP")
+        assert matches_icon_reference(screenshot, region, "editsec_long_up", platform=platform), (
             "Direction toggle icon does not match reference mask in EditSec mode"
         )
 
@@ -485,52 +562,62 @@ class TestCountingIcons:
     def test_counting_back_icon(self, persistent_emulator):
         """Verify exit/background indicator for Back button in Counting mode."""
         emulator = persistent_emulator
+        platform = emulator.platform
         screenshot = self._enter_counting(emulator)
-        assert has_icon_content(screenshot, REGION_BACK), (
+        region = get_region(platform, "BACK")
+        assert has_icon_content(screenshot, region), (
             "Expected BG icon content in Back button region in Counting mode"
         )
-        assert matches_icon_reference(screenshot, REGION_BACK, "counting_back"), (
+        assert matches_icon_reference(screenshot, region, "counting_back", platform=platform), (
             "BG icon does not match reference mask"
         )
 
     def test_counting_up_icon(self, persistent_emulator):
         """Verify edit indicator for Up button in Counting mode."""
         emulator = persistent_emulator
+        platform = emulator.platform
         screenshot = self._enter_counting(emulator)
-        assert has_icon_content(screenshot, REGION_UP), (
+        region = get_region(platform, "UP")
+        assert has_icon_content(screenshot, region), (
             "Expected Edit icon content in Up button region in Counting mode"
         )
-        assert matches_icon_reference(screenshot, REGION_UP, "counting_up"), (
+        assert matches_icon_reference(screenshot, region, "counting_up", platform=platform), (
             "Edit icon does not match reference mask"
         )
 
     def test_counting_select_icon(self, persistent_emulator):
         """Verify pause indicator for Select button in Counting mode."""
         emulator = persistent_emulator
+        platform = emulator.platform
         screenshot = self._enter_counting(emulator)
-        assert has_icon_content(screenshot, REGION_SELECT), (
+        region = get_region(platform, "SELECT")
+        assert has_icon_content(screenshot, region), (
             "Expected Pause icon content in Select button region in Counting mode"
         )
-        assert matches_icon_reference(screenshot, REGION_SELECT, "counting_select"), (
+        assert matches_icon_reference(screenshot, region, "counting_select", platform=platform), (
             "Pause icon does not match reference mask"
         )
 
     def test_counting_down_icon(self, persistent_emulator):
         """Verify details/refresh indicator for Down button in Counting mode."""
         emulator = persistent_emulator
+        platform = emulator.platform
         screenshot = self._enter_counting(emulator)
-        assert has_icon_content(screenshot, REGION_DOWN), (
+        region = get_region(platform, "DOWN")
+        assert has_icon_content(screenshot, region), (
             "Expected Details icon content in Down button region in Counting mode"
         )
-        assert matches_icon_reference(screenshot, REGION_DOWN, "counting_down"), (
+        assert matches_icon_reference(screenshot, region, "counting_down", platform=platform), (
             "Details icon does not match reference mask"
         )
 
     def test_counting_long_up_icon(self, persistent_emulator):
         """Verify enable repeat indicator for long-press Up in Counting mode."""
         emulator = persistent_emulator
+        platform = emulator.platform
         screenshot = self._enter_counting(emulator)
-        assert matches_icon_reference(screenshot, REGION_LONG_UP, "counting_long_up"), (
+        region = get_region(platform, "LONG_UP")
+        assert matches_icon_reference(screenshot, region, "counting_long_up", platform=platform), (
             "Enable-repeat icon does not match reference mask"
         )
 
@@ -538,16 +625,20 @@ class TestCountingIcons:
         """Verify restart indicator for long-press Select in Counting mode."""
         pytest.skip("Long press select icon disabled due to display overlap (see button-icons.md)")
         emulator = persistent_emulator
+        platform = emulator.platform
         screenshot = self._enter_counting(emulator)
-        assert matches_icon_reference(screenshot, REGION_LONG_SELECT, "counting_long_select"), (
+        region = get_region(platform, "LONG_SELECT")
+        assert matches_icon_reference(screenshot, region, "counting_long_select", platform=platform), (
             "Restart icon does not match reference mask"
         )
 
     def test_counting_long_down_icon(self, persistent_emulator):
         """Verify quit indicator for long-press Down in Counting mode."""
         emulator = persistent_emulator
+        platform = emulator.platform
         screenshot = self._enter_counting(emulator)
-        assert matches_icon_reference(screenshot, REGION_LONG_DOWN, "counting_long_down"), (
+        region = get_region(platform, "LONG_DOWN")
+        assert matches_icon_reference(screenshot, region, "counting_long_down", platform=platform), (
             "Quit icon does not match reference mask"
         )
 
@@ -565,6 +656,7 @@ class TestPausedIcons:
     def test_paused_select_icon_play(self, persistent_emulator):
         """Verify play icon for Select button when timer is paused."""
         emulator = persistent_emulator
+        platform = emulator.platform
 
         # Set timer and enter counting mode
         emulator.press_down()  # Add 1 minute
@@ -575,10 +667,11 @@ class TestPausedIcons:
         time.sleep(0.5)
 
         screenshot = emulator.screenshot("paused_mode")
-        assert has_icon_content(screenshot, REGION_SELECT), (
+        region = get_region(platform, "SELECT")
+        assert has_icon_content(screenshot, region), (
             "Expected Play icon content in Select button region when paused"
         )
-        assert matches_icon_reference(screenshot, REGION_SELECT, "paused_play"), (
+        assert matches_icon_reference(screenshot, region, "paused_play", platform=platform), (
             "Play icon does not match reference mask"
         )
 
@@ -609,15 +702,17 @@ class TestChronoIcons:
     def test_chrono_select_icon(self, persistent_emulator):
         """Verify pause indicator for Select button in chrono mode."""
         emulator = persistent_emulator
+        platform = emulator.platform
         screenshot = self._enter_chrono(emulator)
 
         # Cancel quit timer
         emulator.press_down()
 
-        assert has_icon_content(screenshot, REGION_SELECT), (
+        region = get_region(platform, "SELECT")
+        assert has_icon_content(screenshot, region), (
             "Expected Pause icon content in Select button region in chrono mode"
         )
-        assert matches_icon_reference(screenshot, REGION_SELECT, "chrono_select"), (
+        assert matches_icon_reference(screenshot, region, "chrono_select", platform=platform), (
             "Pause icon does not match reference mask in chrono mode"
         )
 
@@ -625,12 +720,14 @@ class TestChronoIcons:
         """Verify reset indicator for long-press Select in chrono mode."""
         pytest.skip("Long press select icon disabled due to display overlap (see button-icons.md)")
         emulator = persistent_emulator
+        platform = emulator.platform
         screenshot = self._enter_chrono(emulator)
 
         # Cancel quit timer
         emulator.press_down()
 
-        assert matches_icon_reference(screenshot, REGION_LONG_SELECT, "chrono_long_select"), (
+        region = get_region(platform, "LONG_SELECT")
+        assert matches_icon_reference(screenshot, region, "chrono_long_select", platform=platform), (
             "Reset icon does not match reference mask in chrono mode"
         )
 
@@ -669,27 +766,31 @@ class TestEditRepeatIcons:
         digits near the Back icon region.
         """
         emulator = persistent_emulator
+        platform = emulator.platform
         screenshot = self._enter_editrepeat(emulator)
-        assert has_icon_content(screenshot, REGION_BACK), (
+        region = get_region(platform, "BACK")
+        assert has_icon_content(screenshot, region), (
             "Expected Reset Count icon content in Back button region in EditRepeat mode"
         )
-        assert matches_icon_reference(screenshot, REGION_BACK, "editrepeat_back", tolerance=20), (
+        assert matches_icon_reference(screenshot, region, "editrepeat_back", platform=platform, tolerance=20), (
             "Reset Count icon does not match reference mask"
         )
 
     def test_editrepeat_up_icon(self, persistent_emulator):
         """Verify +20 repeats indicator for Up button in EditRepeat mode.
 
-        Tolerance of 60 pixels because REGION_UP (109,5,144,40) overlaps with
-        the flashing repeat indicator "_x" at (94,0,144,30). The indicator
+        Tolerance of 60 pixels because the Up region overlaps with
+        the flashing repeat indicator "_x". The indicator
         flashes on/off at 1000ms intervals, causing up to ~50 pixel differences.
         """
         emulator = persistent_emulator
+        platform = emulator.platform
         screenshot = self._enter_editrepeat(emulator)
-        assert has_icon_content(screenshot, REGION_UP), (
+        region = get_region(platform, "UP")
+        assert has_icon_content(screenshot, region), (
             "Expected +20 repeats icon content in Up button region in EditRepeat mode"
         )
-        assert matches_icon_reference(screenshot, REGION_UP, "editrepeat_up", tolerance=60), (
+        assert matches_icon_reference(screenshot, region, "editrepeat_up", platform=platform, tolerance=60), (
             "+20 repeats icon does not match reference mask"
         )
 
@@ -700,11 +801,13 @@ class TestEditRepeatIcons:
         Select crop region across runs.
         """
         emulator = persistent_emulator
+        platform = emulator.platform
         screenshot = self._enter_editrepeat(emulator)
-        assert has_icon_content(screenshot, REGION_SELECT), (
+        region = get_region(platform, "SELECT")
+        assert has_icon_content(screenshot, region), (
             "Expected +5 repeats icon content in Select button region in EditRepeat mode"
         )
-        assert matches_icon_reference(screenshot, REGION_SELECT, "editrepeat_select", tolerance=30), (
+        assert matches_icon_reference(screenshot, region, "editrepeat_select", platform=platform, tolerance=30), (
             "+5 repeats icon does not match reference mask"
         )
 
@@ -715,7 +818,9 @@ class TestEditRepeatIcons:
         has fewer non-bg pixels than the default threshold of 100.
         """
         emulator = persistent_emulator
+        platform = emulator.platform
         screenshot = self._enter_editrepeat(emulator)
-        assert matches_icon_reference(screenshot, REGION_DOWN, "editrepeat_down"), (
+        region = get_region(platform, "DOWN")
+        assert matches_icon_reference(screenshot, region, "editrepeat_down", platform=platform), (
             "+1 repeat icon does not match reference mask"
         )

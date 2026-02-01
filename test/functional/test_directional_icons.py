@@ -23,8 +23,7 @@ import time
 
 from .conftest import Button, EmulatorHelper, PLATFORMS
 from .test_button_icons import (
-    REGION_BACK, REGION_UP, REGION_SELECT, REGION_DOWN,
-    REGION_LONG_UP, has_icon_content, matches_icon_reference,
+    get_region, has_icon_content, matches_icon_reference,
     ICON_REFS_DIR
 )
 
@@ -90,9 +89,9 @@ def toggle_to_reverse_mode(emulator):
     Returns screenshot after toggle.
     """
     emulator.hold_button(Button.UP)
-    time.sleep(1)
+    time.sleep(2.0)
     emulator.release_buttons()
-    time.sleep(0.3)
+    time.sleep(0.5)
     return emulator.screenshot("new_mode_reverse")
 
 
@@ -108,9 +107,9 @@ def enter_editsec_mode(emulator):
     emulator.press_select()
     time.sleep(0.3)
     emulator.hold_button(Button.SELECT)
-    time.sleep(1)
+    time.sleep(2.0)
     emulator.release_buttons()
-    time.sleep(0.3)
+    time.sleep(0.5)
     return emulator.screenshot("editsec_mode_forward")
 
 
@@ -120,9 +119,9 @@ def toggle_editsec_to_reverse(emulator):
     Assumes already in EditSec mode.
     """
     emulator.hold_button(Button.UP)
-    time.sleep(1)
+    time.sleep(2.0)
     emulator.release_buttons()
-    time.sleep(0.3)
+    time.sleep(0.5)
     return emulator.screenshot("editsec_mode_reverse")
 
 
@@ -140,17 +139,18 @@ class TestNewModeForwardIcons:
     def test_new_forward_has_icons(self, persistent_emulator):
         """Verify icons exist in all button regions in New mode (forward direction)."""
         emulator = persistent_emulator
+        platform = emulator.platform
         screenshot = enter_new_mode_forward(emulator)
-        assert has_icon_content(screenshot, REGION_BACK), (
+        assert has_icon_content(screenshot, get_region(platform, "BACK")), (
             "Expected +1hr icon content in Back button region"
         )
-        assert has_icon_content(screenshot, REGION_UP), (
+        assert has_icon_content(screenshot, get_region(platform, "UP")), (
             "Expected +20min icon content in Up button region"
         )
-        assert has_icon_content(screenshot, REGION_SELECT), (
+        assert has_icon_content(screenshot, get_region(platform, "SELECT")), (
             "Expected +5min icon content in Select button region"
         )
-        assert has_icon_content(screenshot, REGION_DOWN), (
+        assert has_icon_content(screenshot, get_region(platform, "DOWN")), (
             "Expected +1min icon content in Down button region"
         )
 
@@ -168,48 +168,56 @@ class TestNewModeReverseIcons:
     def test_new_reverse_back_icon(self, persistent_emulator):
         """Verify -1hr icon for Back button in New mode (reverse direction)."""
         emulator = persistent_emulator
+        platform = emulator.platform
         enter_new_mode_forward(emulator)
         screenshot = toggle_to_reverse_mode(emulator)
-        assert has_icon_content(screenshot, REGION_BACK), (
+        region = get_region(platform, "BACK")
+        assert has_icon_content(screenshot, region), (
             "Expected -1hr icon content in Back button region"
         )
-        assert matches_icon_reference(screenshot, REGION_BACK, "new_back_reverse"), (
+        assert matches_icon_reference(screenshot, region, "new_back_reverse", platform=platform), (
             "-1hr icon does not match reference mask"
         )
 
     def test_new_reverse_up_icon(self, persistent_emulator):
         """Verify -20min icon for Up button in New mode (reverse direction)."""
         emulator = persistent_emulator
+        platform = emulator.platform
         enter_new_mode_forward(emulator)
         screenshot = toggle_to_reverse_mode(emulator)
-        assert has_icon_content(screenshot, REGION_UP), (
+        region = get_region(platform, "UP")
+        assert has_icon_content(screenshot, region), (
             "Expected -20min icon content in Up button region"
         )
-        assert matches_icon_reference(screenshot, REGION_UP, "new_up_reverse"), (
+        assert matches_icon_reference(screenshot, region, "new_up_reverse", platform=platform), (
             "-20min icon does not match reference mask"
         )
 
     def test_new_reverse_select_icon(self, persistent_emulator):
         """Verify -5min icon for Select button in New mode (reverse direction)."""
         emulator = persistent_emulator
+        platform = emulator.platform
         enter_new_mode_forward(emulator)
         screenshot = toggle_to_reverse_mode(emulator)
-        assert has_icon_content(screenshot, REGION_SELECT), (
+        region = get_region(platform, "SELECT")
+        assert has_icon_content(screenshot, region), (
             "Expected -5min icon content in Select button region"
         )
-        assert matches_icon_reference(screenshot, REGION_SELECT, "new_select_reverse"), (
+        assert matches_icon_reference(screenshot, region, "new_select_reverse", platform=platform), (
             "-5min icon does not match reference mask"
         )
 
     def test_new_reverse_down_icon(self, persistent_emulator):
         """Verify -1min icon for Down button in New mode (reverse direction)."""
         emulator = persistent_emulator
+        platform = emulator.platform
         enter_new_mode_forward(emulator)
         screenshot = toggle_to_reverse_mode(emulator)
-        assert has_icon_content(screenshot, REGION_DOWN), (
+        region = get_region(platform, "DOWN")
+        assert has_icon_content(screenshot, region), (
             "Expected -1min icon content in Down button region"
         )
-        assert matches_icon_reference(screenshot, REGION_DOWN, "new_down_reverse"), (
+        assert matches_icon_reference(screenshot, region, "new_down_reverse", platform=platform), (
             "-1min icon does not match reference mask"
         )
 
@@ -230,22 +238,25 @@ class TestEditSecModeForwardIcons:
         This test specifically verifies the fix from directional-icons spec.
         """
         emulator = persistent_emulator
+        platform = emulator.platform
         screenshot = enter_editsec_mode(emulator)
-        assert has_icon_content(screenshot, REGION_BACK), (
+        region = get_region(platform, "BACK")
+        assert has_icon_content(screenshot, region), (
             "Expected +60s icon content in Back button region"
         )
-        assert matches_icon_reference(screenshot, REGION_BACK, "editsec_back_plus60"), (
+        assert matches_icon_reference(screenshot, region, "editsec_back_plus60", platform=platform), (
             "+60s icon does not match reference mask (this is the fix for +30 -> +60)"
         )
 
     def test_editsec_forward_has_icons(self, persistent_emulator):
         """Verify icons exist in all button regions in EditSec mode (forward direction)."""
         emulator = persistent_emulator
+        platform = emulator.platform
         screenshot = enter_editsec_mode(emulator)
-        assert has_icon_content(screenshot, REGION_UP), (
+        assert has_icon_content(screenshot, get_region(platform, "UP")), (
             "Expected +20s icon content in Up button region"
         )
-        assert has_icon_content(screenshot, REGION_SELECT), (
+        assert has_icon_content(screenshot, get_region(platform, "SELECT")), (
             "Expected +5s icon content in Select button region"
         )
 
@@ -260,44 +271,52 @@ class TestEditSecModeReverseIcons:
     def test_editsec_reverse_back_icon(self, persistent_emulator):
         """Verify -60s icon for Back button in EditSec mode (reverse direction)."""
         emulator = persistent_emulator
+        platform = emulator.platform
         enter_editsec_mode(emulator)
         screenshot = toggle_editsec_to_reverse(emulator)
-        assert has_icon_content(screenshot, REGION_BACK), (
+        region = get_region(platform, "BACK")
+        assert has_icon_content(screenshot, region), (
             "Expected -60s icon content in Back button region"
         )
-        assert matches_icon_reference(screenshot, REGION_BACK, "editsec_back_reverse"), (
+        assert matches_icon_reference(screenshot, region, "editsec_back_reverse", platform=platform), (
             "-60s icon does not match reference mask"
         )
 
     def test_editsec_reverse_up_icon(self, persistent_emulator):
         """Verify -20s icon for Up button in EditSec mode (reverse direction)."""
         emulator = persistent_emulator
+        platform = emulator.platform
         enter_editsec_mode(emulator)
         screenshot = toggle_editsec_to_reverse(emulator)
-        assert has_icon_content(screenshot, REGION_UP), (
+        region = get_region(platform, "UP")
+        assert has_icon_content(screenshot, region), (
             "Expected -20s icon content in Up button region"
         )
-        assert matches_icon_reference(screenshot, REGION_UP, "editsec_up_reverse"), (
+        assert matches_icon_reference(screenshot, region, "editsec_up_reverse", platform=platform), (
             "-20s icon does not match reference mask"
         )
 
     def test_editsec_reverse_select_icon(self, persistent_emulator):
         """Verify -5s icon for Select button in EditSec mode (reverse direction)."""
         emulator = persistent_emulator
+        platform = emulator.platform
         enter_editsec_mode(emulator)
         screenshot = toggle_editsec_to_reverse(emulator)
-        assert has_icon_content(screenshot, REGION_SELECT), (
+        region = get_region(platform, "SELECT")
+        assert has_icon_content(screenshot, region), (
             "Expected -5s icon content in Select button region"
         )
-        assert matches_icon_reference(screenshot, REGION_SELECT, "editsec_select_reverse"), (
+        assert matches_icon_reference(screenshot, region, "editsec_select_reverse", platform=platform), (
             "-5s icon does not match reference mask"
         )
 
     def test_editsec_reverse_down_icon(self, persistent_emulator):
         """Verify -1s icon for Down button in EditSec mode (reverse direction)."""
         emulator = persistent_emulator
+        platform = emulator.platform
         enter_editsec_mode(emulator)
         screenshot = toggle_editsec_to_reverse(emulator)
-        assert matches_icon_reference(screenshot, REGION_DOWN, "editsec_down_reverse"), (
+        region = get_region(platform, "DOWN")
+        assert matches_icon_reference(screenshot, region, "editsec_down_reverse", platform=platform), (
             "-1s icon does not match reference mask"
         )
