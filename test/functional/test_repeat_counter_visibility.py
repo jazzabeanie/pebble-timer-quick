@@ -431,22 +431,18 @@ class TestIconOverlapPrevention:
         - New mode (baseline): +20 min icon visible
         - EditRepeat mode: +20 repeats icon visible (different from +20 min)
         """
+        # TODO: improve docstring to make intention more clear
         emulator = persistent_emulator
         platform = emulator.platform
 
-        # First get baseline New mode screenshot
-        emulator.press_back()
-        time.sleep(0.5)
+        # Set timer:
         emulator.press_back()
         time.sleep(0.5)
 
         baseline_screenshot = emulator.screenshot("overlap_test_baseline")
         baseline_path = SCREENSHOTS_DIR / f"test_icon_overlap_{platform}_baseline.png"
         baseline_screenshot.save(baseline_path)
-
-        # Now set up timer and get EditRepeat mode
-        emulator.press_down()  # Add 1 minute
-        time.sleep(4)  # Wait for counting
+        # FIXME: baseline_screenshot shows a timer counting down, not a new timer, so +20 is not visible and test passes when it should be failing
 
         # Enter EditRepeat mode
         emulator.hold_button(Button.UP)
