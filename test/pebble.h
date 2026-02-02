@@ -49,8 +49,17 @@ typedef struct Layer Layer;
 typedef struct AppTimer AppTimer;
 typedef void* ClickRecognizerRef;
 typedef struct GContext GContext;
+typedef struct GPoint {
+  int16_t x; int16_t y;
+} GPoint;
+
+typedef struct GSize {
+  int16_t w; int16_t h;
+} GSize;
+
 typedef struct GRect {
-  int16_t x; int16_t y; int16_t w; int16_t h;
+  GPoint origin;
+  GSize size;
 } GRect;
 
 typedef enum {

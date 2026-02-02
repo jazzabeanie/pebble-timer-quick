@@ -449,6 +449,20 @@ static void prv_draw_action_icons(GContext *ctx, GRect bounds) {
   const int16_t long_down_x = icon_down_x - ICON_SMALL_SIZE - 2;
   const int16_t long_down_y = icon_down_y + 12;
 
+  // Determine if repeat counter is visible
+  bool repeat_counter_visible = false;
+  if (timer_data.is_repeating) {
+    if (mode == ControlModeEditRepeat) {
+      repeat_counter_visible = true;
+      uint64_t delta = epoch() - main_get_last_interaction_time();
+      if ((delta % 1000) >= 500) {
+        repeat_counter_visible = false;
+      }
+    } else if (timer_data.repeat_count > 1) {
+      repeat_counter_visible = true;
+    }
+  }
+
   if (mode == ControlModeNew || mode == ControlModeEditSec) {
     // New/EditSec mode: show increment or decrement icons based on direction
     bool is_reverse = main_is_reverse_direction();
@@ -456,8 +470,10 @@ static void prv_draw_action_icons(GContext *ctx, GRect bounds) {
       if (is_reverse) {
         prv_draw_icon(ctx, drawing_data.icon_minus_1hr, icon_back_x, icon_back_y,
                       ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
-        prv_draw_icon(ctx, drawing_data.icon_minus_20min, icon_up_x, icon_up_y,
-                      ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+        if (!repeat_counter_visible) {
+          prv_draw_icon(ctx, drawing_data.icon_minus_20min, icon_up_x, icon_up_y,
+                        ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+        }
         prv_draw_icon(ctx, drawing_data.icon_minus_5min, icon_select_x, icon_select_y,
                       ICON_SMALL_SIZE, ICON_SMALL_SIZE);
         prv_draw_icon(ctx, drawing_data.icon_minus_1min, icon_down_x, icon_down_y,
@@ -465,8 +481,10 @@ static void prv_draw_action_icons(GContext *ctx, GRect bounds) {
       } else {
         prv_draw_icon(ctx, drawing_data.icon_plus_1hr, icon_back_x, icon_back_y,
                       ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
-        prv_draw_icon(ctx, drawing_data.icon_plus_20min, icon_up_x, icon_up_y,
-                      ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+        if (!repeat_counter_visible) {
+          prv_draw_icon(ctx, drawing_data.icon_plus_20min, icon_up_x, icon_up_y,
+                        ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+        }
         prv_draw_icon(ctx, drawing_data.icon_plus_5min, icon_select_x, icon_select_y,
                       ICON_SMALL_SIZE, ICON_SMALL_SIZE);
         prv_draw_icon(ctx, drawing_data.icon_plus_1min, icon_down_x, icon_down_y,
@@ -477,8 +495,10 @@ static void prv_draw_action_icons(GContext *ctx, GRect bounds) {
       if (is_reverse) {
         prv_draw_icon(ctx, drawing_data.icon_minus_60sec, icon_back_x, icon_back_y,
                       ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
-        prv_draw_icon(ctx, drawing_data.icon_minus_20sec, icon_up_x, icon_up_y,
-                      ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+        if (!repeat_counter_visible) {
+          prv_draw_icon(ctx, drawing_data.icon_minus_20sec, icon_up_x, icon_up_y,
+                        ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+        }
         prv_draw_icon(ctx, drawing_data.icon_minus_5sec, icon_select_x, icon_select_y,
                       ICON_SMALL_SIZE, ICON_SMALL_SIZE);
         prv_draw_icon(ctx, drawing_data.icon_minus_1sec, icon_down_x, icon_down_y,
@@ -486,8 +506,10 @@ static void prv_draw_action_icons(GContext *ctx, GRect bounds) {
       } else {
         prv_draw_icon(ctx, drawing_data.icon_plus_60sec, icon_back_x, icon_back_y,
                       ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
-        prv_draw_icon(ctx, drawing_data.icon_plus_20sec, icon_up_x, icon_up_y,
-                      ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+        if (!repeat_counter_visible) {
+          prv_draw_icon(ctx, drawing_data.icon_plus_20sec, icon_up_x, icon_up_y,
+                        ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+        }
         prv_draw_icon(ctx, drawing_data.icon_plus_5sec, icon_select_x, icon_select_y,
                       ICON_SMALL_SIZE, ICON_SMALL_SIZE);
         prv_draw_icon(ctx, drawing_data.icon_plus_1sec, icon_down_x, icon_down_y,
@@ -506,8 +528,11 @@ static void prv_draw_action_icons(GContext *ctx, GRect bounds) {
     // Counting mode icons
     prv_draw_icon(ctx, drawing_data.icon_to_bg, icon_back_x, icon_back_y,
                   ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
-    prv_draw_icon(ctx, drawing_data.icon_edit, icon_up_x, icon_up_y,
-                  ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+    // Hide Edit icon when repeat counter is visible to prevent overlap
+    if (!repeat_counter_visible) {
+      prv_draw_icon(ctx, drawing_data.icon_edit, icon_up_x, icon_up_y,
+                    ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+    }
     if (is_paused) {
       prv_draw_icon(ctx, drawing_data.play_icon, icon_select_x, icon_select_y,
                     ICON_SMALL_SIZE, ICON_SMALL_SIZE);

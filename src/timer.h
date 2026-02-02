@@ -8,6 +8,7 @@
 //! @data October 26, 2015
 //! @bugs No known bugs
 
+#pragma once
 #include <pebble.h>
 
 #define SNOOZE_INCREMENT_MS (MSEC_IN_MIN * 5)

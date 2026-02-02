@@ -25,10 +25,12 @@ TEST_MAIN_SRCS = test_main_logic.c
 # Output
 TEST_TIMER_BIN = run_test_timer
 TEST_MAIN_BIN = run_test_main
+TEST_DRAWING_BIN = run_test_drawing
+TEST_DRAWING_SRCS = test_drawing.c
 
-.PHONY: all test test_timer test_main clean
+.PHONY: all test test_timer test_main test_drawing clean
 
-all: $(TEST_TIMER_BIN) $(TEST_MAIN_BIN)
+all: $(TEST_TIMER_BIN) $(TEST_MAIN_BIN) $(TEST_DRAWING_BIN)
 
 $(TEST_TIMER_BIN): $(TEST_TIMER_SRCS) $(TIMER_SRCS)
 	$(CC) $(CFLAGS) $(INCLUDES) $^ -o $@ $(LDFLAGS) $(LIBS)
@@ -36,8 +38,11 @@ $(TEST_TIMER_BIN): $(TEST_TIMER_SRCS) $(TIMER_SRCS)
 $(TEST_MAIN_BIN): $(TEST_MAIN_SRCS) $(TIMER_SRCS)
 	$(CC) $(CFLAGS) $(INCLUDES) $^ -o $@ $(LDFLAGS) $(LIBS)
 
+$(TEST_DRAWING_BIN): $(TEST_DRAWING_SRCS)
+	$(CC) $(CFLAGS) $(INCLUDES) $^ -o $@ $(LDFLAGS) $(LIBS)
+
 # Run all tests
-test: test_timer test_main
+test: test_timer test_main test_drawing
 
 # Run individual tests
 test_timer: $(TEST_TIMER_BIN)
@@ -46,5 +51,8 @@ test_timer: $(TEST_TIMER_BIN)
 test_main: $(TEST_MAIN_BIN)
 	./$(TEST_MAIN_BIN)
 
+test_drawing: $(TEST_DRAWING_BIN)
+	./$(TEST_DRAWING_BIN)
+
 clean:
-	rm -f $(TEST_TIMER_BIN) $(TEST_MAIN_BIN)
+	rm -f $(TEST_TIMER_BIN) $(TEST_MAIN_BIN) $(TEST_DRAWING_BIN)

@@ -20,7 +20,7 @@ Window* window_create(void) { return (Window*)1; }
 void window_destroy(Window* window) {}
 void window_set_click_config_provider(Window *window, ClickConfigProvider click_config_provider) {}
 Layer* window_get_root_layer(Window *window) { return (Layer*)1; }
-GRect layer_get_bounds(Layer *layer) { return (GRect){0,0,144,168}; }
+GRect layer_get_bounds(Layer *layer) { return (GRect){{0,0},{144,168}}; }
 void window_stack_push(Window *window, bool animated) {}
 void window_stack_pop(bool animated) {}
 void window_single_click_subscribe(ButtonId button_id, ClickHandler handler) {}
