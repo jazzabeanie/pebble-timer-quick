@@ -243,6 +243,176 @@ class TestRepeatCounterVisibility:
         print(f"\nScreenshot for visual verification: {screenshot_path}")
         print(f"UP region non-background pixels: {pixel_count}")
 
+    def test_new_mode_with_repeats_hides_plus_20_icon(self, persistent_emulator):
+        """Verify +20 icon is HIDDEN in New mode when editing a repeating timer.
+
+        When in New mode (edit mode) with is_repeating == true AND repeat_count > 1,
+        the +20 minute icon should NOT be visible to prevent overlap with the
+        repeat counter indicator (e.g., "6x").
+
+        Steps:
+        1. Set up a repeating timer (Counting mode with repeat_count > 1)
+        2. Short-press Up to enter New mode (edit mode)
+        3. Verify the +20 icon is NOT visible in UP region
+        """
+        emulator = persistent_emulator
+        platform = emulator.platform
+
+        # Set up repeating timer (this leaves us in Counting mode with repeats)
+        self._setup_repeating_timer(emulator)
+
+        # Short-press Up to enter edit mode (New mode)
+        emulator.press_up()
+        time.sleep(0.5)
+
+        # Take screenshot in New mode while editing repeating timer
+        screenshot = emulator.screenshot("new_mode_with_repeats")
+
+        # Save for visual inspection
+        screenshot_path = SCREENSHOTS_DIR / f"test_repeat_counter_{platform}_new_with_repeats.png"
+        screenshot.save(screenshot_path)
+        logger.info(f"Screenshot saved: {screenshot_path}")
+
+        # In New mode with repeats, the UP region should NOT show the +20 min icon
+        # The repeat counter indicator (e.g., "6x") is shown instead
+        region = get_region(platform, "UP")
+        pixel_count = count_non_bg_pixels(screenshot, region)
+
+        logger.info(f"New mode (with repeats) UP region non-bg pixels: {pixel_count}")
+
+        # Compare with the +20 min icon reference - it should NOT match
+        matches_plus_20 = matches_icon_reference(
+            screenshot, region, "new_up", platform, auto_save=False, tolerance=10
+        )
+
+        # The +20 icon should NOT be visible (should not match reference)
+        assert not matches_plus_20, (
+            f"+20 min icon should NOT be visible in New mode when editing a repeating timer. "
+            f"The repeat counter indicator should be shown instead. "
+            f"Got {pixel_count} non-bg pixels in UP region."
+        )
+
+        print(f"\nScreenshot for visual verification: {screenshot_path}")
+        print(f"UP region non-background pixels: {pixel_count}")
+        print(f"Matches +20 icon reference: {matches_plus_20}")
+
+    def test_editsec_mode_with_repeats_hides_plus_20_icon(self, persistent_emulator):
+        """Verify +20sec icon is HIDDEN in EditSec mode when editing a repeating timer.
+
+        When in EditSec mode with is_repeating == true AND repeat_count > 1,
+        the +20 second icon should NOT be visible to prevent overlap with the
+        repeat counter indicator (e.g., "6x").
+
+        Steps:
+        1. Set up a repeating timer (Counting mode with repeat_count > 1)
+        2. Short-press Up to enter edit mode (New mode)
+        3. Press Select to enter EditSec mode (by modifying the timer)
+        4. Verify the +20sec icon is NOT visible in UP region
+        """
+        emulator = persistent_emulator
+        platform = emulator.platform
+
+        # Set up repeating timer (this leaves us in Counting mode with repeats)
+        self._setup_repeating_timer(emulator)
+
+        # Short-press Up to enter edit mode (New mode)
+        emulator.press_up()
+        time.sleep(0.5)
+
+        # Press Select to go to EditSec mode (adds time, goes to EditSec)
+        emulator.press_select()
+        time.sleep(0.5)
+
+        # Take screenshot in EditSec mode while editing repeating timer
+        screenshot = emulator.screenshot("editsec_mode_with_repeats")
+
+        # Save for visual inspection
+        screenshot_path = SCREENSHOTS_DIR / f"test_repeat_counter_{platform}_editsec_with_repeats.png"
+        screenshot.save(screenshot_path)
+        logger.info(f"Screenshot saved: {screenshot_path}")
+
+        # In EditSec mode with repeats, the UP region should NOT show the +20sec icon
+        # The repeat counter indicator (e.g., "6x") is shown instead
+        region = get_region(platform, "UP")
+        pixel_count = count_non_bg_pixels(screenshot, region)
+
+        logger.info(f"EditSec mode (with repeats) UP region non-bg pixels: {pixel_count}")
+
+        # Compare with the +20sec icon reference - it should NOT match
+        matches_plus_20sec = matches_icon_reference(
+            screenshot, region, "editsec_up", platform, auto_save=False, tolerance=10
+        )
+
+        # The +20sec icon should NOT be visible (should not match reference)
+        assert not matches_plus_20sec, (
+            f"+20sec icon should NOT be visible in EditSec mode when editing a repeating timer. "
+            f"The repeat counter indicator should be shown instead. "
+            f"Got {pixel_count} non-bg pixels in UP region."
+        )
+
+        print(f"\nScreenshot for visual verification: {screenshot_path}")
+        print(f"UP region non-background pixels: {pixel_count}")
+        print(f"Matches +20sec icon reference: {matches_plus_20sec}")
+
+    def test_new_mode_reverse_with_repeats_hides_minus_20_icon(self, persistent_emulator):
+        """Verify -20min icon is HIDDEN in New mode (reverse) when editing a repeating timer.
+
+        When in New mode with reverse direction, is_repeating == true AND repeat_count > 1,
+        the -20 minute icon should NOT be visible to prevent overlap with the
+        repeat counter indicator.
+
+        Steps:
+        1. Set up a repeating timer (Counting mode with repeat_count > 1)
+        2. Short-press Up to enter edit mode (New mode)
+        3. Long-press Up to toggle to reverse direction
+        4. Verify the -20min icon is NOT visible in UP region
+        """
+        emulator = persistent_emulator
+        platform = emulator.platform
+
+        # Set up repeating timer (this leaves us in Counting mode with repeats)
+        self._setup_repeating_timer(emulator)
+
+        # Short-press Up to enter edit mode (New mode)
+        emulator.press_up()
+        time.sleep(0.5)
+
+        # Long-press Up to toggle to reverse direction
+        emulator.hold_button(Button.UP)
+        time.sleep(1)
+        emulator.release_buttons()
+        time.sleep(0.5)
+
+        # Take screenshot in New mode (reverse) while editing repeating timer
+        screenshot = emulator.screenshot("new_mode_reverse_with_repeats")
+
+        # Save for visual inspection
+        screenshot_path = SCREENSHOTS_DIR / f"test_repeat_counter_{platform}_new_reverse_with_repeats.png"
+        screenshot.save(screenshot_path)
+        logger.info(f"Screenshot saved: {screenshot_path}")
+
+        # In New mode (reverse) with repeats, the UP region should NOT show the -20min icon
+        region = get_region(platform, "UP")
+        pixel_count = count_non_bg_pixels(screenshot, region)
+
+        logger.info(f"New mode reverse (with repeats) UP region non-bg pixels: {pixel_count}")
+
+        # Compare with the -20min icon reference - it should NOT match
+        matches_minus_20 = matches_icon_reference(
+            screenshot, region, "new_up_reverse", platform, auto_save=False, tolerance=10
+        )
+
+        # The -20min icon should NOT be visible (should not match reference)
+        assert not matches_minus_20, (
+            f"-20min icon should NOT be visible in New mode (reverse) when editing a repeating timer. "
+            f"The repeat counter indicator should be shown instead. "
+            f"Got {pixel_count} non-bg pixels in UP region."
+        )
+
+        print(f"\nScreenshot for visual verification: {screenshot_path}")
+        print(f"UP region non-background pixels: {pixel_count}")
+        print(f"Matches -20min icon reference: {matches_minus_20}")
+
 
 class TestIconOverlapPrevention:
     """Tests specifically for the icon overlap fix (commit 96a5f47).
