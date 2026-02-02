@@ -424,53 +424,75 @@ class TestIconOverlapPrevention:
     def test_editrepeat_mode_icon_comparison(self, persistent_emulator):
         """Compare UP region in EditRepeat mode vs baseline New mode.
 
-        This test captures both states and saves screenshots for visual
-        comparison to verify the icon overlap fix.
+        This test verifies the icon overlap prevention fix (commit 96a5f47).
+        In New mode (baseline), the UP button shows the +20 min icon.
+        In EditRepeat mode, the UP button should show the +20 repeats icon.
 
-        Expected:
-        - New mode (baseline): +20 min icon visible
-        - EditRepeat mode: +20 repeats icon visible (different from +20 min)
+        Crucially, in EditRepeat mode, the +20 min icon should NOT be visible
+        (no overlap).
+
+        Steps:
+        1. Capture baseline in New Mode (should verify +20 min icon present)
+        2. Transition to EditRepeat Mode
+        3. Capture EditRepeat screenshot (should verify +20 repeats icon present)
+        4. Assert that EditRepeat screenshot does NOT match +20 min icon
         """
-        # TODO: improve docstring to make intention more clear
         emulator = persistent_emulator
         platform = emulator.platform
 
-        # Set timer:
-        emulator.press_back()
-        time.sleep(0.5)
-
+        # 1. Baseline: We start in New Mode (fresh app state from fixture)
         baseline_screenshot = emulator.screenshot("overlap_test_baseline")
         baseline_path = SCREENSHOTS_DIR / f"test_icon_overlap_{platform}_baseline.png"
         baseline_screenshot.save(baseline_path)
-        # FIXME: baseline_screenshot shows a timer counting down, not a new timer, so +20 is not visible and test passes when it should be failing
+        logger.info(f"Baseline screenshot saved: {baseline_path}")
 
-        # Enter EditRepeat mode
+        # Verify we have content in UP region (baseline +20 min icon)
+        region = get_region(platform, "UP")
+        baseline_pixels = count_non_bg_pixels(baseline_screenshot, region)
+
+        assert has_icon_content(baseline_screenshot, region), (
+            f"Baseline New Mode should show content in UP region (+20 min icon). "
+            f"Got {baseline_pixels} non-bg pixels."
+        )
+
+        # 2. Transition to EditRepeat Mode
+        # First, set a timer (press Down adds 1 min) to ensure we are not in stopwatch mode
+        emulator.press_down()
+        time.sleep(0.5)
+
+        # Wait for auto-start to Counting Mode (3s timeout + buffer)
+        time.sleep(4)
+
+        # Hold UP to enter EditRepeat Mode
         emulator.hold_button(Button.UP)
         time.sleep(1)
         emulator.release_buttons()
         time.sleep(0.5)
 
+        # 3. Capture EditRepeat screenshot
         editrepeat_screenshot = emulator.screenshot("overlap_test_editrepeat")
         editrepeat_path = SCREENSHOTS_DIR / f"test_icon_overlap_{platform}_editrepeat.png"
         editrepeat_screenshot.save(editrepeat_path)
+        logger.info(f"EditRepeat screenshot saved: {editrepeat_path}")
 
-        # Get UP region for both
-        region = get_region(platform, "UP")
-
-        baseline_pixels = count_non_bg_pixels(baseline_screenshot, region)
+        # Verify we have content in UP region (EditRepeat +20 repeats icon)
         editrepeat_pixels = count_non_bg_pixels(editrepeat_screenshot, region)
 
-        logger.info(f"Baseline UP region pixels: {baseline_pixels}")
-        logger.info(f"EditRepeat UP region pixels: {editrepeat_pixels}")
+        assert has_icon_content(editrepeat_screenshot, region), (
+            f"EditRepeat Mode should show content in UP region (+20 repeats icon). "
+            f"Got {editrepeat_pixels} non-bg pixels."
+        )
 
-        print(f"\n=== Icon Overlap Test Results ===")
-        print(f"Platform: {platform}")
-        print(f"Baseline (New mode) screenshot: {baseline_path}")
-        print(f"EditRepeat mode screenshot: {editrepeat_path}")
-        print(f"\nUP region non-bg pixels:")
-        print(f"  Baseline (New mode): {baseline_pixels}")
-        print(f"  EditRepeat mode: {editrepeat_pixels}")
-        print(f"\nVisually compare these screenshots to verify:")
-        print(f"  1. New mode shows +20 min icon")
-        print(f"  2. EditRepeat mode shows +20 repeats icon (different appearance)")
-        print(f"  3. No icon overlap in either mode")
+        # 4. Assert that EditRepeat screenshot does NOT match +20 min icon (overlap check)
+        # We check against "new_up" reference which is the +20 min icon
+        matches_plus_20 = matches_icon_reference(
+            editrepeat_screenshot, region, "new_up", platform, auto_save=False, tolerance=10
+        )
+
+        assert not matches_plus_20, (
+            "EditRepeat mode should NOT show +20 min icon. "
+            "The +20 repeats icon should be shown instead. "
+            "Visual overlap detected (match with new_up reference)."
+        )
+
+        logger.info(f"Baseline pixels: {baseline_pixels}, EditRepeat pixels: {editrepeat_pixels}")
