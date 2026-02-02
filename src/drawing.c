@@ -528,8 +528,11 @@ static void prv_draw_action_icons(GContext *ctx, GRect bounds) {
     // Counting mode icons
     prv_draw_icon(ctx, drawing_data.icon_to_bg, icon_back_x, icon_back_y,
                   ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
-    prv_draw_icon(ctx, drawing_data.icon_edit, icon_up_x, icon_up_y,
-                  ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+    // Hide Edit icon when repeat counter is visible to prevent overlap
+    if (!repeat_counter_visible) {
+      prv_draw_icon(ctx, drawing_data.icon_edit, icon_up_x, icon_up_y,
+                    ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+    }
     if (is_paused) {
       prv_draw_icon(ctx, drawing_data.play_icon, icon_select_x, icon_select_y,
                     ICON_SMALL_SIZE, ICON_SMALL_SIZE);

@@ -109,6 +109,12 @@ To save screenshots for debugging:
 python -m pytest test_create_timer.py -v --save-screenshots
 ```
 
+LLMs run tests like so: 
+
+```
+cd test/functional && ../../conda-env/bin/python -m pytest test_repeat_counter_visibility.py -v --platform=basalt 2>&1
+```
+
 ## Building instructions for LLMs
 
 After making code changes, do not active the conda environment. Just run build with

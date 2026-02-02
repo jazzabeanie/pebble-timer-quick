@@ -159,10 +159,11 @@ class TestRepeatCounterVisibility:
         """Verify UP region appearance in counting mode with repeat_count > 1.
 
         When counting with repeat_count > 1, the repeat indicator (e.g., "6x")
-        should be visible. In counting mode, the UP button shows "repeat" icon
-        (for entering EditRepeat), not the +20 icon.
+        should be visible and the Edit icon should NOT be shown to prevent overlap.
 
-        This test verifies the counting mode appearance as a baseline.
+        This test verifies:
+        1. The repeat counter is visible (has content in UP region)
+        2. The Edit icon is NOT shown (region should not match Edit icon reference)
         """
         emulator = persistent_emulator
         platform = emulator.platform
@@ -179,13 +180,26 @@ class TestRepeatCounterVisibility:
         screenshot.save(screenshot_path)
         logger.info(f"Screenshot saved: {screenshot_path}")
 
-        # In counting mode, the UP region should show the "enable repeat" icon
-        # AND the repeat counter indicator should be visible (if repeat_count > 1)
+        # In counting mode with repeat_count > 1, the UP region should:
+        # 1. Have some content (the repeat counter indicator like "6x")
+        # 2. NOT match the Edit icon reference (Edit icon should be hidden)
         region = get_region(platform, "UP")
 
-        # There should be icon content (the enable-repeat icon or indicator)
+        # Verify there's content in the UP region (the repeat counter indicator)
         has_content = has_icon_content(screenshot, region)
         logger.info(f"UP region has content: {has_content}")
+        assert has_content, "Expected repeat counter indicator in UP region"
+
+        # Verify the Edit icon is NOT shown (should not match the Edit icon reference)
+        # The Edit icon reference is "counting_up" - if it matches, that means
+        # the Edit icon is being shown which is incorrect
+        matches_edit = matches_icon_reference(
+            screenshot, region, "counting_up", platform, auto_save=False, tolerance=10
+        )
+        assert not matches_edit, (
+            f"Edit icon should NOT be visible in counting mode when repeat_count > 1. "
+            f"Only the repeat counter indicator (e.g., '6x') should be shown."
+        )
 
         print(f"\nScreenshot for visual verification: {screenshot_path}")
 
