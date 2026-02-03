@@ -470,14 +470,30 @@ class TestIconOverlapPrevention:
         time.sleep(0.5)
 
         # 3. Capture EditRepeat screenshot
-        editrepeat_screenshot = emulator.screenshot("overlap_test_editrepeat")
+        # The repeat indicator flashes, so we take two screenshots to ensure we catch it when visible.
+        # We'll use the one with the most content in the UP region (where the +20 repeats icon is).
+
+        editrepeat_screenshot_1 = emulator.screenshot("overlap_test_editrepeat_1")
+        time.sleep(0.5)
+        editrepeat_screenshot_2 = emulator.screenshot("overlap_test_editrepeat_2")
+
+        pixels_1 = count_non_bg_pixels(editrepeat_screenshot_1, region)
+        pixels_2 = count_non_bg_pixels(editrepeat_screenshot_2, region)
+
+        if pixels_1 >= pixels_2:
+            editrepeat_screenshot = editrepeat_screenshot_1
+            editrepeat_pixels = pixels_1
+            best_shot_name = "1"
+        else:
+            editrepeat_screenshot = editrepeat_screenshot_2
+            editrepeat_pixels = pixels_2
+            best_shot_name = "2"
+
         editrepeat_path = SCREENSHOTS_DIR / f"test_icon_overlap_{platform}_editrepeat.png"
         editrepeat_screenshot.save(editrepeat_path)
-        logger.info(f"EditRepeat screenshot saved: {editrepeat_path}")
+        logger.info(f"EditRepeat screenshot saved (using shot {best_shot_name}): {editrepeat_path}")
 
         # Verify we have content in UP region (EditRepeat +20 repeats icon)
-        editrepeat_pixels = count_non_bg_pixels(editrepeat_screenshot, region)
-
         assert has_icon_content(editrepeat_screenshot, region), (
             f"EditRepeat Mode should show content in UP region (+20 repeats icon). "
             f"Got {editrepeat_pixels} non-bg pixels."
