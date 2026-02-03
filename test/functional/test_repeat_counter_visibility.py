@@ -447,7 +447,7 @@ class TestIconOverlapPrevention:
 
         # Wait for flash OFF phase (~600ms after release to land in OFF window)
         # Flash cycle: 0-500ms = ON, 500-1000ms = OFF
-        time.sleep(0.6)
+        time.sleep(0.3)
 
         # Take screenshot during flash OFF
         screenshot = emulator.screenshot("editrepeat_flash_off")
@@ -457,6 +457,9 @@ class TestIconOverlapPrevention:
         # can produce ~100 non-background pixels in this region.
         region = get_region(platform, "UP")
         has_content = has_icon_content(screenshot, region, threshold=120)
+        # FIXME: this does not detect when there is text in the up button region.
+        # If you change the sleep time above (to 0.6) so that the repat icon is
+        # flashing, it will still pass the test when it should fail.
 
         assert not has_content, (
             "UP region should be empty during flash OFF in EditRepeat mode. "
