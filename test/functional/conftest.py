@@ -20,6 +20,9 @@ logger = logging.getLogger(__name__)
 # Add pebble tool to path
 CONDA_ENV = Path(__file__).parent.parent.parent / "conda-env"
 PEBBLE_CMD = CONDA_ENV / "bin" / "pebble"
+if not PEBBLE_CMD.exists():
+    PEBBLE_CMD = Path("pebble")
+
 PYTHON_CMD = CONDA_ENV / "bin" / "python"
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 
