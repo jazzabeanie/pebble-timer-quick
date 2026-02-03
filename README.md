@@ -94,6 +94,12 @@ python -m pytest test_create_timer.py -v
 To run on a specific platform:
 
 ```bash
+python -m pytest -v --platform=basalt
+```
+
+To run a specific file:
+
+```bash
 python -m pytest test_create_timer.py -v --platform=basalt
 ```
 

@@ -469,37 +469,28 @@ class TestIconOverlapPrevention:
         emulator.release_buttons()
         time.sleep(0.5)
 
-        # 3. Capture EditRepeat screenshot
-        # The repeat indicator flashes, so we take two screenshots to ensure we catch it when visible.
-        # We'll use the one with the most content in the UP region (where the +20 repeats icon is).
-
         editrepeat_screenshot_1 = emulator.screenshot("overlap_test_editrepeat_1")
         time.sleep(0.5)
-        editrepeat_screenshot_2 = emulator.screenshot("overlap_test_editrepeat_2")
 
         pixels_1 = count_non_bg_pixels(editrepeat_screenshot_1, region)
-        pixels_2 = count_non_bg_pixels(editrepeat_screenshot_2, region)
 
-        if pixels_1 >= pixels_2:
-            editrepeat_screenshot = editrepeat_screenshot_1
-            editrepeat_pixels = pixels_1
-            best_shot_name = "1"
-        else:
-            editrepeat_screenshot = editrepeat_screenshot_2
-            editrepeat_pixels = pixels_2
-            best_shot_name = "2"
+        editrepeat_screenshot = editrepeat_screenshot_1
+        editrepeat_pixels = pixels_1
+        best_shot_name = "1"
 
         editrepeat_path = SCREENSHOTS_DIR / f"test_icon_overlap_{platform}_editrepeat.png"
         editrepeat_screenshot.save(editrepeat_path)
         logger.info(f"EditRepeat screenshot saved (using shot {best_shot_name}): {editrepeat_path}")
 
-        # Verify we have content in UP region (EditRepeat +20 repeats icon)
-        assert has_icon_content(editrepeat_screenshot, region), (
-            f"EditRepeat Mode should show content in UP region (+20 repeats icon). "
-            f"Got {editrepeat_pixels} non-bg pixels."
+        # 4. Assert that EditRepeat screenshot has more background pixels than the baseline
+        # (meaning it has FEWER non-background pixels, because the +20 icon should be hidden)
+        assert editrepeat_pixels < baseline_pixels, (
+            f"EditRepeat mode should have fewer non-background pixels ({editrepeat_pixels}) "
+            f"than baseline New mode ({baseline_pixels}) because the +20 icon should be hidden "
+            f"to avoid overlap with the repeat counter. Visual overlap detected."
         )
 
-        # 4. Assert that EditRepeat screenshot does NOT match +20 min icon (overlap check)
+        # 5. Assert that EditRepeat screenshot does NOT match +20 min icon (overlap check)
         # We check against "new_up" reference which is the +20 min icon
         matches_plus_20 = matches_icon_reference(
             editrepeat_screenshot, region, "new_up", platform, auto_save=False, tolerance=10
