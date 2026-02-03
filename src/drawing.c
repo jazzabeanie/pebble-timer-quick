@@ -556,8 +556,7 @@ static void prv_draw_action_icons(GContext *ctx, GRect bounds) {
     // EditRepeat mode icons
     prv_draw_icon(ctx, drawing_data.icon_reset_count, icon_back_x, icon_back_y,
                   ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
-    prv_draw_icon(ctx, drawing_data.icon_plus_20_rep, icon_up_x, icon_up_y,
-                  ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+    // +20 rep icon intentionally not drawn - overlaps with repeat counter indicator
     prv_draw_icon(ctx, drawing_data.icon_plus_5_rep, icon_select_x, icon_select_y,
                   ICON_SMALL_SIZE, ICON_SMALL_SIZE);
     prv_draw_icon(ctx, drawing_data.icon_plus_1_rep, icon_down_x, icon_down_y,

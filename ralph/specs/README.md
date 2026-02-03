@@ -192,9 +192,9 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 **Summary:** Fixes a visual overlap bug where the +20 rep button icon is displayed simultaneously with the repeat counter indicator in EditRepeat mode. The fix removes the +20 rep icon drawing in EditRepeat mode to prevent overlap.
 
-**Status:** Not Started
+**Status:** Completed
 
-**Tests:** Failing (test to be created as part of TDD process)
+**Tests:** Passing
 
 **Dependencies:** button-icons.md (spec #8), repeating-timer.md (spec #6)
 

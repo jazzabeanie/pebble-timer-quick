@@ -184,8 +184,12 @@ A comment can be added in the code advising how to change to this alternative im
 - `test/functional/test_button_icons.py` - regression test suite
 
 ## 7. Status
-- **Status:** Not Started
-- **Tests:** Failing (test to be created as part of TDD process)
+- **Status:** Completed
+- **Tests:** Passing
 
 ## 8. Progress
-(To be updated during implementation)
+- 2026-02-03: COMPLETED implementation. Removed `+20 rep` icon drawing from `EditRepeat` mode in `src/drawing.c`.
+- 2026-02-03: VERIFIED with `test_editrepeat_up_region_empty_during_flash_off` in `test/functional/test_repeat_counter_visibility.py`.
+- 2026-02-03: UPDATED `test/functional/test_button_icons.py` to match new behavior (removed +20 rep icon check, lowered threshold for reset count icon).
+- 2026-02-03: STARTED implementation. Identified overlap coordinates in `src/drawing.c`.
+- 2026-02-03: CREATING failing test case in `test/functional/test_repeat_counter_visibility.py`.
