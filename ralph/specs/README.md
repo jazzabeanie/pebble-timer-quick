@@ -185,6 +185,21 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 ---
 
+### 13. Repeat Indicator Icon Overlap Fix
+**File:** [repeat-indicator-overlap-fix.md](repeat-indicator-overlap-fix.md)
+
+**Keywords:** repeat indicator, icon overlap, EditRepeat mode, +20 rep icon, visual bug, drawing.c, button icons
+
+**Summary:** Fixes a visual overlap bug where the +20 rep button icon is displayed simultaneously with the repeat counter indicator in EditRepeat mode. The fix removes the +20 rep icon drawing in EditRepeat mode to prevent overlap.
+
+**Status:** Not Started
+
+**Tests:** Failing (test to be created as part of TDD process)
+
+**Dependencies:** button-icons.md (spec #8), repeating-timer.md (spec #6)
+
+---
+
 ## Adding New Specifications
 
 When creating a new spec file:
