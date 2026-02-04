@@ -803,7 +803,7 @@ class TestRepeatTimerDuringAlarm:
         time.sleep(0.3)
 
         # Add 5 seconds by pressing Down 5 times
-        for i in range(5):
+        for i in range(4):
             emulator.press_down()
             time.sleep(0.2)
 
@@ -846,8 +846,178 @@ class TestRepeatTimerDuringAlarm:
         assert state_repeat is not None, "Did not receive long_press_up state after holding Up during alarm"
         logger.info(f"After repeat state: {state_repeat}")
 
-        # Should show ~0:05 (the original timer duration) and be counting down
-        assert_time_approximately(state_repeat, minutes=0, seconds=5, tolerance=2)
+        # Should show ~0:04 (the original timer duration) and be counting down
+        assert_time_approximately(state_repeat, minutes=0, seconds=4, tolerance=2)
+        assert_mode(state_repeat, "Counting")
+        assert_paused(state_repeat, False)
+        assert_vibrating(state_repeat, False)
+
+    def test_hold_up_during_longer_alarm_repeats_timer(self, persistent_emulator):
+        """
+        Verify that holding the Up button while the alarm is vibrating
+        repeats the current timer from its original duration.
+
+        This tests the specific interaction when the timer has completed
+        and is actively alarming (vibrating). Holding Up should:
+        1. Stop the alarm
+        2. Restart the timer from its original duration
+
+        Steps:
+        1. Set up and start a 5-second timer
+        2. Wait for alarm_start event (timer vibrating)
+        3. Hold Up button while alarm is active
+        4. Verify alarm stops and timer restarts at original duration
+        """
+        emulator = persistent_emulator
+
+        # Start log capture
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        time.sleep(1.0)
+        capture.clear_state_queue()
+
+        # TODO: assert state is edit mode
+        # Long press Select to enter EditSec mode
+        emulator.hold_button(Button.SELECT)
+        time.sleep(1)
+        emulator.release_buttons()
+        time.sleep(0.3)
+
+        # Add 5 seconds
+        emulator.press_select()
+        time.sleep(1)
+        emulator.press_select()
+
+        # Wait for edit mode to expire and transition to Counting mode
+        # (Sub-minute timers now stay paused after edit expires)
+        logger.info("Waiting for edit mode to expire...")
+        time.sleep(3.5)
+
+        # Press Select to start the paused timer
+        logger.info("Pressing Select to start 5-second timer...")
+        emulator.press_select()
+
+        # Consume log events from setup
+        capture.clear_state_queue()
+
+        # Step 2: Wait for alarm_start
+        logger.info("Waiting for alarm to start...")
+        state_alarm = capture.wait_for_state(event="alarm_start", timeout=12.0)
+        if state_alarm is None:
+            logger.error(f"All captured logs: {capture.get_all_logs()}")
+        assert state_alarm is not None, "Timer did not alarm"
+        assert_vibrating(state_alarm, True)
+        logger.info(f"Alarm started: {state_alarm}")
+
+        # Step 3: Hold Up to repeat the timer
+        emulator.hold_button(Button.UP)
+        time.sleep(1.0)
+        emulator.release_buttons()
+
+        # Step 4: Wait for alarm_stop and the repeat action
+        state_stop = capture.wait_for_state(event="alarm_stop", timeout=5.0)
+        state_repeat = capture.wait_for_state(event="long_press_up", timeout=5.0)
+
+        capture.stop()
+
+        # Verify the alarm stopped
+        assert state_stop is not None, "Alarm did not stop after holding Up"
+
+        # Verify the timer was repeated
+        assert state_repeat is not None, "Did not receive long_press_up state after holding Up during alarm"
+        logger.info(f"After repeat state: {state_repeat}")
+
+        # Should show ~0:10 (the original timer duration) and be counting down
+        assert_time_approximately(state_repeat, minutes=0, seconds=10, tolerance=2)
+        assert_mode(state_repeat, "Counting")
+        assert_paused(state_repeat, False)
+        assert_vibrating(state_repeat, False)
+
+    def test_hold_up_during_longer_alarm_repeats_timer_old_method(self, persistent_emulator):
+        """
+        Verify that holding the Up button while the alarm is vibrating
+        repeats the current timer from its original duration.
+
+        This tests the specific interaction when the timer has completed
+        and is actively alarming (vibrating). Holding Up should:
+        1. Stop the alarm
+        2. Restart the timer from its original duration
+
+        Steps:
+        1. Set up and start a 5-second timer
+        2. Wait for alarm_start event (timer vibrating)
+        3. Hold Up button while alarm is active
+        4. Verify alarm stops and timer restarts at original duration
+        """
+        emulator = persistent_emulator
+
+        # Start log capture
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        time.sleep(1.0)
+        capture.clear_state_queue()
+
+        # Step 1: Set up 5-second timer manually using Select to start
+        # Wait for app to enter chrono mode (0:00 counting up)
+        logger.info("Waiting for chrono mode...")
+        time.sleep(3.5)
+
+        # Pause the chrono
+        emulator.press_select()
+        time.sleep(0.3)
+
+        # Long press Select to enter EditSec mode
+        emulator.hold_button(Button.SELECT)
+        time.sleep(1)
+        emulator.release_buttons()
+        time.sleep(0.3)
+
+        # Add 5 seconds
+        emulator.press_select()
+        time.sleep(1)
+        emulator.press_select()
+
+        # Wait for edit mode to expire and transition to Counting mode
+        # (Sub-minute timers now stay paused after edit expires)
+        logger.info("Waiting for edit mode to expire...")
+        time.sleep(3.5)
+
+        # Press Select to start the paused timer
+        logger.info("Pressing Select to start 5-second timer...")
+        emulator.press_select()
+
+        # Consume log events from setup
+        capture.clear_state_queue()
+
+        # Step 2: Wait for alarm_start
+        logger.info("Waiting for alarm to start...")
+        state_alarm = capture.wait_for_state(event="alarm_start", timeout=12.0)
+        if state_alarm is None:
+            logger.error(f"All captured logs: {capture.get_all_logs()}")
+        assert state_alarm is not None, "Timer did not alarm"
+        assert_vibrating(state_alarm, True)
+        logger.info(f"Alarm started: {state_alarm}")
+
+        # Step 3: Hold Up to repeat the timer
+        emulator.hold_button(Button.UP)
+        time.sleep(1.0)
+        emulator.release_buttons()
+
+        # Step 4: Wait for alarm_stop and the repeat action
+        state_stop = capture.wait_for_state(event="alarm_stop", timeout=5.0)
+        state_repeat = capture.wait_for_state(event="long_press_up", timeout=5.0)
+
+        capture.stop()
+
+        # Verify the alarm stopped
+        assert state_stop is not None, "Alarm did not stop after holding Up"
+
+        # Verify the timer was repeated
+        assert state_repeat is not None, "Did not receive long_press_up state after holding Up during alarm"
+        logger.info(f"After repeat state: {state_repeat}")
+
+        # Should show ~0:10 (the original timer duration) and be counting down
+        assert_time_approximately(state_repeat, minutes=0, seconds=10, tolerance=2)
         assert_mode(state_repeat, "Counting")
         assert_paused(state_repeat, False)
         assert_vibrating(state_repeat, False)

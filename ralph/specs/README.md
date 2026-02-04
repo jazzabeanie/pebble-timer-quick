@@ -215,6 +215,36 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 ---
 
+### 15. Select Button EditSec Modified Flag Fix
+**File:** [select-editsec-modified-flag.md](select-editsec-modified-flag.md)
+
+**Keywords:** bug fix, EditSec, Select button, timer_length_modified_in_edit_mode, base_length_ms, hold up repeat, alarm
+
+**Summary:** Fixes a bug where pressing Select in `ControlModeEditSec` does not set the `timer_length_modified_in_edit_mode` flag, causing `base_length_ms` to not be updated and breaking the "hold Up to repeat" feature during alarm.
+
+**Status:** Not Started
+
+**Tests:** NA
+
+**Dependencies:** edit-mode-reset.md (spec #9), timer-workflow-tests.md (spec #5)
+
+---
+
+### 16. EditSec from ControlModeNew is New Timer Fix
+**File:** [editsec-from-new-is-new-timer.md](editsec-from-new-is-new-timer.md)
+
+**Keywords:** bug fix, EditSec, ControlModeNew, is_editing_existing_timer, long press select, base_length_ms, hold up repeat, alarm
+
+**Summary:** Fixes a bug where entering `ControlModeEditSec` from `ControlModeNew` via long press Select incorrectly sets `is_editing_existing_timer = true`. Since this resets the timer to 0:00, it's creating a new timer, so the flag should be `false`.
+
+**Status:** Not Started
+
+**Tests:** NA
+
+**Dependencies:** edit-mode-reset.md (spec #9), select-editsec-modified-flag.md (spec #15)
+
+---
+
 ## Adding New Specifications
 
 When creating a new spec file:
