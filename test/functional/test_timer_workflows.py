@@ -758,3 +758,264 @@ class TestEditRepeatModeNoOp:
         assert_mode(state_after, "EditRepeat")
         # repeat_count should be same (0)
         assert_repeat_count(state_after, 0)
+
+
+class TestRepeatTimerDuringAlarm:
+    """Test 12: Holding Up during alarm repeats the current timer."""
+
+    def test_hold_up_during_alarm_repeats_timer(self, persistent_emulator):
+        """
+        Verify that holding the Up button while the alarm is vibrating
+        repeats the current timer from its original duration.
+
+        This tests the specific interaction when the timer has completed
+        and is actively alarming (vibrating). Holding Up should:
+        1. Stop the alarm
+        2. Restart the timer from its original duration
+
+        Steps:
+        1. Set up and start a 4-second timer
+        2. Wait for alarm_start event (timer vibrating)
+        3. Hold Up button while alarm is active
+        4. Verify alarm stops and timer restarts at original duration
+        """
+        emulator = persistent_emulator
+
+        # Start log capture
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        time.sleep(1.0)
+        capture.clear_state_queue()
+
+        # Step 1: Set up 5-second timer manually using Select to start
+        # Wait for app to enter chrono mode (0:00 counting up)
+        logger.info("Waiting for chrono mode...")
+        time.sleep(3.5)
+
+        # Pause the chrono
+        emulator.press_select()
+        time.sleep(0.3)
+
+        # Long press Select to enter EditSec mode
+        emulator.hold_button(Button.SELECT)
+        time.sleep(1)
+        emulator.release_buttons()
+        time.sleep(0.3)
+
+        # Add 5 seconds by pressing Down 5 times
+        for i in range(5):
+            emulator.press_down()
+            time.sleep(0.2)
+
+        # Press Select to start the timer (instead of waiting for expire)
+        logger.info("Pressing Select to start 5-second timer...")
+        emulator.press_select()
+
+        # Consume log events from setup
+        capture.clear_state_queue()
+
+        # Step 2: Wait for alarm_start
+        logger.info("Waiting for alarm to start...")
+        state_alarm = capture.wait_for_state(event="alarm_start", timeout=15.0)
+        if state_alarm is None:
+            logger.error(f"All captured logs: {capture.get_all_logs()}")
+        assert state_alarm is not None, "Timer did not alarm"
+        assert_vibrating(state_alarm, True)
+        logger.info(f"Alarm started: {state_alarm}")
+
+        # Step 3: Hold Up to repeat the timer
+        emulator.hold_button(Button.UP)
+        time.sleep(1.0)
+        emulator.release_buttons()
+
+        # Step 4: Wait for alarm_stop and the repeat action
+        state_stop = capture.wait_for_state(event="alarm_stop", timeout=5.0)
+        state_repeat = capture.wait_for_state(event="long_press_up", timeout=5.0)
+
+        capture.stop()
+
+        # Verify the alarm stopped
+        assert state_stop is not None, "Alarm did not stop after holding Up"
+
+        # Verify the timer was repeated
+        assert state_repeat is not None, "Did not receive long_press_up state after holding Up during alarm"
+        logger.info(f"After repeat state: {state_repeat}")
+
+        # Should show ~0:05 (the original timer duration) and be counting down
+        assert_time_approximately(state_repeat, minutes=0, seconds=5, tolerance=2)
+        assert_mode(state_repeat, "Counting")
+        assert_paused(state_repeat, False)
+        assert_vibrating(state_repeat, False)
+
+
+class TestSubMinuteTimerStaysPaused:
+    """Test 13: Sub-minute timers stay paused after edit mode expires."""
+
+    def test_sub_minute_timer_stays_paused_after_edit_expires(self, persistent_emulator):
+        """
+        Verify that when creating a stopwatch with seconds (e.g., 10 seconds),
+        it remains paused when edit mode expires and requires manual unpause.
+
+        Current expected behavior (to be implemented):
+        - After setting seconds in EditSec mode
+        - When the 3-second inactivity timer expires
+        - Timer should transition to Counting mode but remain PAUSED
+        - User must press Select to start the timer
+
+        Steps:
+        1. Wait for app to enter chrono mode (0:00 counting up)
+        2. Pause the chrono with Select
+        3. Long press Select to enter EditSec mode
+        4. Press Down 10 times to set 10 seconds
+        5. Wait for edit mode to expire (3.5 seconds)
+        6. Verify timer is in Counting mode but PAUSED at ~0:10
+        """
+        emulator = persistent_emulator
+
+        # Start log capture
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        time.sleep(1.0)
+        capture.clear_state_queue()
+
+        # Step 1: Wait for auto-chrono mode (0:00 counting up)
+        logger.info("Waiting for chrono mode...")
+        time.sleep(3.5)
+
+        # Consume any mode_change events from startup
+        capture.wait_for_state(event="mode_change", timeout=2.0)
+
+        # Step 2: Pause the chrono
+        emulator.press_select()
+        state_paused = capture.wait_for_state(event="button_select", timeout=5.0)
+        assert state_paused is not None
+        assert_paused(state_paused, True)
+        logger.info("Chrono paused")
+
+        # Step 3: Long press Select to enter EditSec mode
+        emulator.hold_button(Button.SELECT)
+        time.sleep(1)
+        emulator.release_buttons()
+        state_edit = capture.wait_for_state(event="long_press_select", timeout=5.0)
+        assert state_edit is not None
+        assert_mode(state_edit, "EditSec")
+        logger.info("Entered EditSec mode")
+
+        # Step 4: Press Down 10 times to set 10 seconds
+        for i in range(10):
+            emulator.press_down()
+            time.sleep(0.15)
+
+        # Consume the button_down events
+        for i in range(10):
+            capture.wait_for_state(event="button_down", timeout=2.0)
+
+        # Step 5: Wait for edit mode to expire (3 seconds after last button)
+        logger.info("Waiting for edit mode to expire...")
+        time.sleep(3.5)
+
+        # Step 6: Wait for mode_change to Counting
+        state_after_expire = capture.wait_for_state(event="mode_change", timeout=5.0)
+
+        capture.stop()
+
+        assert state_after_expire is not None, "Did not receive mode_change after edit expired"
+        logger.info(f"After edit expired: {state_after_expire}")
+
+        # Verify the timer is in Counting mode
+        assert_mode(state_after_expire, "Counting")
+
+        # KEY ASSERTION: Timer should be PAUSED after edit mode expires
+        # (This is the new behavior being tested - currently it auto-starts)
+        assert_paused(state_after_expire, True), (
+            "Sub-minute timer should remain paused after edit mode expires. "
+            "Expected paused=1 but timer auto-started."
+        )
+
+        # Verify time is approximately what we set
+        assert_time_approximately(state_after_expire, minutes=0, seconds=10, tolerance=2)
+
+
+class TestMinuteAndSecondsTimerStaysPaused:
+    """Test 14: Timer with minutes and seconds stays paused after edit mode expires."""
+
+    def test_minute_and_seconds_timer_stays_paused(self, persistent_emulator):
+        """
+        Verify that when creating a timer with both minutes AND seconds
+        (e.g., 1 minute and 20 seconds), it remains paused when edit mode expires.
+
+        This tests the case where seconds are added to a minute-based timer.
+
+        Steps:
+        1. Set a 1-minute timer (press Down once)
+        2. Press Up to enter edit mode
+        3. Long press Select to reset and enter EditSec mode
+        4. Press Down 20 times to add 20 seconds
+        5. Wait for edit mode to expire
+        6. Verify timer is in Counting mode but PAUSED at 0:20
+        """
+        emulator = persistent_emulator
+
+        # Start log capture
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        time.sleep(1.0)
+        capture.clear_state_queue()
+
+        # Step 1: Set a 1-minute timer
+        emulator.press_down()
+        capture.wait_for_state(event="button_down", timeout=2.0)
+
+        # Wait for countdown mode
+        time.sleep(3.5)
+        capture.wait_for_state(event="mode_change", timeout=5.0)
+
+        # Step 2: Press Up to enter edit mode (ControlModeNew)
+        emulator.press_up()
+        state_edit = capture.wait_for_state(event="button_up", timeout=5.0)
+        assert state_edit is not None
+        assert_mode(state_edit, "New")
+        logger.info("Entered New (edit) mode")
+
+        # Step 3: Long press Select to reset and enter EditSec mode
+        emulator.hold_button(Button.SELECT)
+        time.sleep(1)
+        emulator.release_buttons()
+        state_edit_sec = capture.wait_for_state(event="long_press_select", timeout=5.0)
+        assert state_edit_sec is not None
+        assert_mode(state_edit_sec, "EditSec")
+        assert_time_equals(state_edit_sec, minutes=0, seconds=0)
+        logger.info("Entered EditSec mode at 0:00")
+
+        # Step 4: Press Down 20 times to add 20 seconds
+        for i in range(20):
+            emulator.press_down()
+            time.sleep(0.15)
+
+        # Consume the button_down events
+        for i in range(20):
+            capture.wait_for_state(event="button_down", timeout=2.0)
+
+        # Step 5: Wait for edit mode to expire
+        logger.info("Waiting for edit mode to expire...")
+        time.sleep(3.5)
+
+        # Step 6: Wait for mode_change to Counting
+        state_after_expire = capture.wait_for_state(event="mode_change", timeout=5.0)
+
+        capture.stop()
+
+        assert state_after_expire is not None, "Did not receive mode_change after edit expired"
+        logger.info(f"After edit expired: {state_after_expire}")
+
+        # Verify the timer is in Counting mode
+        assert_mode(state_after_expire, "Counting")
+
+        # KEY ASSERTION: Timer should be PAUSED after edit mode expires
+        assert_paused(state_after_expire, True), (
+            "Timer with seconds should remain paused after edit mode expires. "
+            "Expected paused=1 but timer auto-started."
+        )
+
+        # Verify time is approximately 0:20
+        assert_time_approximately(state_after_expire, minutes=0, seconds=20, tolerance=2)
