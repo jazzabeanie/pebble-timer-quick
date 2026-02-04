@@ -36,14 +36,13 @@ class TestLogBasedAssertions:
         - Start log capture before button press
         - Press Up button QUICKLY (before 3-second new_expire_timer fires)
         - Wait for button_up state log
-        - Assert time is 20:00 using log state instead of OCR
+        - Assert time is ~20:00 using log state instead of OCR
 
         This replaces the OCR-based test_up_button_increments_20_minutes.
 
         TIMING NOTES:
         - The app has a 3-second new_expire_timer that transitions from New to Counting mode
-        - By the time this test code runs, the app has been running for ~0.5s (fixture delay)
-        - We have ~2.5s to press the button before the mode transition
+        - The timer runs immediately in ControlModeNew so time will be slightly less than 20:00
         - The pebble logs command needs ~1s to connect
         """
         emulator = persistent_emulator
@@ -74,10 +73,10 @@ class TestLogBasedAssertions:
         assert state is not None, "Did not receive button_up state log"
         logger.info(f"Received state: {state}")
 
-        # Verify time is exactly 20:00 (no countdown yet since still in New mode)
-        assert_time_equals(state, minutes=20, seconds=0)
+        # Verify time is approximately 20:00 (timer runs immediately so may have counted down)
+        assert_time_approximately(state, minutes=19, seconds=58, tolerance=5)
         assert_mode(state, "New")
-        assert_paused(state, True)
+        assert_paused(state, False)  # Timer runs immediately in ControlModeNew
 
     def test_init_state_log(self, persistent_emulator):
         """
@@ -113,10 +112,10 @@ class TestLogBasedAssertions:
         if init_states:
             init_state = init_states[0]
             logger.info(f"Init state: {init_state}")
-            # Initial state should be 0:00, New mode, paused
+            # Initial state should be 0:00, New mode, running (timer starts immediately)
             assert_time_equals(init_state, minutes=0, seconds=0)
             assert_mode(init_state, "New")
-            assert_paused(init_state, True)
+            assert_paused(init_state, False)  # Timer runs immediately in ControlModeNew
         else:
             # We may have missed the init log, but we can verify the structure works
             # by checking that we can at least capture logs
@@ -155,17 +154,17 @@ class TestLogBasedAssertions:
         logger.info(f"State after first Down: {state1}")
         logger.info(f"State after second Down: {state2}")
 
-        # First Down should show 1:00
-        assert_time_equals(state1, minutes=1, seconds=0)
+        # First Down should show approximately 1:00 (timer is running so may be slightly less)
+        assert_time_approximately(state1, minutes=0, seconds=58, tolerance=5)
 
-        # Second Down should show 2:00
-        assert_time_equals(state2, minutes=2, seconds=0)
+        # Second Down should show approximately 2:00
+        assert_time_approximately(state2, minutes=1, seconds=58, tolerance=5)
 
-        # Both should be in New mode, paused
+        # Both should be in New mode, running (timer starts immediately)
         assert_mode(state1, "New")
         assert_mode(state2, "New")
-        assert_paused(state1, True)
-        assert_paused(state2, True)
+        assert_paused(state1, False)  # Timer runs immediately in ControlModeNew
+        assert_paused(state2, False)
 
     def test_mode_transition_via_logs(self, persistent_emulator):
         """
@@ -197,12 +196,13 @@ class TestLogBasedAssertions:
         # Verify state after button press
         assert state_after_press is not None, "Did not receive button_down state"
         assert_mode(state_after_press, "New")
-        assert_time_equals(state_after_press, minutes=1, seconds=0)
+        # Timer is running immediately so time will be slightly less than 1:00
+        assert_time_approximately(state_after_press, minutes=0, seconds=58, tolerance=5)
 
         # Verify state after mode transition
         assert state_after_transition is not None, "Did not receive mode_change state"
         logger.info(f"Mode change state: {state_after_transition}")
         assert_mode(state_after_transition, "Counting")
-        # Timer is now running so it won't be exactly 1:00, but approximately
-        assert_time_approximately(state_after_transition, minutes=0, seconds=57, tolerance=5)
+        # Timer has been running since button press, so it will be around 55s
+        assert_time_approximately(state_after_transition, minutes=0, seconds=55, tolerance=8)
         assert_paused(state_after_transition, False)  # Timer is running in Counting mode

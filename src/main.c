@@ -699,6 +699,10 @@ static void prv_initialize(void) {
     // Check if timer needs to be reset from a previous long press
     main_data.control_mode = ControlModeNew;
     timer_reset();
+    // Start timer running immediately in ControlModeNew
+    // This allows the timer to count while user is adding time
+    timer_data.start_ms = epoch();
+    timer_data.is_paused = false;
     timer_data.reset_on_init = false;
     main_data.is_editing_existing_timer = false;
     vibes_short_pulse();
@@ -717,6 +721,10 @@ static void prv_initialize(void) {
     // No timer was set and it wasn't in chrono mode, so start fresh
     main_data.control_mode = ControlModeNew;
     timer_reset();
+    // Start timer running immediately in ControlModeNew
+    // This allows the timer to count while user is adding time
+    timer_data.start_ms = epoch();
+    timer_data.is_paused = false;
     main_data.is_editing_existing_timer = false;
     vibes_short_pulse();
     main_data.timer_length_modified_in_edit_mode = false;

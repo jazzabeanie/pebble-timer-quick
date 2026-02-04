@@ -161,7 +161,8 @@ class TestStopwatchSubtraction:
         emulator.press_down()
         state_add1 = capture.wait_for_state(event="button_down", timeout=5.0)
         state_add2 = capture.wait_for_state(event="button_down", timeout=5.0)
-        assert_time_approximately(state_add2, minutes=1, seconds=55, tolerance=10)
+        # Timer runs immediately in ControlModeNew, so more elapsed time accumulates
+        assert_time_approximately(state_add2, minutes=2, seconds=5, tolerance=15)
         assert_direction(state_add2, forward=True)
 
         # Step 3: Toggle reverse and subtract 1 minute
@@ -175,7 +176,7 @@ class TestStopwatchSubtraction:
         
         capture.stop()
 
-        # Verify subtraction reduced the time back to ~0:55
+        # Verify subtraction reduced the time back to ~1:05 (subtract 1 min from ~2:05)
         assert state_sub1 is not None
         assert_direction(state_sub1, forward=False)
-        assert_time_approximately(state_sub1, minutes=0, seconds=55, tolerance=10)
+        assert_time_approximately(state_sub1, minutes=1, seconds=5, tolerance=15)

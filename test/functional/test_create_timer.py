@@ -365,8 +365,11 @@ class TestButtonPresses:
 
         Uses log-based assertions instead of OCR for reliable verification.
         The app logs TEST_STATE after each button press with exact timer values.
+
+        Note: The timer runs immediately in ControlModeNew, so the displayed
+        time will be slightly less than 20:00 due to elapsed time during startup.
         """
-        from .conftest import LogCapture, assert_time_equals, assert_mode, assert_paused
+        from .conftest import LogCapture, assert_time_approximately, assert_mode, assert_paused
 
         emulator = persistent_emulator
 
@@ -376,6 +379,7 @@ class TestButtonPresses:
 
         # Wait for pebble logs to connect (needs ~1s)
         time.sleep(1.0)
+        capture.clear_state_queue()
 
         # Press Up button to add 20 minutes
         # This must happen before the 3-second new_expire_timer fires
@@ -391,10 +395,10 @@ class TestButtonPresses:
         assert state is not None, "Did not receive button_up state log"
         logger.info(f"After Up press - state: {state}")
 
-        # Verify time is exactly 20:00 (no countdown since still in New mode)
-        assert_time_equals(state, minutes=20, seconds=0)
+        # Verify time is approximately 20:00 (timer is running so may have counted down slightly)
+        assert_time_approximately(state, minutes=19, seconds=58, tolerance=5)
         assert_mode(state, "New")
-        assert_paused(state, True)
+        assert_paused(state, False)  # Timer runs immediately in ControlModeNew
 
     def test_select_button_increments_5_minutes(self, persistent_emulator):
         """Test that Select button increments timer by 5 minutes."""
@@ -475,8 +479,11 @@ class TestTimerCountdown:
 
         Uses log-based assertions to verify the mode transition without relying
         on OCR which can be unreliable.
+
+        Note: The timer runs immediately in ControlModeNew, so the displayed
+        time after button press will be slightly less than 1:00.
         """
-        from .conftest import LogCapture, assert_mode, assert_paused, assert_time_equals, assert_time_approximately
+        from .conftest import LogCapture, assert_mode, assert_paused, assert_time_approximately
 
         emulator = persistent_emulator
 
@@ -494,8 +501,9 @@ class TestTimerCountdown:
         assert state_after_press is not None, "Did not receive button_down state log"
         logger.info(f"After Down press state: {state_after_press}")
         assert_mode(state_after_press, "New")
-        assert_time_equals(state_after_press, minutes=1, seconds=0)
-        assert_paused(state_after_press, True)
+        # Timer is running immediately, so time will be slightly less than 1:00
+        assert_time_approximately(state_after_press, minutes=0, seconds=58, tolerance=5)
+        assert_paused(state_after_press, False)  # Timer runs immediately in ControlModeNew
 
         # Wait for mode transition (3 seconds + buffer)
         state_after_transition = capture.wait_for_state(event="mode_change", timeout=5.0)
@@ -507,8 +515,8 @@ class TestTimerCountdown:
         logger.info(f"After transition state: {state_after_transition}")
         assert_mode(state_after_transition, "Counting")
         assert_paused(state_after_transition, False)  # Timer is running in Counting mode
-        # Timer should be approximately 57s (1:00 - 3s transition delay)
-        assert_time_approximately(state_after_transition, minutes=0, seconds=57, tolerance=5)
+        # Timer should be approximately 55s (1:00 - elapsed time during setup and transition)
+        assert_time_approximately(state_after_transition, minutes=0, seconds=55, tolerance=8)
 
 
 class TestChronoMode:
@@ -711,6 +719,58 @@ class TestTimerStartsImmediately:
             f"Expected time < 5:50 (350s), got {timer_value} ({total_seconds}s). "
             f"This indicates the timer is waiting for ControlModeNew to expire "
             f"instead of counting down immediately."
+        )
+
+    def test_chrono_has_elapsed_time_when_mode_expires(self, persistent_emulator):
+        """
+        Test that chrono mode already has elapsed time when ControlModeNew expires.
+
+        When the app starts and no buttons are pressed, after 3 seconds the
+        ControlModeNew expires and transitions to ControlModeCounting (chrono mode).
+        The timer should already have ~3 seconds counted, not start from 0:00.
+
+        This verifies that the timer is running during ControlModeNew, not just
+        starting when the mode transitions.
+
+        Expected behavior (PASS): Chrono shows ~3 seconds when mode changes
+        Old buggy behavior (FAIL): Chrono would start at 0:00
+        """
+        from .conftest import LogCapture, parse_time, assert_mode
+
+        emulator = persistent_emulator
+
+        # Start log capture
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        time.sleep(1.0)  # Wait for pebble logs to connect
+        capture.clear_state_queue()
+
+        # Don't press any buttons - just wait for the mode to expire
+        # The 3-second timeout will transition from ControlModeNew to ControlModeCounting
+        state = capture.wait_for_state(event="mode_change", timeout=5.0)
+
+        # Stop capture
+        capture.stop()
+
+        assert state is not None, "Did not receive mode_change state log"
+        logger.info(f"Mode change state: {state}")
+
+        # Verify we're now in Counting mode (chrono since no time was added)
+        assert_mode(state, "Counting")
+
+        # Parse the time - it should be around 3 seconds (the timeout duration)
+        timer_value = state.get('t', '0:00')
+        minutes, seconds = parse_time(timer_value)
+        total_seconds = minutes * 60 + seconds
+
+        # The timer should have ~3 seconds elapsed (allow 1-5 seconds for timing tolerance)
+        min_expected = 1  # At least 1 second
+        max_expected = 6  # At most 6 seconds (3s timeout + some slack)
+
+        assert min_expected <= total_seconds <= max_expected, (
+            f"Chrono should have ~3 seconds when mode expires! "
+            f"Expected {min_expected}-{max_expected}s, got {timer_value} ({total_seconds}s). "
+            f"This indicates the timer wasn't running during ControlModeNew."
         )
 
 
