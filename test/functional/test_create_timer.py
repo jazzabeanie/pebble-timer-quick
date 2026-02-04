@@ -640,6 +640,80 @@ class TestPlayPause:
         )
 
 
+class TestTimerStartsImmediately:
+    """Tests that verify timer countdown starts immediately in ControlModeNew."""
+
+    def test_timer_counts_down_during_setup(self, persistent_emulator):
+        """
+        Test that timer starts counting down immediately when buttons are pressed.
+
+        This test verifies that the timer begins counting down right away when
+        the user starts adding time in ControlModeNew, rather than waiting for
+        the mode to expire (3 seconds of inactivity).
+
+        Test approach:
+        1. Press Down 6 times with 2-second sleeps between each press
+           to build up to a 6-minute timer over ~10 seconds
+        2. Capture the timer state after all presses
+        3. If the timer is < 5:50, the timer was counting down during setup (PASS)
+        4. If the timer is >= 5:50, the timer waited to start counting (FAIL)
+
+        Expected behavior (PASS): Timer value should be around 5:50 or less
+        Current buggy behavior (FAIL): Timer stays at 6:00 during setup
+        """
+        from .conftest import LogCapture, parse_time
+
+        emulator = persistent_emulator
+
+        # Start log capture
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        time.sleep(1.0)  # Wait for pebble logs to connect
+        capture.clear_state_queue()
+
+        # Press Down 6 times with 2 second sleeps to set a 6 minute timer
+        # This takes about 10 seconds total
+        for i in range(6):
+            emulator.press_down()
+            if i < 5:  # Don't sleep after the last press
+                time.sleep(2)
+
+        # Wait a moment for the final state to be logged
+        time.sleep(0.5)
+
+        # Drain all button_down events from the queue and get the last one
+        # (There will be 6 button_down events, we want the most recent)
+        state = None
+        while True:
+            next_state = capture.wait_for_state(event="button_down", timeout=0.5)
+            if next_state is None:
+                break
+            state = next_state
+
+        # Stop capture
+        capture.stop()
+
+        assert state is not None, "Did not receive button_down state log"
+        logger.info(f"After 6 Down presses with 2s delays - state: {state}")
+
+        # Parse the time from the state
+        timer_value = state.get('t', '0:00')
+        minutes, seconds = parse_time(timer_value)
+        total_seconds = minutes * 60 + seconds
+
+        # Threshold: 5:50 = 350 seconds
+        # If timer counted down during setup, it should be less than 5:50
+        # If timer waited (current buggy behavior), it would be at or near 6:00 (360 seconds)
+        threshold_seconds = 350  # 5:50
+
+        assert total_seconds < threshold_seconds, (
+            f"Timer should have counted down during setup! "
+            f"Expected time < 5:50 (350s), got {timer_value} ({total_seconds}s). "
+            f"This indicates the timer is waiting for ControlModeNew to expire "
+            f"instead of counting down immediately."
+        )
+
+
 class TestLongPressReset:
     """Tests for long press reset functionality."""
 
