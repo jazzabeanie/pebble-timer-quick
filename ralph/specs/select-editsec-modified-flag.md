@@ -113,9 +113,26 @@ case ControlModeEditSec:
 
 ## Progress
 - 2026-02-05: Spec created based on bug analysis.
+- 2026-02-05: Implementation completed. Added `main_data.timer_length_modified_in_edit_mode = true;` to EditSec case in `prv_select_click_handler` (line 358).
+- 2026-02-05: Tests verified. Before: 13 failed, 69 passed. After: 12 failed, 70 passed. The test `test_hold_up_during_longer_alarm_repeats_timer[basalt]` now passes.
 
 ## Status
-**Not Started**
+**Completed**
 
 ## Tests
-**NA** - Tests will be added with implementation
+**Passing** - The existing test `test_timer_workflows.py::TestRepeatTimerDuringAlarm::test_hold_up_during_longer_alarm_repeats_timer[basalt]` validates this fix.
+
+## Pre-existing Failing Tests (Unrelated)
+The following tests were failing before this fix and remain failing after (unrelated to this change):
+- test_button_icons.py::TestAlarmIcons::test_alarm_back_icon_silence[basalt]
+- test_button_icons.py::TestAlarmIcons::test_alarm_up_icon_repeat[basalt]
+- test_button_icons.py::TestAlarmIcons::test_alarm_long_up_icon_reset[basalt]
+- test_button_icons.py::TestAlarmIcons::test_alarm_select_icon_pause[basalt]
+- test_button_icons.py::TestAlarmIcons::test_alarm_down_icon_snooze[basalt]
+- test_button_icons.py::TestChronoIcons::test_chrono_select_icon[basalt]
+- test_button_icons.py::TestEditRepeatIcons::test_editrepeat_back_icon[basalt]
+- test_timer_workflows.py::TestSnoozeCompletedTimer::test_snooze_completed_timer[basalt]
+- test_timer_workflows.py::TestRepeatCompletedTimer::test_repeat_completed_timer[basalt]
+- test_timer_workflows.py::TestQuietAlarmBackButton::test_quiet_alarm_with_back_button[basalt]
+- test_timer_workflows.py::TestPauseCompletedTimer::test_pause_completed_timer[basalt]
+- test_timer_workflows.py::TestEditCompletedTimer::test_edit_completed_timer_add_minute[basalt]

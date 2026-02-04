@@ -355,6 +355,7 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
       break;
     case ControlModeEditSec:
       prv_update_timer(SELECT_BUTTON_INCREMENT_SEC_MS);
+      main_data.timer_length_modified_in_edit_mode = true;
       break;
     case ControlModeEditRepeat:
       timer_data.repeat_count += 5;

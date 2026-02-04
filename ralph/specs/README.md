@@ -222,9 +222,9 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 **Summary:** Fixes a bug where pressing Select in `ControlModeEditSec` does not set the `timer_length_modified_in_edit_mode` flag, causing `base_length_ms` to not be updated and breaking the "hold Up to repeat" feature during alarm.
 
-**Status:** Not Started
+**Status:** Completed
 
-**Tests:** NA
+**Tests:** Passing
 
 **Dependencies:** edit-mode-reset.md (spec #9), timer-workflow-tests.md (spec #5)
 
