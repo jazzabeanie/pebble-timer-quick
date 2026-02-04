@@ -101,14 +101,8 @@ static void prv_new_expire_callback(void *data) {
   main_data.new_expire_timer = NULL;
   main_data.is_reverse_direction = false;
   if (main_data.control_mode == ControlModeNew || main_data.control_mode == ControlModeEditSec || main_data.control_mode == ControlModeEditRepeat) {
-    // previous code before merge:
-    //  // Store the "base" duration in the persistent struct
-    //  if (timer_data.length_ms > 0) {
-    //    timer_data.base_length_ms = timer_data.length_ms;
-    //  } else {
-    //    // It's a stopwatch (chrono), no base duration
-    //    timer_data.base_length_ms = 0;
-    //  }
+    // Track if we're coming from EditSec mode (sub-minute timer)
+    bool was_edit_sec_mode = (main_data.control_mode == ControlModeEditSec);
 
     // Store the "base" duration in the persistent struct
     if (!main_data.is_editing_existing_timer || main_data.timer_length_modified_in_edit_mode) {
@@ -120,7 +114,8 @@ static void prv_new_expire_callback(void *data) {
       }
     }
     main_data.control_mode = ControlModeCounting;
-    if (timer_is_paused()) {
+    // Sub-minute timers (from EditSec mode) should stay paused and require manual start
+    if (timer_is_paused() && !was_edit_sec_mode) {
       timer_toggle_play_pause();
     }
     test_log_state("mode_change");

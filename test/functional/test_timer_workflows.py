@@ -807,7 +807,12 @@ class TestRepeatTimerDuringAlarm:
             emulator.press_down()
             time.sleep(0.2)
 
-        # Press Select to start the timer (instead of waiting for expire)
+        # Wait for edit mode to expire and transition to Counting mode
+        # (Sub-minute timers now stay paused after edit expires)
+        logger.info("Waiting for edit mode to expire...")
+        time.sleep(3.5)
+
+        # Press Select to start the paused timer
         logger.info("Pressing Select to start 5-second timer...")
         emulator.press_select()
 
