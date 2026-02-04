@@ -245,6 +245,21 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 ---
 
+### 17. Fix setup_short_timer Helper Function
+**File:** [fix-setup-short-timer-helper.md](fix-setup-short-timer-helper.md)
+
+**Keywords:** test fix, setup_short_timer, sub-minute timer, paused, functional tests, helper function
+
+**Summary:** Fixes 12 failing functional tests caused by the `setup_short_timer` helper function not starting the timer after setting it up. Sub-minute timers from EditSec mode stay paused after edit expires (intentional), but the helper was not updated to manually start them.
+
+**Status:** Not Started
+
+**Tests:** Failing (12 tests)
+
+**Dependencies:** Sub-minute timer pause behavior (intentional)
+
+---
+
 ## Adding New Specifications
 
 When creating a new spec file:
