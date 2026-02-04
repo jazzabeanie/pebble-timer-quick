@@ -237,9 +237,9 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 **Summary:** Fixes a bug where entering `ControlModeEditSec` from `ControlModeNew` via long press Select incorrectly sets `is_editing_existing_timer = true`. Since this resets the timer to 0:00, it's creating a new timer, so the flag should be `false`.
 
-**Status:** Not Started
+**Status:** Completed
 
-**Tests:** NA
+**Tests:** Passing
 
 **Dependencies:** edit-mode-reset.md (spec #9), select-editsec-modified-flag.md (spec #15)
 

@@ -406,13 +406,14 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
   }
 
   // In ControlModeNew: reset to 0:00 in paused edit seconds mode
+  // This is creating a NEW timer (not editing existing), so is_editing_existing_timer = false
   if (main_get_control_mode() == ControlModeNew) {
     timer_reset();
     timer_data.start_ms = 0;  // Pause at 0 elapsed
     timer_data.is_paused = true;
     main_data.control_mode = ControlModeEditSec;
     prv_stop_new_expire_timer();
-    main_data.is_editing_existing_timer = true;
+    main_data.is_editing_existing_timer = false;
     main_data.timer_length_modified_in_edit_mode = false;
     drawing_update();
     layer_mark_dirty(main_data.layer);
