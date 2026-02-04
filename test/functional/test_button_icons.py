@@ -323,17 +323,17 @@ class TestAlarmIcons:
             "Silence icon does not match reference mask"
         )
 
-    def test_alarm_up_icon_repeat(self, persistent_emulator):
-        """Verify the reset icon (Up button) is drawn during alarm state."""
+    def test_alarm_up_icon_edit(self, persistent_emulator):
+        """Verify the edit icon (Up button) is drawn during alarm state."""
         emulator = persistent_emulator
         platform = emulator.platform
         screenshot = self._enter_alarm(emulator)
 
         region = get_region(platform, "UP")
         assert has_icon_content(screenshot, region), (
-            "Expected reset icon content in Up button region during alarm state"
+            "Expected edit icon content in Up button region during alarm state"
         )
-        assert matches_icon_reference(screenshot, region, "alarm_repeat", platform=platform), (
+        assert matches_icon_reference(screenshot, region, ref_name="alarm_edit", platform=platform), (
             "Reset icon does not match reference mask"
         )
 
