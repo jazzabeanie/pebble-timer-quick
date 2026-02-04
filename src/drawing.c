@@ -654,9 +654,9 @@ void drawing_render(Layer *layer, GContext *ctx) {
     const int16_t middle_icon_padding_right = 2;
     const int16_t middle_icon_x_right = bounds.size.w - middle_icon_size.w - middle_icon_padding_right;
 
-    // Draw the reset icon (top right, Up button standard press)
-    GRect reset_rect = GRect(icon_x_right, icon_padding_top, icon_size.w, icon_size.h);
-    graphics_draw_bitmap_in_rect(ctx, drawing_data.reset_icon, reset_rect);
+    // Draw the edit icon (top right, Up button standard press)
+    prv_draw_icon(ctx, drawing_data.icon_edit, ICON_UP_X, ICON_UP_Y,
+                  ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
     // Draw the hold icon beside the reset icon (toward screen center)
     prv_draw_icon(ctx, drawing_data.icon_reset, LONG_UP_X, LONG_UP_Y,
                   ICON_SMALL_SIZE, ICON_SMALL_SIZE);
