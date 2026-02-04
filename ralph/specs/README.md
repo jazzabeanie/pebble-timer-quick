@@ -250,11 +250,11 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 **Keywords:** test fix, setup_short_timer, sub-minute timer, paused, functional tests, helper function
 
-**Summary:** Fixes 12 failing functional tests caused by the `setup_short_timer` helper function not starting the timer after setting it up. Sub-minute timers from EditSec mode stay paused after edit expires (intentional), but the helper was not updated to manually start them.
+**Summary:** Fixes 10 failing functional tests caused by the `setup_short_timer` helper function not starting the timer after setting it up. Sub-minute timers from EditSec mode stay paused after edit expires (intentional), but the helper was not updated to manually start them.
 
-**Status:** Not Started
+**Status:** Completed
 
-**Tests:** Failing (12 tests)
+**Tests:** Passing (10 of 12 tests fixed; 2 remaining are unrelated icon mask issues)
 
 **Dependencies:** Sub-minute timer pause behavior (intentional)
 

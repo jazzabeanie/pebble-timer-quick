@@ -221,8 +221,12 @@ def setup_short_timer(emulator, seconds=4):
 
     # Step 6: Wait for expire timer (3s after last button press)
     # This transitions from ControlModeEditSec to ControlModeCounting
-    # The app automatically unpauses when transitioning to Counting mode.
+    # Sub-minute timers stay paused after edit expires, so we need to start manually.
     time.sleep(3.5)
+
+    # Step 7: Press Select to start the timer (sub-minute timers stay paused after edit expires)
+    emulator.press_select()
+    time.sleep(0.3)
 
     logger.info(f"[{emulator.platform}] Short timer started, counting down from {seconds}s")
 
