@@ -10,6 +10,49 @@
 // @bugs No known bugs
 
 #include "utility.h"
+#include "main.h"
+#include "timer.h"
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Test Logging
+//
+
+// Get mode name string for logging
+static const char* prv_get_mode_name(ControlMode mode) {
+  switch (mode) {
+    case ControlModeNew: return "New";
+    case ControlModeEditHr: return "EditHr";
+    case ControlModeEditMin: return "EditMin";
+    case ControlModeEditSec: return "EditSec";
+    case ControlModeCounting: return "Counting";
+    case ControlModeEditRepeat: return "EditRepeat";
+    default: return "Unknown";
+  }
+}
+
+// Log current app state for functional test assertions
+// Format: TEST_STATE:<event>,t=M:SS,m=<mode>,r=<n>,p=<0|1>,v=<0|1>,d=<1|-1>
+// (Short field names to fit within APP_LOG's ~100 char limit)
+void test_log_state(const char *event) {
+  uint16_t hr, min, sec;
+  timer_get_time_parts(&hr, &min, &sec);
+
+  // Combine hours into minutes for display (matches what user sees)
+  uint16_t total_min = hr * 60 + min;
+
+  TEST_LOG(APP_LOG_LEVEL_DEBUG,
+    "TEST_STATE:%s,t=%d:%02d,m=%s,r=%d,p=%d,v=%d,d=%d",
+    event,
+    total_min,
+    sec,
+    prv_get_mode_name(main_get_control_mode()),
+    timer_data.repeat_count,
+    timer_is_paused() ? 1 : 0,
+    timer_is_vibrating() ? 1 : 0,
+    main_is_reverse_direction() ? -1 : 1
+  );
+}
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

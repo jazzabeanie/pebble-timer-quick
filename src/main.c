@@ -123,6 +123,7 @@ static void prv_new_expire_callback(void *data) {
     if (timer_is_paused()) {
       timer_toggle_play_pause();
     }
+    test_log_state("mode_change");
 
     // Exit if timer is longer than AUTO_BACKGROUND_TIMER_LENGTH_MS, after a delay
     if (timer_data.length_ms > AUTO_BACKGROUND_TIMER_LENGTH_MS || (timer_is_chrono() && AUTO_BACKGROUND_CHRONO)) {
@@ -149,6 +150,8 @@ static void prv_reset_new_expire_timer(void) {
   main_data.new_expire_timer = app_timer_register(NEW_EXPIRE_TIME_MS, prv_new_expire_callback, NULL);
 }
 
+
+
 // Rewind timer if button is clicked to stop vibration
 static bool prv_handle_alarm(void) {
   // check if timer is vibrating
@@ -157,6 +160,7 @@ static bool prv_handle_alarm(void) {
     timer_data.can_vibrate = false;
     vibes_cancel();
     drawing_update();
+    test_log_state("alarm_stop");
     return true;
   }
   return false;
@@ -223,6 +227,7 @@ static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   }
   drawing_update();
   layer_mark_dirty(main_data.layer);
+  test_log_state("button_back");
 }
 
 // Up click handler
@@ -249,6 +254,7 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     main_data.timer_length_modified_in_edit_mode = false;
     drawing_update();
     layer_mark_dirty(main_data.layer);
+    test_log_state("button_up");
     return;
   }
   // increment repeats
@@ -257,6 +263,7 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     prv_reset_new_expire_timer();
     drawing_update();
     layer_mark_dirty(main_data.layer);
+    test_log_state("button_up");
     return;
   }
   // increment timer
@@ -269,6 +276,7 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   main_data.timer_length_modified_in_edit_mode = true;
   drawing_update();
   layer_mark_dirty(main_data.layer);
+  test_log_state("button_up");
 }
 
 // Up long click handler
@@ -287,9 +295,11 @@ static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) 
       timer_data.is_repeating = false;
       timer_data.repeat_count = 0;
       timer_increment(timer_data.base_length_ms); // Add the base duration
+      test_log_state("alarm_stop");
     }
     drawing_update();
     layer_mark_dirty(main_data.layer);
+    test_log_state("long_press_up");
     return;
   }
 
@@ -297,6 +307,7 @@ static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) 
   if (main_data.control_mode == ControlModeCounting) {
     // No effect in chrono mode (spec 2.6)
     if (timer_is_chrono()) {
+      test_log_state("long_press_up");
       return;
     }
     timer_data.is_repeating = !timer_data.is_repeating;
@@ -311,6 +322,7 @@ static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) 
     vibes_short_pulse();
     drawing_update();
     layer_mark_dirty(main_data.layer);
+    test_log_state("long_press_up");
     return;
   }
 
@@ -322,6 +334,7 @@ static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) 
   prv_reset_new_expire_timer();
   drawing_update();
   layer_mark_dirty(main_data.layer);
+  test_log_state("long_press_up");
 }
 
 // Select click handler
@@ -335,6 +348,7 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     if (main_data.control_mode == ControlModeCounting) {
       timer_toggle_play_pause();
     }
+    test_log_state("button_select");
     return;
   }
   // change timer mode
@@ -362,6 +376,7 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   // refresh
   drawing_update();
   layer_mark_dirty(main_data.layer);
+  test_log_state("button_select");
 }
 
 // Select raw click handler
@@ -390,6 +405,7 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
       main_data.control_mode == ControlModeEditRepeat) {
     drawing_update();
     layer_mark_dirty(main_data.layer);
+    test_log_state("long_press_select");
     return;
   }
 
@@ -404,6 +420,7 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
     main_data.timer_length_modified_in_edit_mode = false;
     drawing_update();
     layer_mark_dirty(main_data.layer);
+    test_log_state("long_press_select");
     return;
   }
 
@@ -434,6 +451,7 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
   // animate and refresh
   drawing_update();
   layer_mark_dirty(main_data.layer);
+  test_log_state("long_press_select");
 }
 
 // Helper to check if we should extend high refresh rate for down button
@@ -483,16 +501,20 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
       // Intermediate alarm: just restart the timer (no snooze)
       timer_data.repeat_count--;
       timer_increment(timer_data.base_length_ms);
+      test_log_state("alarm_stop");
     } else {
       // Final alarm or non-repeating: normal snooze
       timer_increment(SNOOZE_INCREMENT_MS);
+      test_log_state("alarm_stop");
     }
     drawing_update();
     layer_mark_dirty(main_data.layer);
+    test_log_state("button_down");
     return;
   }
   else if (main_data.control_mode == ControlModeCounting) {
     prv_check_down_button_extended_refresh();
+    test_log_state("button_down");
   }
   else if (main_data.control_mode == ControlModeNew) {
     int64_t increment = DOWN_BUTTON_INCREMENT_MS;
@@ -500,6 +522,7 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     main_data.timer_length_modified_in_edit_mode = true;
     drawing_update();
     layer_mark_dirty(main_data.layer);
+    test_log_state("button_down");
   }
   else if (main_data.control_mode == ControlModeEditSec) {
     int64_t increment = DOWN_BUTTON_INCREMENT_SEC_MS;
@@ -507,12 +530,14 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     main_data.timer_length_modified_in_edit_mode = true;
     drawing_update();
     layer_mark_dirty(main_data.layer);
+    test_log_state("button_down");
   }
   else if (main_data.control_mode == ControlModeEditRepeat) {
     timer_data.repeat_count += 1;
     prv_reset_new_expire_timer();
     drawing_update();
     layer_mark_dirty(main_data.layer);
+    test_log_state("button_down");
   }
 }
 
@@ -524,6 +549,7 @@ static void prv_down_long_click_handler(ClickRecognizerRef recognizer, void *ctx
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Down long press");
   // Reset timer
   timer_data.reset_on_init = true;
+  test_log_state("long_press_down");
   // quit app
   window_stack_pop(true);
 }
@@ -550,8 +576,17 @@ static void prv_click_config_provider(void *ctx) {
 
 // AppTimer callback
 static void prv_app_timer_callback(void *data) {
+  bool was_elapsed = timer_data.elapsed;
   // check if timer is complete
   timer_check_elapsed();
+  bool is_elapsed = timer_data.elapsed;
+
+  if (!was_elapsed && is_elapsed) {
+    test_log_state("alarm_start");
+  } else if (was_elapsed && !is_elapsed) {
+    test_log_state("alarm_stop");
+  }
+
   // refresh
   drawing_update();
   layer_mark_dirty(main_data.layer);
@@ -687,7 +722,7 @@ static void prv_initialize(void) {
     main_data.timer_length_modified_in_edit_mode = false;
   }
   prv_reset_new_expire_timer();
-
+  test_log_state("init");
 
   // initialize window
   main_data.window = window_create();

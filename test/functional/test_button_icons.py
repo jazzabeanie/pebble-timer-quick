@@ -19,7 +19,16 @@ from PIL import Image
 import numpy as np
 import time
 
-from .conftest import Button, EmulatorHelper, PLATFORMS
+from .conftest import (
+    Button,
+    EmulatorHelper,
+    PLATFORMS,
+    LogCapture,
+    assert_mode,
+    assert_paused,
+    assert_time_approximately,
+    assert_vibrating,
+)
 from .test_create_timer import extract_text, normalize_time_text
 
 # Configure module logger
@@ -210,12 +219,10 @@ def setup_short_timer(emulator, seconds=4):
 
     logger.info(f"[{emulator.platform}] Short timer set to {seconds}s, waiting for expire")
 
-    # Wait for expire timer (3s after last button press)
+    # Step 6: Wait for expire timer (3s after last button press)
+    # This transitions from ControlModeEditSec to ControlModeCounting
+    # The app automatically unpauses when transitioning to Counting mode.
     time.sleep(3.5)
-
-    # Press Select to unpause the timer
-    emulator.press_select()
-    time.sleep(0.3)
 
     logger.info(f"[{emulator.platform}] Short timer started, counting down from {seconds}s")
 
@@ -291,7 +298,18 @@ class TestAlarmIcons:
         """Verify the silence icon (Back button) is drawn during alarm state."""
         emulator = persistent_emulator
         platform = emulator.platform
+        
+        # Start log capture
+        capture = LogCapture(platform)
+        capture.start()
+        time.sleep(1.0)
+        capture.clear_state_queue()
+
         screenshot = self._enter_alarm(emulator)
+        
+        # Log all states
+        logger.info(f"All captured states: {capture.get_state_logs()}")
+        capture.stop()
 
         region = get_region(platform, "BACK")
         assert has_icon_content(screenshot, region), (
@@ -700,13 +718,34 @@ class TestChronoIcons:
         return emulator.screenshot("chrono_mode")
 
     def test_chrono_select_icon(self, persistent_emulator):
-        """Verify pause indicator for Select button in chrono mode."""
+        """Verify pause indicator for Select button in chrono mode.
+
+        Uses log-based assertions to verify we're in chrono mode (timer is negative
+        value, i.e., timer_is_chrono() returns true).
+        """
         emulator = persistent_emulator
         platform = emulator.platform
+
+        # Start log capture before entering chrono mode
+        capture = LogCapture(platform)
+        capture.start()
+        time.sleep(1.0)  # Wait for pebble logs to connect
+
         screenshot = self._enter_chrono(emulator)
 
-        # Cancel quit timer
+        # Clear queue of setup logs
+        capture.clear_state_queue()
+
+        # Cancel quit timer and capture state
         emulator.press_down()
+        state = capture.wait_for_state(event="button_down", timeout=5.0)
+        capture.stop()
+
+        # Verify we're in Counting mode (chrono is Counting mode with negative time value)
+        assert state is not None, "Did not receive button_down state log"
+        logger.info(f"Chrono mode state: {state}")
+        assert_mode(state, "Counting")
+        assert_paused(state, False)  # Timer is running (counting up) in chrono mode
 
         region = get_region(platform, "SELECT")
         assert has_icon_content(screenshot, region), (

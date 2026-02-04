@@ -8,6 +8,11 @@
 #include "utility.h"
 #include "timer.h"
 
+// Mock structured logging
+void test_log_state(const char *event) {
+    // No-op in unit tests
+}
+
 // Mock epoch function
 uint64_t epoch(void) {
     return (uint64_t)mock();

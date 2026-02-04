@@ -361,25 +361,40 @@ class TestButtonPresses:
     """Additional tests for button functionality."""
 
     def test_up_button_increments_20_minutes(self, persistent_emulator):
-        """Test that Up button increments timer by 20 minutes."""
+        """Test that Up button increments timer by 20 minutes.
+
+        Uses log-based assertions instead of OCR for reliable verification.
+        The app logs TEST_STATE after each button press with exact timer values.
+        """
+        from .conftest import LogCapture, assert_time_equals, assert_mode, assert_paused
+
         emulator = persistent_emulator
 
+        # Start log capture
+        capture = LogCapture(emulator.platform)
+        capture.start()
+
+        # Wait for pebble logs to connect (needs ~1s)
+        time.sleep(1.0)
+
+        # Press Up button to add 20 minutes
+        # This must happen before the 3-second new_expire_timer fires
         emulator.press_up()
-        img = emulator.screenshot("after_up")
 
-        # Verify the timer shows ~20 minutes (19:5x due to countdown)
-        text = extract_text(img)
-        logger.info(f"After Up press: {text}")
+        # Wait for button_up state log
+        state = capture.wait_for_state(event="button_up", timeout=5.0)
 
-        # Use flexible pattern matching for ~19 minutes
-        normalized = normalize_time_text(text)
-        time_patterns = ["19:", "19.", "19;"]
-        has_time = any(pattern in normalized for pattern in time_patterns)
+        # Stop capture
+        capture.stop()
 
-        if not has_time:
-            has_time = has_time_pattern(text, minutes=20, tolerance=15)
+        # Assert using structured log data
+        assert state is not None, "Did not receive button_up state log"
+        logger.info(f"After Up press - state: {state}")
 
-        assert has_time, f"Expected time around 19:xx after Up press, got: {text}"
+        # Verify time is exactly 20:00 (no countdown since still in New mode)
+        assert_time_equals(state, minutes=20, seconds=0)
+        assert_mode(state, "New")
+        assert_paused(state, True)
 
     def test_select_button_increments_5_minutes(self, persistent_emulator):
         """Test that Select button increments timer by 5 minutes."""
@@ -456,46 +471,44 @@ class TestTimerCountdown:
     def test_timer_transitions_to_counting_mode(self, persistent_emulator):
         """
         Test that after 3 seconds of inactivity, the app transitions from
-        'New' mode to 'Counting' mode (header changes from 'New').
+        'New' mode to 'Counting' mode.
 
-        Note: All screenshots are taken first and OCR text extraction + assertions
-        are deferred to the end, since OCR is slow and the elapsed time would
-        interfere with the app's 3-second inactivity timer.
+        Uses log-based assertions to verify the mode transition without relying
+        on OCR which can be unreliable.
         """
+        from .conftest import LogCapture, assert_mode, assert_paused, assert_time_equals, assert_time_approximately
+
         emulator = persistent_emulator
 
-        # --- Capture all screenshots first (OCR is deferred to avoid timing issues) ---
+        # Start log capture
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        time.sleep(1.0)  # Wait for pebble logs to connect
+        capture.clear_state_queue()
 
-        # Take initial screenshot - should show "New"
-        initial = emulator.screenshot("transition_initial")
-
-        # Press Down to set timer value
+        # Press Down to set timer value (adds 1 minute)
         emulator.press_down()
-        after_press = emulator.screenshot("transition_after_press")
+        state_after_press = capture.wait_for_state(event="button_down", timeout=5.0)
 
-        # Wait for 3-second inactivity timeout to trigger mode transition
-        time.sleep(4)
+        # Verify initial state after button press
+        assert state_after_press is not None, "Did not receive button_down state log"
+        logger.info(f"After Down press state: {state_after_press}")
+        assert_mode(state_after_press, "New")
+        assert_time_equals(state_after_press, minutes=1, seconds=0)
+        assert_paused(state_after_press, True)
 
-        # Take screenshot after transition
-        after_transition = emulator.screenshot("transition_after_wait")
+        # Wait for mode transition (3 seconds + buffer)
+        state_after_transition = capture.wait_for_state(event="mode_change", timeout=5.0)
 
-        # --- Now perform OCR and assertions (after all screenshots captured) ---
+        capture.stop()
 
-        text_initial = extract_text(initial)
-        logger.info(f"Initial text: {text_initial}")
-        assert "New" in text_initial, f"Expected 'New' in initial screen, got: {text_initial}"
-
-        text_after = extract_text(after_press)
-        logger.info(f"After Down press: {text_after}")
-        assert "New" in text_after, f"Expected 'New' still shown after button press, got: {text_after}"
-
-        text_transition = extract_text(after_transition)
-        logger.info(f"After transition: {text_transition}")
-
-        # In counting mode, "New" should no longer appear in header
-        assert "New" not in text_transition, (
-            f"Expected 'New' to disappear after transition to counting mode, got: {text_transition}"
-        )
+        # Verify state after mode transition
+        assert state_after_transition is not None, "Did not receive mode_change state log"
+        logger.info(f"After transition state: {state_after_transition}")
+        assert_mode(state_after_transition, "Counting")
+        assert_paused(state_after_transition, False)  # Timer is running in Counting mode
+        # Timer should be approximately 57s (1:00 - 3s transition delay)
+        assert_time_approximately(state_after_transition, minutes=0, seconds=57, tolerance=5)
 
 
 class TestChronoMode:

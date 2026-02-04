@@ -23,7 +23,15 @@ import time
 
 import pytest
 
-from .conftest import Button, PLATFORMS
+from .conftest import (
+    Button,
+    PLATFORMS,
+    LogCapture,
+    assert_mode,
+    assert_paused,
+    assert_time_approximately,
+    assert_direction,
+)
 from .test_create_timer import (
     extract_text,
     normalize_time_text,
@@ -40,187 +48,134 @@ class TestStopwatchSubtraction:
     def test_chrono_subtraction_converts_to_countdown(self, persistent_emulator):
         """
         Test that subtracting time from a chrono converts it to a countdown.
-
-        Steps:
-        1. Start fresh, wait for chrono mode (3+ seconds)
-        2. Press Up to enter edit mode for the existing chrono
-        3. Long press Up to toggle reverse direction
-        4. Press Down to subtract 1 minute from the chrono
-        5. Verify the display shows a countdown time (not chrono)
-
-        Expected: After subtracting 1 minute from a chrono showing ~5 seconds,
-        the timer should show a countdown of approximately 55 seconds.
         """
         emulator = persistent_emulator
 
-        # Wait for the 3-second inactivity timeout to transition from New mode
-        # to chrono mode (counting up from 0:00).
-        time.sleep(3.5)
-
-        # Pause the timer to ensure stable display for verification
-        emulator.press_select()
-        time.sleep(0.5)
-
-        # Take screenshot to verify we're in chrono mode
-        chrono_screenshot = emulator.screenshot("chrono_before_subtraction")
-
-        # Press Down to cancel auto-background timer
-        emulator.press_down()
-        time.sleep(0.3)
-
-        # --- Phase 2: Enter edit mode and enable reverse direction ---
-        # Press Up to enter edit mode for the existing chrono timer
-        # This sets is_editing_existing_timer = true and control_mode = ControlModeNew
-        emulator.press_up()
-        time.sleep(0.5)
-
-        # Long press Up to toggle reverse direction (so Down subtracts instead of adds)
-        emulator.hold_button(Button.UP)
-        time.sleep(2.0)  # Hold for BUTTON_HOLD_RESET_MS (1000ms) + plenty of buffer
-        emulator.release_buttons()
-        time.sleep(0.8)
-
-        # --- Phase 3: Subtract time ---
-        # Press Down to subtract 1 minute (calls timer_increment_chrono(-60000))
-        # This should convert the chrono to a countdown
-        emulator.press_down()
+        # Start log capture
+        capture = LogCapture(emulator.platform)
+        capture.start()
         time.sleep(1.0)
+        capture.clear_state_queue()
 
-        # Take screenshot after subtraction
-        after_subtraction = emulator.screenshot("after_subtraction")
+        # Step 1: Wait for chrono mode
+        logger.info("Waiting for chrono mode...")
+        time.sleep(3.5)
+        
+        # Step 2: Pause the timer
+        emulator.press_select()
+        state_pause = capture.wait_for_state(event="button_select", timeout=5.0)
+        assert state_pause is not None
+        assert_paused(state_pause, True)
 
-        # --- Phase 4: Verify the conversion ---
-        # Extract text and verify the state
+        # Step 3: Enter edit mode
+        emulator.press_up()
+        state_edit = capture.wait_for_state(event="button_up", timeout=5.0)
+        assert state_edit is not None
+        assert_mode(state_edit, "New")
 
-        # Check chrono screenshot shows a small chrono time (0:0x)
-        text_chrono = extract_text(chrono_screenshot)
-        logger.info(f"Chrono before subtraction: {text_chrono}")
-        normalized_chrono = normalize_time_text(text_chrono)
-        # Chrono should show small time like 0:03 or 0:04 (few seconds elapsed)
-        chrono_patterns = ["0:0"]
-        has_chrono_time = any(pattern in normalized_chrono for pattern in chrono_patterns)
-        assert has_chrono_time, f"Expected chrono showing '0:0x' at start, got: {text_chrono}"
+        # Step 4: Toggle reverse direction
+        emulator.hold_button(Button.UP)
+        time.sleep(1.0)
+        emulator.release_buttons()
+        state_dir = capture.wait_for_state(event="long_press_up", timeout=5.0)
+        assert state_dir is not None
+        assert_direction(state_dir, forward=False)
 
-        # Check after subtraction shows a countdown time around 0:55
-        text_after = extract_text(after_subtraction)
-        logger.info(f"After subtraction: {text_after}")
-        normalized_after = normalize_time_text(text_after)
+        # Step 5: Subtract 1 minute
+        emulator.press_down()
+        state_sub = capture.wait_for_state(event="button_down", timeout=5.0)
+        
+        capture.stop()
 
-        # After subtracting 1 minute from a ~5 second chrono, we should have
-        # approximately 55 seconds of countdown remaining.
-        # Allow for some timing variance (45-59 seconds range).
-        countdown_patterns = ["0:5", "0:4"]  # 0:5x or 0:4x
-        has_countdown_time = any(pattern in normalized_after for pattern in countdown_patterns)
+        # Verify countdown state
+        assert state_sub is not None
+        logger.info(f"After subtraction state: {state_sub}")
+        
+        # Should be ~0:55 countdown
+        assert_time_approximately(state_sub, minutes=0, seconds=55, tolerance=10)
+        assert_mode(state_sub, "New")
+        assert_paused(state_sub, True)
 
-        # Also try flexible time pattern matching
-        if not has_countdown_time:
-            # Check for time in the range of 45-59 seconds (0 minutes, 45-59 seconds)
-            has_countdown_time = has_time_pattern(text_after, minutes=0, seconds=55, tolerance=15)
-
-        assert has_countdown_time, (
-            f"Expected countdown time around 0:55 after subtracting 1 minute from chrono, "
-            f"got: {text_after}"
-        )
-
-        # Verify the display changed (chrono -> countdown shows different value)
-        assert chrono_screenshot.tobytes() != after_subtraction.tobytes(), (
-            f"Display should change after conversion from chrono to countdown. "
-            f"Before: {text_chrono}, After: {text_after}"
-        )
 
     def test_chrono_subtraction_multiple_minutes(self, persistent_emulator):
         """
         Test subtracting multiple minutes from a chrono.
-
-        This test verifies that subtracting a larger amount (e.g., 3 minutes)
-        from a chrono correctly produces a longer countdown.
         """
         emulator = persistent_emulator
 
-        # Wait for chrono mode
-        time.sleep(3.5)
-
-        # Pause the timer
-        emulator.press_select()
-        time.sleep(0.5)
-
-        # Enter edit mode
-        emulator.press_up()
-        time.sleep(0.3)
-
-        # Enable reverse direction
-        emulator.hold_button(Button.UP)
-        time.sleep(2.0)
-        emulator.release_buttons()
-        time.sleep(0.8)
-
-        # Subtract 3 minutes (press Down 3 times)
-        emulator.press_down()
-        time.sleep(0.8)
-        emulator.press_down()
-        time.sleep(0.8)
-        emulator.press_down()
+        # Start log capture
+        capture = LogCapture(emulator.platform)
+        capture.start()
         time.sleep(1.0)
+        capture.clear_state_queue()
 
-        after_subtraction = emulator.screenshot("after_3min_subtraction")
+        # Step 1: Wait for chrono mode
+        time.sleep(3.5)
+        emulator.press_select()
+        capture.wait_for_state(event="button_select", timeout=5.0)
 
-        # Verify countdown shows approximately 2:55 (3 minutes minus ~5 seconds elapsed)
-        text = extract_text(after_subtraction)
-        logger.info(f"After 3-minute subtraction: {text}")
+        # Step 2: Enter edit mode and reverse direction
+        emulator.press_up()
+        capture.wait_for_state(event="button_up", timeout=5.0)
+        emulator.hold_button(Button.UP)
+        time.sleep(1.0)
+        emulator.release_buttons()
+        capture.wait_for_state(event="long_press_up", timeout=5.0)
 
-        # Should show time around 2:55 (2 minutes 55 seconds)
-        has_expected_time = has_time_pattern(text, minutes=3, tolerance=15)
-        assert has_expected_time, (
-            f"Expected countdown time around 2:55 after subtracting 3 minutes, got: {text}"
-        )
+        # Step 3: Subtract 3 minutes
+        emulator.press_down()
+        emulator.press_down()
+        emulator.press_down()
+        
+        # Wait for all 3 button_down events
+        state_sub1 = capture.wait_for_state(event="button_down", timeout=5.0)
+        state_sub2 = capture.wait_for_state(event="button_down", timeout=5.0)
+        state_sub3 = capture.wait_for_state(event="button_down", timeout=5.0)
+
+        capture.stop()
+
+        # Verify countdown shows approximately 2:55
+        assert state_sub3 is not None
+        assert_time_approximately(state_sub3, minutes=2, seconds=55, tolerance=10)
+
 
     def test_chrono_add_then_subtract(self, persistent_emulator):
         """
         Test adding time then subtracting to verify direction toggle works.
-
-        This test verifies that:
-        1. Adding time to a chrono increases the countdown
-        2. Toggling direction and subtracting correctly reduces it
         """
         emulator = persistent_emulator
 
-        # Wait for chrono mode
+        # Start log capture
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        time.sleep(1.0)
+        capture.clear_state_queue()
+
+        # Step 1: Wait for chrono mode
         time.sleep(3.5)
-
-        # Enter edit mode
         emulator.press_up()
-        time.sleep(0.3)
+        capture.wait_for_state(event="button_up", timeout=5.0)
 
-        # Add 2 minutes (normal direction) by pressing Down twice
-        # In edit mode for chrono, Down adds time (timer_increment_chrono positive)
+        # Step 2: Add 2 minutes (forward)
         emulator.press_down()
         emulator.press_down()
-        time.sleep(0.3)
+        state_add1 = capture.wait_for_state(event="button_down", timeout=5.0)
+        state_add2 = capture.wait_for_state(event="button_down", timeout=5.0)
+        assert_time_approximately(state_add2, minutes=1, seconds=55, tolerance=10)
+        assert_direction(state_add2, forward=True)
 
-        after_add = emulator.screenshot("after_add")
-
-        # Now toggle to reverse direction
+        # Step 3: Toggle reverse and subtract 1 minute
         emulator.hold_button(Button.UP)
         time.sleep(1.0)
         emulator.release_buttons()
-        time.sleep(0.3)
+        capture.wait_for_state(event="long_press_up", timeout=5.0)
 
-        # Subtract 1 minute
         emulator.press_down()
-        time.sleep(0.3)
+        state_sub1 = capture.wait_for_state(event="button_down", timeout=5.0)
+        
+        capture.stop()
 
-        after_subtract = emulator.screenshot("after_subtract")
-
-        # Extract text and verify
-        text_add = extract_text(after_add)
-        text_subtract = extract_text(after_subtract)
-        logger.info(f"After adding 2 min: {text_add}")
-        logger.info(f"After subtracting 1 min: {text_subtract}")
-
-        # After adding 2 min to ~5s chrono: should be countdown ~1:55
-        # After subtracting 1 min: should be countdown ~0:55
-        # Verify the subtraction reduced the time
-        assert after_add.tobytes() != after_subtract.tobytes(), (
-            f"Display should change after subtraction. "
-            f"After add: {text_add}, After subtract: {text_subtract}"
-        )
+        # Verify subtraction reduced the time back to ~0:55
+        assert state_sub1 is not None
+        assert_direction(state_sub1, forward=False)
+        assert_time_approximately(state_sub1, minutes=0, seconds=55, tolerance=10)

@@ -494,3 +494,258 @@ def _setup_test_environment(request):
         time.sleep(0.5)
         # Clear test name
         emulator_helper.set_test_name(None)
+
+
+####################################################################################################
+# Log Capture for Test Assertions
+#
+# These classes and functions enable functional tests to verify app state by parsing
+# structured log output instead of relying on OCR. See ralph/specs/test-logging.md.
+#
+
+import re
+import threading
+import queue
+from typing import Optional
+
+
+class LogCapture:
+    """
+    Captures pebble logs in background and provides parsing for TEST_STATE lines.
+
+    Usage:
+        capture = LogCapture(platform="basalt")
+        capture.start()
+        # ... interact with emulator ...
+        state = capture.wait_for_state(event="button_down", timeout=5.0)
+        assert state['time'] == '2:00'
+        capture.stop()
+    """
+
+    # Regex to parse TEST_STATE log lines
+    # Format: TEST_STATE:<event>,time=M:SS,mode=<mode>,repeat=<n>,paused=<0|1>,vibrating=<0|1>,direction=<1|-1>
+    STATE_PATTERN = re.compile(r'TEST_STATE:(\w+),(.+)')
+
+    def __init__(self, platform: str):
+        self.platform = platform
+        self._process: Optional[subprocess.Popen] = None
+        self._thread: Optional[threading.Thread] = None
+        self._state_queue: queue.Queue = queue.Queue()
+        self._all_logs: list[str] = []
+        self._running = False
+
+    def start(self):
+        """Start capturing logs in background."""
+        if self._running:
+            return
+
+        env = os.environ.copy()
+        env["PEBBLE_EMULATOR"] = self.platform
+
+        self._process = subprocess.Popen(
+            [str(PEBBLE_CMD), "logs", f"--emulator={self.platform}"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            cwd=str(PROJECT_ROOT),
+            env=env,
+        )
+
+        self._running = True
+        self._thread = threading.Thread(target=self._read_logs, daemon=True)
+        self._thread.start()
+        logger.debug(f"[{self.platform}] Log capture started")
+
+    def _read_logs(self):
+        """Background thread that reads log lines and queues state logs."""
+        while self._running and self._process and self._process.poll() is None:
+            try:
+                line = self._process.stdout.readline()
+                if not line:
+                    continue
+
+                line = line.strip()
+                self._all_logs.append(line)
+
+                # Check for TEST_STATE lines
+                if 'TEST_STATE:' in line:
+                    state = self._parse_state_line(line)
+                    if state:
+                        self._state_queue.put(state)
+                        logger.debug(f"[{self.platform}] Captured state: {state}")
+            except Exception as e:
+                logger.warning(f"[{self.platform}] Error reading log: {e}")
+                break
+
+    def _parse_state_line(self, line: str) -> Optional[dict]:
+        """Parse a TEST_STATE log line into a dictionary."""
+        # Find the TEST_STATE part in the log line
+        idx = line.find('TEST_STATE:')
+        if idx == -1:
+            return None
+
+        state_part = line[idx:]
+        match = self.STATE_PATTERN.match(state_part)
+        if not match:
+            logger.warning(f"[{self.platform}] Could not parse state line: {state_part}")
+            return None
+
+        event = match.group(1)
+        fields_str = match.group(2)
+
+        state = {'event': event}
+        for field in fields_str.split(','):
+            if '=' in field:
+                key, value = field.split('=', 1)
+                state[key] = value
+
+        return state
+
+    def stop(self):
+        """Stop capturing logs."""
+        self._running = False
+        if self._process:
+            try:
+                self._process.terminate()
+                self._process.wait(timeout=2)
+            except Exception:
+                try:
+                    self._process.kill()
+                except Exception:
+                    pass
+            self._process = None
+        if self._thread:
+            self._thread.join(timeout=2)
+            self._thread = None
+        logger.debug(f"[{self.platform}] Log capture stopped")
+
+    def get_all_logs(self) -> list[str]:
+        """Return all captured log lines."""
+        return self._all_logs.copy()
+
+    def get_state_logs(self) -> list[dict]:
+        """Return all captured state logs as a list of dicts."""
+        states = []
+        while not self._state_queue.empty():
+            try:
+                states.append(self._state_queue.get_nowait())
+            except queue.Empty:
+                break
+        # Put them back for other consumers
+        for state in states:
+            self._state_queue.put(state)
+        return states
+
+    def wait_for_state(self, event: Optional[str] = None, timeout: float = 5.0) -> Optional[dict]:
+        """
+        Wait for the next state log entry, optionally matching a specific event.
+
+        Args:
+            event: If provided, skip states until one with this event is found
+            timeout: Maximum time to wait in seconds
+
+        Returns:
+            The state dict, or None if timeout
+        """
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            try:
+                remaining = deadline - time.time()
+                if remaining <= 0:
+                    break
+                state = self._state_queue.get(timeout=min(0.1, remaining))
+                if event is None or state.get('event') == event:
+                    return state
+                # Not the event we want, keep waiting
+            except queue.Empty:
+                continue
+        return None
+
+    def clear_state_queue(self):
+        """Clear all pending state logs."""
+        while not self._state_queue.empty():
+            try:
+                self._state_queue.get_nowait()
+            except queue.Empty:
+                break
+
+
+def parse_time(time_str: str) -> tuple[int, int]:
+    """Parse a time string 'M:SS' into (minutes, seconds)."""
+    parts = time_str.split(':')
+    if len(parts) == 2:
+        return int(parts[0]), int(parts[1])
+    return 0, 0
+
+
+def assert_time_equals(state: dict, minutes: int, seconds: int):
+    """Assert the timer shows exactly this time.
+
+    Note: State uses short field name 't' for time.
+    """
+    expected = f"{minutes}:{seconds:02d}"
+    actual = state.get('t', '')
+    assert actual == expected, f"Expected time {expected}, got {actual}"
+
+
+def assert_time_approximately(state: dict, minutes: int, seconds: int, tolerance: int = 5):
+    """Assert the timer is within tolerance seconds of expected.
+
+    Note: State uses short field name 't' for time.
+    """
+    actual_min, actual_sec = parse_time(state.get('t', '0:00'))
+    actual_total = actual_min * 60 + actual_sec
+    expected_total = minutes * 60 + seconds
+    diff = abs(actual_total - expected_total)
+    assert diff <= tolerance, (
+        f"Expected time ~{minutes}:{seconds:02d} (±{tolerance}s), "
+        f"got {state.get('t', '?')}"
+    )
+
+
+def assert_mode(state: dict, mode: str):
+    """Assert the control mode matches.
+
+    Note: State uses short field name 'm' for mode.
+    """
+    actual = state.get('m', '')
+    assert actual == mode, f"Expected mode {mode}, got {actual}"
+
+
+def assert_paused(state: dict, paused: bool = True):
+    """Assert pause state.
+
+    Note: State uses short field name 'p' for paused.
+    """
+    expected = '1' if paused else '0'
+    actual = state.get('p', '')
+    assert actual == expected, f"Expected paused={expected}, got paused={actual}"
+
+
+def assert_repeat_count(state: dict, count: int):
+    """Assert repeat counter value.
+
+    Note: State uses short field name 'r' for repeat.
+    """
+    actual = int(state.get('r', '0'))
+    assert actual == count, f"Expected repeat={count}, got repeat={actual}"
+
+
+def assert_vibrating(state: dict, vibrating: bool = True):
+    """Assert vibration state.
+
+    Note: State uses short field name 'v' for vibrating.
+    """
+    expected = '1' if vibrating else '0'
+    actual = state.get('v', '')
+    assert actual == expected, f"Expected vibrating={expected}, got vibrating={actual}"
+
+
+def assert_direction(state: dict, forward: bool = True):
+    """Assert direction (forward=1, reverse=-1).
+
+    Note: State uses short field name 'd' for direction.
+    """
+    expected = '1' if forward else '-1'
+    actual = state.get('d', '')
+    assert actual == expected, f"Expected direction={expected}, got direction={actual}"

@@ -200,6 +200,21 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 ---
 
+### 14. Test Logging for Functional Tests
+**File:** [test-logging.md](test-logging.md)
+
+**Keywords:** testing, logging, functional tests, OCR replacement, TEST_STATE, log parsing, assertions, reliability
+
+**Summary:** Adds structured logging that outputs timer state to the console, enabling functional tests to verify app behavior by parsing log output instead of unreliable OCR. Includes TEST_LOG macro (wraps APP_LOG for easy future filtering), LogCapture Python class, and assertion helpers.
+
+| 14 | [test-logging](test-logging.md) | Log-based testing | Completed | Passing | 2026-02-04 | Structured state logging for reliable functional tests. |
+
+**Tests:** Passing (4 proof-of-concept tests + 1 migrated test on basalt). Some other tests are failing and still need to be addressed.
+
+**Dependencies:** functional-tests-emulator.md (spec #4)
+
+---
+
 ## Adding New Specifications
 
 When creating a new spec file:

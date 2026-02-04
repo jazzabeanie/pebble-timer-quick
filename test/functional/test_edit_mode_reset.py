@@ -12,7 +12,15 @@ import numpy as np
 from pathlib import Path
 from PIL import Image
 
-from .conftest import Button, EmulatorHelper, PLATFORMS
+from .conftest import (
+    Button,
+    EmulatorHelper,
+    PLATFORMS,
+    LogCapture,
+    assert_mode,
+    assert_paused,
+    assert_time_equals,
+)
 from .test_create_timer import extract_text, normalize_time_text, REFERENCES_DIR
 
 # Configure module logger
@@ -79,42 +87,62 @@ class TestEditModeReset:
     def test_long_press_select_resets_in_control_mode_new(self, persistent_emulator):
         """
         Test 1: Long press select in ControlModeNew resets to paused 0:00 in edit seconds mode.
+
+        Uses log-based assertions for reliable state verification:
+        1. Verifies mode is EditSec after long press
+        2. Verifies timer is 0:00
+        3. Verifies pressing Back adds 60 seconds (confirms EditSec mode)
         """
         emulator = persistent_emulator
         platform = emulator.platform
 
-        # Step 1: Set a 2-minute timer
+        # Start log capture
+        capture = LogCapture(platform)
+        capture.start()
+        time.sleep(1.0)  # Wait for pebble logs to connect
+        capture.clear_state_queue()
+
+        # Step 1: Set a 2-minute timer and wait for Counting mode
         emulator.press_down()
         emulator.press_down()
         time.sleep(4)
 
         # Step 2: Press Up to enter edit mode
         emulator.press_up()
-        time.sleep(1)
-        
-        # Step 3: Long press Select
-        emulator.hold_button(Button.SELECT)
-        time.sleep(1.5) 
-        emulator.release_buttons()
-        time.sleep(1) 
-        
-        # Capture burst to get ON phase
-        burst = capture_burst(emulator)
-        best_img = get_best_image(burst)
-        
-        # Verify timer shows "0:00"
-        assert matches_reference(best_img, f"{platform}_reset_000"), \
-            "Timer display did not match '0:00' reference"
+        state_edit = capture.wait_for_state(event="button_up", timeout=5.0)
+        time.sleep(0.5)
 
-        # Step 5: Press Back to verify Edit Seconds
+        # Verify we're in New mode (editing existing timer)
+        assert state_edit is not None, "Did not receive button_up state log"
+        logger.info(f"After Up press state: {state_edit}")
+        assert_mode(state_edit, "New")
+
+        # Step 3: Long press Select to reset to 0:00 in EditSec mode
+        emulator.hold_button(Button.SELECT)
+        time.sleep(1.5)
+        emulator.release_buttons()
+
+        # Wait for the long_press_select state log
+        state_reset = capture.wait_for_state(event="long_press_select", timeout=5.0)
+
+        # Verify timer is 0:00 and mode is EditSec
+        assert state_reset is not None, "Did not receive long_press_select state log"
+        logger.info(f"After long press Select state: {state_reset}")
+        assert_mode(state_reset, "EditSec")
+        assert_time_equals(state_reset, minutes=0, seconds=0)
+        assert_paused(state_reset, True)
+
+        # Step 4: Press Back to verify Edit Seconds mode (adds 60 seconds)
         emulator.press_back()
-        time.sleep(1)
-        
-        burst_back = capture_burst(emulator)
-        best_back = get_best_image(burst_back)
-        
-        assert matches_reference(best_back, f"{platform}_reset_back_100"), \
-            "Timer display did not match '1:00' reference"
+        state_back = capture.wait_for_state(event="button_back", timeout=5.0)
+
+        capture.stop()
+
+        # Verify Back button added 60 seconds (confirms EditSec mode)
+        assert state_back is not None, "Did not receive button_back state log"
+        logger.info(f"After Back press state: {state_back}")
+        assert_time_equals(state_back, minutes=1, seconds=0)
+        assert_mode(state_back, "EditSec")
 
     @pytest.mark.skip(reason="Visual comparison flaky due to animations/blinking")
     def test_long_press_select_no_op_in_edit_sec(self, persistent_emulator):

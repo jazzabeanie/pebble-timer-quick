@@ -81,18 +81,18 @@ bool timer_is_vibrating(void) {
 // Check if timer is in stopwatch mode
 bool timer_is_chrono(void) {
   // Calculate elapsed time based on timer state
-  int64_t elapsed;
+  int64_t elapsed_ms;
   if (!timer_data.is_paused) {
     // Running timer: elapsed = current time - start time
     // Note: elapsed can be negative if start_ms is in the future
-    elapsed = epoch() - timer_data.start_ms;
+    elapsed_ms = epoch() - timer_data.start_ms;
   } else {
     // Paused timer: start_ms stores the elapsed time
-    elapsed = timer_data.start_ms;
+    elapsed_ms = timer_data.start_ms;
   }
 
   // Chrono mode when elapsed time exceeds length (raw_value <= 0)
-  return timer_data.length_ms - elapsed <= 0;
+  return timer_data.length_ms - elapsed_ms <= 0;
 }
 
 // Check if timer or stopwatch is paused
@@ -103,10 +103,12 @@ bool timer_is_paused(void) {
 // Check if the timer is elapsed and vibrate if this is the first call after elapsing
 void timer_check_elapsed(void) {
   if (timer_is_chrono() && !timer_is_paused() && timer_data.can_vibrate) {
+    timer_data.elapsed = true;
     if (timer_data.is_repeating && timer_data.repeat_count > 1) {
       timer_data.repeat_count--;
       timer_increment(timer_data.base_length_ms);
       vibes_long_pulse(); // Vibrate briefly on repeat
+      test_log_state("timer_repeat");
       return;
     }
     // stop vibration after certain duration
@@ -125,41 +127,7 @@ void timer_check_elapsed(void) {
 
 // Increment timer value currently being edited
 void timer_increment(int64_t increment) {
-  // if in paused stopwatch mode, rewind to previous time
-  // JJ: actually it just checks if timer_is_chrono and it's active. I think
-  // it's assumed to be paused if this code is running
-  // if (timer_is_chrono() && timer_data.start_ms) {
-  //   timer_rewind();
-  //   return;
-  // }
-  // identify increment class
-  // int64_t interval;
-  // if (abs(increment) < MSEC_IN_MIN) {
-  //   interval = MSEC_IN_MIN;
-  // } else if (abs(increment) < MSEC_IN_HR) {
-  //   interval = MSEC_IN_HR;
-  // } else {
-  //   interval = MSEC_IN_HR * 100;
-  // }
-  // calculate new time by incrementing with wrapping
-  // int64_t ls_bit = (timer_data.length_ms + timer_data.start_ms) % interval;
-  // int64_t ls_bit = (timer_data.length_ms + timer_data.start_ms) % interval;
-  // int64_t step = (ls_bit + interval + increment) % interval - ls_bit;
-  // if (timer_data.start_ms) {
-  //   timer_data.start_ms += step;
-  //   if (timer_data.start_ms > 0) {
-  //     timer_data.length_ms += timer_data.start_ms;
-  //     timer_data.start_ms = 0;
-  //   }
-  // } else {
-  //   timer_data.length_ms += step;
-  // }
-  // timer_data.length_ms += step;
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "in timer_increment, timer_data.start_ms = %lld", (long long)timer_data.start_ms);
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "in timer_increment, timer_data.length_ms = %lld", (long long)timer_data.length_ms);
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "in timer_increment, increment = %lld", (long long)increment);
   timer_data.length_ms += increment;
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "in timer_increment, new timer_data.length_ms = %lld", (long long)timer_data.length_ms);
   // if at zero, remove any leftover milliseconds
   if (timer_get_value_ms() < MSEC_IN_SEC) {
     timer_reset();
@@ -168,6 +136,7 @@ void timer_increment(int64_t increment) {
   if (timer_data.length_ms) {
     timer_data.can_vibrate = true;
   }
+  timer_data.elapsed = false;
 }
 
 // Increment stopwatch (chrono) value currently being edited by adjusting start time
@@ -178,6 +147,7 @@ void timer_increment_chrono(int64_t increment) {
   } else {
     timer_data.start_ms += increment;
   }
+  timer_data.elapsed = false;
 }
 
 // Toggle play pause state for timer
@@ -201,6 +171,7 @@ void timer_rewind(void) {
   if (timer_data.length_ms) {
     timer_data.can_vibrate = true;
   }
+  timer_data.elapsed = false;
 }
 
 // Restart the timer from its original value
@@ -229,6 +200,7 @@ void timer_restart(void) {
   }
 
   timer_data.auto_snooze_count = 0;
+  timer_data.elapsed = false;
 }
 
 // Reset the timer to zero
@@ -242,6 +214,7 @@ void timer_reset(void) {
   timer_data.auto_snooze_count = 0;
   timer_data.is_repeating = false;
   timer_data.repeat_count = 0;
+  timer_data.elapsed = false;
 }
 
 // Save the timer to persistent storage

@@ -56,3 +56,30 @@ void *malloc_check(uint16_t size, const char *file, int line);
 //! Get current epoch in milliseconds
 //! @return The current epoch time in milliseconds
 uint64_t epoch(void);
+
+//! ============================================================================
+//! TEST_LOG: Structured logging for functional test assertions
+//! ============================================================================
+//!
+//! PURPOSE:
+//! This macro enables functional tests to verify app state by parsing log
+//! output instead of using unreliable OCR on screenshots. Tests run
+//! `pebble logs` to capture these structured log lines.
+//!
+//! WHY WRAP APP_LOG?
+//! Currently this just calls APP_LOG, but wrapping it allows us to easily
+//! disable test logging in production builds later by changing this one macro.
+//!
+//! TO DISABLE IN PRODUCTION (Option B - zero overhead):
+//! Replace the #define below with:
+//!   #ifdef TEST_BUILD
+//!   #define TEST_LOG(level, fmt, ...) APP_LOG(level, fmt, ##__VA_ARGS__)
+//!   #else
+//!   #define TEST_LOG(level, fmt, ...) ((void)0)
+//!   #endif
+//! Then add -DTEST_BUILD to CFLAGS in wscript for emulator/test builds.
+//!
+#define TEST_LOG(level, fmt, ...) APP_LOG(level, fmt, ##__VA_ARGS__)
+
+// Log current app state for functional test assertions
+void test_log_state(const char *event);

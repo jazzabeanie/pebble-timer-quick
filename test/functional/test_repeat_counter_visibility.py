@@ -17,7 +17,15 @@ from pathlib import Path
 from PIL import Image
 import numpy as np
 
-from .conftest import Button, EmulatorHelper, PLATFORMS
+from .conftest import (
+    Button,
+    EmulatorHelper,
+    PLATFORMS,
+    LogCapture,
+    assert_mode,
+    assert_paused,
+    assert_repeat_count,
+)
 from .test_button_icons import (
     get_region,
     has_icon_content,
@@ -64,29 +72,38 @@ class TestRepeatCounterVisibility:
 
         Returns the emulator positioned in counting mode with repeat_count > 1.
         """
+        # Start log capture
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        time.sleep(1.0)
+        capture.clear_state_queue()
+
         # Add 1 minute
         emulator.press_down()
-        time.sleep(0.5)
+        capture.wait_for_state(event="button_down", timeout=2.0)
 
         # Wait for auto-start into counting mode
-        time.sleep(4)
+        capture.wait_for_state(event="mode_change", timeout=5.0)
 
         # Long press Up to enter EditRepeat mode
         emulator.hold_button(Button.UP)
         time.sleep(1)
         emulator.release_buttons()
-        time.sleep(0.3)
+        state_repeat = capture.wait_for_state(event="long_press_up", timeout=5.0)
+        assert_mode(state_repeat, "EditRepeat")
 
         # Press Select to add +5 repeats
         emulator.press_select()
-        time.sleep(0.3)
+        state_select = capture.wait_for_state(event="button_select", timeout=5.0)
+        assert_repeat_count(state_select, 5)
 
         # Screenshot in EditRepeat mode showing the repeat count indicator
         editrepeat_screenshot = emulator.screenshot("editrepeat_with_repeats")
 
         # Wait for EditRepeat mode to auto-exit (returns to counting)
-        time.sleep(4)
+        capture.wait_for_state(event="mode_change", timeout=5.0)
 
+        capture.stop()
         return editrepeat_screenshot
 
     def _get_to_new_mode_with_repeats(self, emulator):

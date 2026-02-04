@@ -8,7 +8,7 @@ stopwatch mode.
 ![Timer+ Pebble](https://github.com/YclepticStudios/pebble-timer-plus/blob/master/assets/screenshots/basalt-animated.gif)
 ![Timer+ Pebble](https://github.com/YclepticStudios/pebble-timer-plus/blob/master/assets/screenshots/aplite-animated.gif)
 
-## Building and testing
+## Building
 
 - install SDK almost according to https://developer.repebble.com/sdk/
   - install node
@@ -42,7 +42,9 @@ Other resources that might be helpful if the above fails:
 - https://github.com/richinfante/rebbletool
 - https://developer.repebble.com/sdk/cloud
 
-## Running Tests
+## Tests
+
+### Units Tests
 
 Unit tests use [cmocka](https://cmocka.org/) and can be run without the Pebble SDK.
 
@@ -74,7 +76,7 @@ make clean
 
 This is only needed if you're troubleshooting build issues and want a fresh rebuild. The Makefile automatically rebuilds when source files change, so cleaning is rarely necessary during normal development.
 
-## Running Functional Tests
+### Functional Tests
 
 Functional tests run on the Pebble emulator to verify UI behavior and button interactions.
 
@@ -83,6 +85,8 @@ Functional tests run on the Pebble emulator to verify UI behavior and button int
 - Python packages: `pip install -r requirements.txt`
 
 Note: The tests use EasyOCR (deep learning-based) for text recognition, which provides better accuracy for the custom LECO 7-segment style font compared to traditional OCR engines like Tesseract. EasyOCR downloads its models (~100MB) on first run.
+
+Test are moving to inspecting logs instead of relying on OCR. The `pebble logs` command needs ~1 second to connect. See `test_log_based.py`.
 
 To run functional tests (runs on basalt by default):
 
@@ -101,6 +105,8 @@ To run a specific file:
 
 ```bash
 python -m pytest test_create_timer.py -v --platform=basalt
+# or
+python -m pytest ./test/functional/test_create_timer.py -v --platform=basalt
 ```
 
 To run on ALL emulator platforms (aplite, basalt, chalk, diorite, emery):

@@ -16,7 +16,18 @@ import pytest
 from PIL import Image
 import time
 
-from .conftest import Button, EmulatorHelper, PLATFORMS
+from .conftest import (
+    Button,
+    EmulatorHelper,
+    PLATFORMS,
+    LogCapture,
+    assert_time_equals,
+    assert_time_approximately,
+    assert_mode,
+    assert_paused,
+    assert_vibrating,
+    assert_repeat_count,
+)
 from .test_create_timer import (
     extract_text,
     normalize_time_text,
@@ -126,14 +137,8 @@ def setup_short_timer(emulator, seconds=4):
 
     # Step 6: Wait for expire timer (3s after last button press)
     # This transitions from ControlModeEditSec to ControlModeCounting
-    # Timer is still paused (start_ms=0 from step 4)
+    # The app automatically unpauses when transitioning to Counting mode.
     time.sleep(3.5)
-
-    # Step 7: Press Select to unpause the timer
-    # In ControlModeCounting, Select toggles play/pause
-    # start_ms goes from 0 to epoch() (running)
-    emulator.press_select()
-    time.sleep(0.3)
 
     logger.info(f"[{emulator.platform}] Short timer started, counting down from {seconds}s")
 
@@ -271,69 +276,51 @@ class TestSnoozeCompletedTimer:
         Verify that a completed timer can be snoozed with the Down button.
 
         Steps:
-        1. Set up and start a 4-second timer (setup_short_timer starts it running)
-        2. Wait for 4-second countdown to complete + vibration buffer
-        3. Timer enters chrono mode and starts vibrating
-        4. Press Down to snooze (adds 5 minutes)
-        5. Verify the timer now shows ~5:00 counting down
-
-        Key behavior: Down button during vibration adds SNOOZE_INCREMENT_MS
-        (5 minutes) to the timer and cancels vibration.
+        1. Set up and start a 4-second timer
+        2. Wait for alarm_start event
+        3. Press Down to snooze (adds 5 minutes)
+        4. Verify state shows approximately 5:00 counting down
         """
         emulator = persistent_emulator
 
-        # --- Capture all screenshots first (OCR deferred) ---
+        # Start log capture
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        time.sleep(1.0)
+        capture.clear_state_queue()
 
-        # Step 1: Set up 4-second timer (starts running after setup)
+        # Step 1: Set up 4-second timer
         setup_short_timer(emulator, seconds=4)
 
-        # Step 2: Wait for 4-second countdown to complete + buffer
-        time.sleep(5)
+        # Step 2: Wait for alarm_start event
+        logger.info("Waiting for alarm to start...")
+        state_alarm = capture.wait_for_state(event="alarm_start", timeout=15.0)
+        if state_alarm is None:
+            logger.error(f"All captured logs: {capture.get_all_logs()}")
+            logger.error(f"State queue: {capture.get_state_logs()}")
+        assert state_alarm is not None, "Timer did not alarm"
+        assert_vibrating(state_alarm, True)
+        logger.info(f"Alarm started: {state_alarm}")
 
-        # Step 3: Timer should be vibrating in chrono mode now
-        # Take screenshot before snooze
-        before_snooze = emulator.screenshot("before_snooze")
-
-        # Step 4: Press Down to snooze
+        # Step 3: Press Down to snooze
         emulator.press_down()
-        time.sleep(0.5)
+        
+        # Step 4: Wait for alarm_stop and button_down logs
+        state_stop = capture.wait_for_state(event="alarm_stop", timeout=5.0)
+        state_snooze = capture.wait_for_state(event="button_down", timeout=5.0)
 
-        # Take screenshot after snooze
-        after_snooze = emulator.screenshot("after_snooze")
+        capture.stop()
 
-        # Cancel any quit timer by pressing Down again (safe in counting mode)
-        emulator.press_down()
-
-        # --- Perform OCR assertions ---
-
-        before_text = extract_text(before_snooze)
-        logger.info(f"Before snooze: {before_text}")
-
-        # Before snooze: should show chrono mode (timer completed, counting up)
-        # Header shows "XX:XX-->" pattern
-        normalized_before = normalize_time_text(before_text)
-        has_chrono_arrow = "-->" in before_text or "-->" in normalized_before
-        # Also accept: OCR might not read the arrow cleanly
-        logger.info(f"Before snooze normalized: {normalized_before}")
-
-        after_text = extract_text(after_snooze)
-        logger.info(f"After snooze: {after_text}")
-
-        # After snooze: should show ~5:00 counting down (snooze adds 5 minutes)
-        # The header should show total timer duration (not "Edit" or "New")
-        normalized_after = normalize_time_text(after_text)
-        logger.info(f"After snooze normalized: {normalized_after}")
-
-        # Check for approximately 5 minutes (4:5x to 5:00 range)
-        has_snooze_time = has_time_pattern(after_text, minutes=5, tolerance=15)
-        assert has_snooze_time, (
-            f"Expected time around 5:00 after snooze, got: {after_text}"
-        )
-
-        # Verify we're not in edit mode (no "Edit" or "New" header)
-        assert "Edit" not in after_text and "New" not in after_text, (
-            f"Expected counting mode after snooze (no Edit/New), got: {after_text}"
-        )
+        # Verify snooze state
+        assert state_stop is not None, "Alarm did not stop"
+        assert state_snooze is not None, "Did not receive button_down state"
+        logger.info(f"After snooze state: {state_snooze}")
+        
+        # After snooze: should show ~5:00 counting down
+        assert_time_approximately(state_snooze, minutes=5, seconds=0, tolerance=5)
+        assert_mode(state_snooze, "Counting")
+        assert_paused(state_snooze, False)
+        assert_vibrating(state_snooze, False)
 
 
 class TestRepeatCompletedTimer:
@@ -345,54 +332,49 @@ class TestRepeatCompletedTimer:
         original duration.
 
         Steps:
-        1. Set up and start a 4-second timer (setup_short_timer starts it running)
-        2. Wait for 4-second countdown to complete + vibration buffer
-        3. Timer enters chrono mode and starts vibrating
-        4. Hold Up to repeat the timer
-        5. Verify the timer restarts automatically from its original duration.
+        1. Set up and start a 4-second timer
+        2. Wait for alarm_start event
+        3. Hold Up to repeat the timer
+        4. Verify state shows alarm_stop and then long_press_up
+        5. Verify timer restarts (back to 0:04)
         """
         emulator = persistent_emulator
 
-        # --- Capture screenshots first (OCR deferred) ---
+        # Start log capture
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        time.sleep(1.0)
+        capture.clear_state_queue()
 
-        # Step 1: Set up 4-second timer (starts running)
+        # Step 1: Set up 4-second timer
         setup_short_timer(emulator, seconds=4)
 
-        # Step 2: Wait for countdown to complete + vibration buffer
-        time.sleep(3.5)
+        # Step 2: Wait for alarm_start
+        state_alarm = capture.wait_for_state(event="alarm_start", timeout=10.0)
+        assert state_alarm is not None, "Timer did not alarm"
 
-        alarming_screenshot = emulator.screenshot("1_alarming")
-
-        # Step 3: Press Up to repeat the timer
+        # Step 3: Hold Up to repeat
         emulator.hold_button(Button.UP)
-        time.sleep(0.2)
+        time.sleep(1.0)
+        emulator.release_buttons()
 
-        # Capture screenshot in edit mode
-        repeat_screenshot = emulator.screenshot("2_repeat")
+        # Step 4: Wait for logs
+        state_stop = capture.wait_for_state(event="alarm_stop", timeout=5.0)
+        state_repeat = capture.wait_for_state(event="long_press_up", timeout=5.0)
 
-        # Cancel quit timer
-        emulator.press_down()
+        capture.stop()
 
-        # --- Perform OCR assertions ---
-
-        repeat_text = extract_text(repeat_screenshot)
-        logger.info(f"After holding Up during alarm: {repeat_text}")
-
-        # Verify the timer has restarted to its original duration (0:04)
-        normalized = normalize_time_text(repeat_text)
-        logger.info(f"Repeat timer normalized: {normalized}")
-
-        # TODO implement a more rhobust checking method
-        # # Check for time around 0:04, as the timer continues from its previous state.
-        # has_expected_time = has_time_pattern(repeat_text, minutes=0, tolerance=4)
-        # assert has_expected_time, (
-        #     f"Expected time around 0:04 after repeating, got: {repeat_text}"
-        # )
-
-        # Assert that the header shows the new total duration (00:08)
-        assert "00:08" in normalized, (
-            f"Expected header to show '00:08', got: {normalized}"
-        )
+        # Verify repeat state
+        assert state_stop is not None, "Alarm did not stop"
+        assert state_repeat is not None, "Did not receive long_press_up state"
+        logger.info(f"After repeat state: {state_repeat}")
+        
+        # Should show ~0:04 counting down
+        # (It actually adds base_length_ms to length_ms, so it's 8s total, 4s elapsed)
+        assert_time_approximately(state_repeat, minutes=0, seconds=4, tolerance=2)
+        assert_mode(state_repeat, "Counting")
+        assert_paused(state_repeat, False)
+        assert_vibrating(state_repeat, False)
 
 
 class TestQuietAlarmBackButton:
@@ -404,64 +386,46 @@ class TestQuietAlarmBackButton:
         counting up in chrono mode.
 
         Steps:
-        1. Set up and start a 4-second timer (already running after setup)
-        2. Wait for countdown to complete (vibrating in chrono mode)
-        3. Press Back to silence the alarm
-        4. Verify the timer is in chrono mode (counting up, header shows "-->")
-        5. Wait 2 seconds to verify timer continues counting
-
-        Key behavior: Back button during vibration calls prv_handle_alarm()
-        which sets can_vibrate=false and cancels vibration. Timer stays in
-        ControlModeCounting in chrono mode.
+        1. Set up and start a 4-second timer
+        2. Wait for alarm_start
+        3. Press Back to silence
+        4. Verify state shows alarm_stop and button_back
+        5. Verify still in Counting mode, not vibrating, and approximately 0:04 (chrono)
         """
         emulator = persistent_emulator
 
-        # --- Capture screenshots first (OCR deferred) ---
+        # Start log capture
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        time.sleep(1.0)
+        capture.clear_state_queue()
 
-        # Step 1: Set up 4-second timer (starts running)
+        # Step 1: Set up 4-second timer
         setup_short_timer(emulator, seconds=4)
 
-        # Step 2: Wait for countdown to complete + buffer
-        time.sleep(5)
+        # Step 2: Wait for alarm_start
+        state_alarm = capture.wait_for_state(event="alarm_start", timeout=10.0)
+        assert state_alarm is not None, "Timer did not alarm"
 
-        # Step 3: Press Back to silence alarm
+        # Step 3: Press Back to silence
         emulator.press_back()
-        time.sleep(0.5)
+        
+        # Step 4: Wait for logs
+        state_stop = capture.wait_for_state(event="alarm_stop", timeout=5.0)
+        state_back = capture.wait_for_state(event="button_back", timeout=5.0)
 
-        # Step 4: Take screenshot (should be in chrono mode, no vibration)
-        after_back = emulator.screenshot("after_back_silence")
+        capture.stop()
 
-        # Step 5: Wait 2 seconds and take another screenshot
-        time.sleep(2)
-        still_counting = emulator.screenshot("still_counting_up")
-
-        # Cancel quit timer
-        emulator.press_down()
-
-        # --- Perform OCR assertions ---
-
-        after_back_text = extract_text(after_back)
-        logger.info(f"After Back (silenced): {after_back_text}")
-
-        # Verify chrono mode: header should contain "-->" arrow
-        normalized = normalize_time_text(after_back_text)
-        logger.info(f"After Back normalized: {normalized}")
-        has_chrono = "-->" in after_back_text or "-->" in normalized
-        # Also check: not in edit mode (no "Edit" or "New")
-        not_edit = "Edit" not in after_back_text and "New" not in after_back_text
-        assert has_chrono or not_edit, (
-            f"Expected chrono mode (header with '-->') after Back, got: {after_back_text}"
-        )
-
-        # Verify timer continues counting up
-        still_text = extract_text(still_counting)
-        logger.info(f"Still counting: {still_text}")
-
-        # The two screenshots should differ (timer counting up)
-        assert after_back.tobytes() != still_counting.tobytes(), (
-            f"Display should change as chrono counts up. "
-            f"After Back: {after_back_text}, Still: {still_text}"
-        )
+        # Verify silenced state
+        assert state_stop is not None, "Alarm did not stop"
+        assert state_back is not None, "Did not receive button_back state"
+        logger.info(f"After silence state: {state_back}")
+        
+        # Should show ~0:00 (chrono mode start)
+        assert_mode(state_back, "Counting")
+        assert_paused(state_back, False)
+        assert_vibrating(state_back, False)
+        assert_time_approximately(state_back, minutes=0, seconds=0, tolerance=2)
 
 
 class TestPauseCompletedTimer:
@@ -473,56 +437,45 @@ class TestPauseCompletedTimer:
 
         Steps:
         1. Set up and start a 4-second timer
-        2. Wait for timer to complete → chrono mode (vibrating)
-        3. Press Back to silence alarm (stays in chrono, counting up)
-        4. Wait 2 seconds
-        5. Press Select to pause
-        6. Verify display stops changing (paused)
-
-        Key behavior: Select in ControlModeCounting during chrono mode
-        (after alarm silenced) toggles play/pause via timer_toggle_play_pause().
+        2. Wait for alarm_start
+        3. Press Select to pause (also silences)
+        4. Verify state shows alarm_stop and button_select
+        5. Verify state is paused
         """
         emulator = persistent_emulator
 
-        # --- Capture screenshots first (OCR deferred) ---
+        # Start log capture
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        time.sleep(1.0)
+        capture.clear_state_queue()
 
-        # Step 1: Set up 4-second timer (starts running)
+        # Step 1: Set up 4-second timer
         setup_short_timer(emulator, seconds=4)
 
-        # Step 2: Wait for countdown to complete
-        time.sleep(5)
+        # Step 2: Wait for alarm_start
+        state_alarm = capture.wait_for_state(event="alarm_start", timeout=10.0)
+        assert state_alarm is not None, "Timer did not alarm"
 
         # Step 3: Press Select to pause
         emulator.press_select()
-        time.sleep(0.5)
+        
+        # Step 4: Wait for logs
+        state_stop = capture.wait_for_state(event="alarm_stop", timeout=5.0)
+        state_pause = capture.wait_for_state(event="button_select", timeout=5.0)
 
-        # Capture paused screenshot
-        paused = emulator.screenshot("paused_chrono")
+        capture.stop()
 
-        # Step 4: Wait 2 seconds - should still show same time
-        time.sleep(2)
-        still_paused = emulator.screenshot("still_paused_chrono")
-
-        # --- Perform OCR assertions ---
-
-        paused_text = extract_text(paused)
-        logger.info(f"Paused chrono: {paused_text}")
-
-        still_paused_text = extract_text(still_paused)
-        logger.info(f"Still paused: {still_paused_text}")
-
-        # Compare the main timer values (not the footer clock time which changes)
-        # The footer shows wall clock time (e.g., "14:16") which changes every minute.
-        # We need to crop out the footer and compare just the timer portion.
-        # Alternative: Compare the upper 2/3 of the screenshot (timer area)
-        # The Pebble basalt screen is 168x180. Crop to top ~140px to exclude footer.
-        paused_cropped = paused.crop((0, 0, paused.width, int(paused.height * 0.75)))
-        still_paused_cropped = still_paused.crop((0, 0, still_paused.width, int(still_paused.height * 0.75)))
-
-        assert paused_cropped.tobytes() == still_paused_cropped.tobytes(), (
-            f"Timer display should NOT change while paused (comparing top 75%). "
-            f"Paused: {paused_text}, Still: {still_paused_text}"
-        )
+        # Verify paused state
+        assert state_stop is not None, "Alarm did not stop"
+        assert state_pause is not None, "Did not receive button_select state"
+        logger.info(f"After pause state: {state_pause}")
+        
+        assert_mode(state_pause, "Counting")
+        assert_paused(state_pause, True)
+        assert_vibrating(state_pause, False)
+        # Should show some time (around 0:00 chrono)
+        assert_time_approximately(state_pause, minutes=0, seconds=0, tolerance=2)
 
 
 class TestEditCompletedTimer:
@@ -530,55 +483,54 @@ class TestEditCompletedTimer:
 
     def test_edit_completed_timer_add_minute(self, persistent_emulator):
         """
-        Verify a completed timer (still in alarm) can be silenced and edited
-        with the up button.
+        Verify a completed timer can be silenced and edited with the up button.
 
-        TODO: expand this docstring
+        Steps:
+        1. Set up and start a 4-second timer
+        2. Wait for alarm_start
+        3. Press Up to enter edit mode (also silences)
+        4. Press Down to add 1 minute
+        5. Verify state is New mode and time is approximately 1:00
         """
         emulator = persistent_emulator
 
-        # --- Capture screenshots first (OCR deferred) ---
+        # Start log capture
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        time.sleep(1.0)
+        capture.clear_state_queue()
 
-        # Step 1: Set up 4-second timer (starts running)
+        # Step 1: Set up 4-second timer
         setup_short_timer(emulator, seconds=4)
 
-        # Step 2: Wait for countdown to complete
-        time.sleep(5)
+        # Step 2: Wait for alarm_start
+        state_alarm = capture.wait_for_state(event="alarm_start", timeout=10.0)
+        assert state_alarm is not None, "Timer did not alarm"
 
         # Step 3: Press Up to enter edit mode
         emulator.press_up()
-        time.sleep(0.5)
+        
+        # Step 4: Wait for logs
+        state_stop = capture.wait_for_state(event="alarm_stop", timeout=5.0)
+        state_edit = capture.wait_for_state(event="button_up", timeout=5.0)
 
-        # Capture edit mode screenshot
-        edit_screenshot = emulator.screenshot("edit_completed")
+        assert state_stop is not None, "Alarm did not stop"
+        assert state_edit is not None, "Did not receive button_up state"
+        assert_mode(state_edit, "New")
 
-        # Step 4: Press Down to add 1 minute
+        # Step 5: Press Down to add 1 minute
         emulator.press_down()
-        time.sleep(0.5)
+        state_down = capture.wait_for_state(event="button_down", timeout=5.0)
 
-        after_add_screenshot = emulator.screenshot("after_add_minute")
+        capture.stop()
 
-        # --- Perform OCR assertions ---
-
-        edit_text = extract_text(edit_screenshot)
-        logger.info(f"Edit completed timer: {edit_text}")
-
-        # Verify edit mode: header should show "Edit" or "New"
-        assert "Edit" in edit_text or "New" in edit_text, (
-            f"Expected 'Edit' or 'New' header after Up in chrono mode, got: {edit_text}"
-        )
-
-        after_add_text = extract_text(after_add_screenshot)
-        logger.info(f"After adding minute: {after_add_text}")
-
-        # After adding 1 minute to a recently expired timer,
-        # the time should be just under 1 minute.
-        normalized = normalize_time_text(after_add_text)
-        # Check for time pattern around 1 minute
-        has_minute = has_time_pattern(after_add_text, minutes=1, tolerance=10)
-        assert has_minute, (
-            f"Expected time around 1:0x after adding 1 minute, got: {after_add_text}"
-        )
+        # Verify added time
+        assert state_down is not None, "Did not receive button_down state"
+        logger.info(f"After adding minute state: {state_down}")
+        
+        assert_mode(state_down, "New")
+        # Should show ~1:00 (it adds 1 minute to the recently expired timer)
+        assert_time_approximately(state_down, minutes=1, seconds=0, tolerance=5)
 
 
 class TestEnableRepeatingTimer:
@@ -590,172 +542,62 @@ class TestEnableRepeatingTimer:
         enables a repeating timer, starting at _x (no repeat) and requiring
         Down presses to increase to 3x for repeating.
 
-        Uses pixel-based detection instead of OCR for the repeat indicator.
-        The indicator is white text rendered in the top-right corner of the
-        display. We detect its presence by counting white pixels in that region,
-        and verify '3x' specifically by comparing the white pixel mask against
-        a stored reference image.
-
         Steps:
         1. Set up and start a 10-second timer
-        2. Wait 4s for timer to count down (6s remaining)
-        3. Hold Up button for 1 second (enables repeat edit mode, repeat_count=0, shows "_x")
-        4. Verify indicator is visible via white pixel detection (flashing "_x")
-        5. Press Down three times to increase to 3x
-        6. Verify "3x" indicator matches reference mask
-        7. Wait for expire timer (3s) + remaining countdown + buffer
-        8. Verify the timer restarts automatically (repeat_count decrements 3->2)
-        9. Verify static "2x" indicator is shown after first repeat
-        10. Verify the restarted timer is counting down from ~10s
+        2. Long press Up to enable repeat edit mode (shows "_x", r=0)
+        3. Press Down three times to increase to 3x (r=3)
+        4. Wait for mode_change back to Counting
+        5. Wait for timer to alarm and restart
+        6. Verify repeat count decrements (r=3 -> r=2)
         """
         emulator = persistent_emulator
 
-        # Step 1: Set up 10-second timer (starts running)
+        # Start log capture
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        time.sleep(1.0)
+        capture.clear_state_queue()
+
+        # Step 1: Set up 10-second timer
         setup_short_timer(emulator, seconds=10)
 
-        # Wait briefly before enabling repeat. Timer will have ~8s remaining.
-        time.sleep(1)
-
-        # Step 2: Hold Up button (long press while counting down)
-        # This enables repeat edit mode with repeat_count=0 (displays "_x").
-        # The long press handler fires after 750ms, entering ControlModeEditRepeat
-        # and starting a 3-second expire timer.
+        # Step 2: Long press Up to enable repeat mode
         emulator.hold_button(Button.UP)
-        time.sleep(1)
+        time.sleep(1.0)
         emulator.release_buttons()
 
-        # Take ONE screenshot of the "_x" indicator with a delay to break
-        # flash aliasing. The indicator flashes 500ms on / 500ms off driven by
-        # (epoch() - last_interaction_time) % 1000. The screenshot command takes
-        # ~1.0s, so we add 0.5s delay to shift into the ON phase.
-        #
-        # IMPORTANT: We must keep total time before the first Down press under
-        # 3 seconds (the expire timer duration). Timeline:
-        #   t=0.0: Enter EditRepeat (expire timer starts)
-        #   t=0.25: release_buttons returns (0.2s internal sleep)
-        #   t=0.75: sleep(0.5) ends, screenshot starts
-        #   t=1.75: screenshot completes (~1.0s)
-        #   t=2.05: Down press sent (well before expire at t=3.0)
-        time.sleep(0.5)
-        initial_repeat_screenshot = emulator.screenshot("initial_repeat_check_0")
+        state_repeat_init = capture.wait_for_state(event="long_press_up", timeout=5.0)
+        assert state_repeat_init is not None, "Did not enter repeat mode"
+        assert_mode(state_repeat_init, "EditRepeat")
+        assert_repeat_count(state_repeat_init, 0) # Initially "_x" (0)
 
-        # Step 3: Press Down three times to increase repeat count from 0 (_x) to 3 (3x).
-        # Each Down press in EditRepeat increments repeat_count and resets the
-        # expire timer (extending the 3s window). It also resets
-        # last_interaction_time, putting the flash indicator into the ON phase.
-        emulator.press_down()  # count: 0 → 1 ("1x")
-        time.sleep(0.3)
-        emulator.press_down()  # count: 1 → 2 ("2x")
-        time.sleep(0.3)
-        emulator.press_down()  # count: 2 → 3 ("3x"), expire timer reset
-        # The third Down press just reset last_interaction_time, so the
-        # indicator is now in the ON phase. Take a screenshot immediately.
-        # Then take another one in case the timing is off.
-        repeat_2x_screenshots = []
-        for i, delay in enumerate([0, 0.5]):
-            time.sleep(delay)
-            repeat_2x_screenshots.append(emulator.screenshot(f"repeat_check_{i}"))
+        # Step 3: Press Down three times (r: 0 -> 1 -> 2 -> 3)
+        emulator.press_down() # 0 -> 1
+        emulator.press_down() # 1 -> 2
+        emulator.press_down() # 2 -> 3
+        
+        # Consume the 3 button_down logs
+        capture.wait_for_state(event="button_down", timeout=2.0)
+        capture.wait_for_state(event="button_down", timeout=2.0)
+        state_r3 = capture.wait_for_state(event="button_down", timeout=2.0)
+        assert_repeat_count(state_r3, 3)
 
-        # Step 4: Wait for the expire timer (3s from last Down press) to
-        # transition back to ControlModeCounting, then wait for the remaining
-        # countdown to complete and the timer to automatically restart.
-        time.sleep(5)
+        # Step 4: Wait for mode transition back to Counting
+        state_counting = capture.wait_for_state(event="mode_change", timeout=5.0)
+        assert state_counting is not None, "Did not return to counting mode"
+        assert_mode(state_counting, "Counting")
+        assert_repeat_count(state_counting, 3)
 
-        # Step 5: Take a screenshot to check if the timer has restarted.
-        # The header should show "00:20" (10s base + 10s from first repeat).
-        first_restart_screenshot = emulator.screenshot("first_restart")
+        # Step 5: Wait for timer_repeat (timer expires and restarts)
+        logger.info("Waiting for timer to expire and restart...")
+        state_repeat = capture.wait_for_state(event="timer_repeat", timeout=20.0)
+        assert state_repeat is not None, "Timer did not repeat"
+        
+        # Step 6: Verify repeat count decrements after restart
+        assert_repeat_count(state_repeat, 2)
+        assert_time_approximately(state_repeat, minutes=0, seconds=10, tolerance=2)
 
-        # Step 6: Capture the repeat indicator after first restart.
-        # repeat_count should have decremented from 3 to 2, showing "2x".
-        # The indicator is static (not flashing) during counting mode, so a
-        # single screenshot is sufficient.
-        repeat_after_first_screenshot = emulator.screenshot("repeat_after_first")
-
-        # Allow some time for the restarted timer to count down, then take
-        # a second screenshot to verify the timer is actively counting.
-        time.sleep(2)
-        counting_screenshot = emulator.screenshot("counting")
-
-        # Step 7: Wait for the second repeat cycle to complete and restart.
-        # The first restart timer counts down from ~20s. We've already waited
-        # ~2s for screenshots, so wait for the remaining countdown + buffer.
-        time.sleep(20)
-        second_restart_screenshot = emulator.screenshot("second_restart")
-
-        # Cancel quit timer
-        emulator.press_down()
-
-        # --- Perform assertions ---
-
-        # 1. Check initial repeat screenshot for "_x" indicator via pixel detection.
-        # The indicator is white text in the top-right corner. We detect it by
-        # checking for white pixels in that region (avoids unreliable OCR).
-        found_initial = has_repeat_indicator(initial_repeat_screenshot, platform=emulator.platform)
-        if found_initial:
-            logger.info("Initial repeat indicator ('_x') detected via white pixels")
-        assert found_initial, (
-            "Expected repeat indicator (white pixels in top-right corner) "
-            "in initial repeat screenshot. "
-            "The '_x' indicator may not have been captured during its flash-on phase."
-        )
-
-        # 2. Check 3x repeat screenshots via reference mask comparison.
-        # This confirms the indicator shows "3x" specifically (not just any text).
-        found_3x = False
-        for i, screenshot in enumerate(repeat_2x_screenshots):
-            if has_repeat_indicator(screenshot, platform=emulator.platform) and \
-               matches_indicator_reference(screenshot, "3x", platform=emulator.platform):
-                logger.info(f"'3x' indicator matched reference in screenshot {i}")
-                found_3x = True
-                break
-        assert found_3x, (
-            "Expected '3x' indicator matching reference mask in at least one "
-            "repeat screenshot after 3 Down presses."
-        )
-
-        # 3. Verify the header shows "00:20" after first restart (10s base + 10s repeat).
-        first_restart_text = extract_text(first_restart_screenshot)
-        logger.info(f"First restart: {first_restart_text}")
-        first_normalized = normalize_time_text(first_restart_text)
-        logger.info(f"First restart normalized: {first_normalized}")
-        assert "00:20" in first_normalized or "00 20" in first_normalized, (
-            f"Expected header '00:20' indicating first repeat restart (10s + 10s), got: {first_restart_text}"
-        )
-
-        # 4. Verify the repeat indicator decremented from 3x to 2x after first repeat.
-        # The indicator is static (not flashing) during counting mode.
-        assert has_repeat_indicator(repeat_after_first_screenshot, platform=emulator.platform), (
-            "Expected repeat indicator (white pixels in top-right corner) "
-            "after first repeat restart."
-        )
-        assert matches_indicator_reference(repeat_after_first_screenshot, "2x", platform=emulator.platform), (
-            "Expected '2x' indicator after first repeat (3x should decrement to 2x)."
-        )
-
-        # 5. Verify the timer is counting down (display changes between screenshots).
-        counting_text = extract_text(counting_screenshot)
-        logger.info(f"Counting: {counting_text}")
-
-        # Compare cropped screenshots (exclude footer clock time which may change)
-        first_cropped = first_restart_screenshot.crop(
-            (0, 0, first_restart_screenshot.width, int(first_restart_screenshot.height * 0.75))
-        )
-        counting_cropped = counting_screenshot.crop(
-            (0, 0, counting_screenshot.width, int(counting_screenshot.height * 0.75))
-        )
-        assert first_cropped.tobytes() != counting_cropped.tobytes(), (
-            f"Timer display should change as it counts down. "
-            f"First: {first_restart_text}, Counting: {counting_text}"
-        )
-
-        # 6. Verify the header shows "00:30" after second restart (10s + 10s + 10s).
-        second_restart_text = extract_text(second_restart_screenshot)
-        logger.info(f"Second restart: {second_restart_text}")
-        second_normalized = normalize_time_text(second_restart_text)
-        logger.info(f"Second restart normalized: {second_normalized}")
-        assert "00:30" in second_normalized or "00 30" in second_normalized, (
-            f"Expected header '00:30' indicating second repeat restart (10s + 10s + 10s), got: {second_restart_text}"
-        )
+        capture.stop()
 
 
 class TestEditModeReset:
@@ -767,73 +609,52 @@ class TestEditModeReset:
         timer) resets to 0:00 in edit seconds mode (ControlModeEditSec).
 
         Steps:
-        1. Set a 2-minute timer using Down button twice
-        2. Wait 4 seconds for auto-start (transition to ControlModeCounting)
-        3. Press Up button to enter edit mode (ControlModeNew)
-        4. Long press Select → timer resets to 0:00, enters edit seconds mode
-        5. Press Back button → adds 60 seconds (confirms edit seconds mode)
-
-        Key verification: Back button adds 60 seconds (not 60 minutes), confirming
-        we are in edit seconds mode and not minutes mode.
+        1. Set a 2-minute timer and wait for Counting mode
+        2. Press Up to enter edit mode (ControlModeNew)
+        3. Long press Select -> resets to 0:00, enters edit seconds mode
+        4. Press Back button -> adds 60 seconds (confirms edit seconds mode)
         """
         emulator = persistent_emulator
 
-        # Step 1: Set a 2-minute timer
+        # Start log capture
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        time.sleep(1.0)
+        capture.clear_state_queue()
+
+        # Step 1: Set a 2-minute timer and wait for Counting mode
         emulator.press_down()
         emulator.press_down()
+        # Wait for both presses and then the mode change
+        capture.wait_for_state(event="button_down", timeout=2.0)
+        capture.wait_for_state(event="button_down", timeout=2.0)
+        capture.wait_for_state(event="mode_change", timeout=5.0)
 
-        # Step 2: Wait for auto-start (3s inactivity timer + buffer)
-        time.sleep(4)
-
-        # Step 3: Press Up to enter edit mode
+        # Step 2: Press Up to enter edit mode
         emulator.press_up()
-        time.sleep(0.5)
-        edit_mode_screenshot = emulator.screenshot("edit_mode_before_reset")
+        state_edit = capture.wait_for_state(event="button_up", timeout=5.0)
+        assert state_edit is not None
+        assert_mode(state_edit, "New")
 
-        # Step 4: Long press Select to reset to 0:00 in edit seconds mode
+        # Step 3: Long press Select to reset to 0:00 in edit seconds mode
         emulator.hold_button(Button.SELECT)
-        time.sleep(1)  # Hold for BUTTON_HOLD_RESET_MS (750ms) + buffer
+        time.sleep(1)
         emulator.release_buttons()
-        time.sleep(0.3)
-        after_reset_screenshot = emulator.screenshot("after_reset_to_edit_sec")
+        
+        state_reset = capture.wait_for_state(event="long_press_select", timeout=5.0)
+        assert state_reset is not None
+        assert_mode(state_reset, "EditSec")
+        assert_time_equals(state_reset, minutes=0, seconds=0)
 
-        # Step 5: Press Back to add 60 seconds (confirms edit seconds mode)
+        # Step 4: Press Back to add 60 seconds (confirms edit seconds mode)
         emulator.press_back()
-        time.sleep(0.3)
-        after_back_screenshot = emulator.screenshot("after_back_press")
+        state_back = capture.wait_for_state(event="button_back", timeout=5.0)
 
-        # --- Perform OCR assertions ---
+        capture.stop()
 
-        # Verify we were in edit mode initially
-        edit_text = extract_text(edit_mode_screenshot)
-        logger.info(f"Edit mode text: {edit_text}")
-        assert "Edit" in edit_text, f"Expected 'Edit' header in edit mode, got: {edit_text}"
-
-        # Verify timer shows 0:00 after reset
-        # Note: "0:00" OCR can be tricky - verify by checking the display changed
-        reset_text = extract_text(after_reset_screenshot)
-        logger.info(f"After reset text: {reset_text}")
-        normalized_reset = normalize_time_text(reset_text)
-        logger.info(f"After reset normalized: {normalized_reset}")
-
-        # The key verification is that after pressing Back, the time shows 1:00
-        # (60 seconds), which confirms we were in edit seconds mode (not minutes)
-
-        # Verify Back button adds 60 seconds (confirms edit seconds mode)
-        # Should show "1:00" (60 seconds), not "1:00:00" (60 minutes)
-        back_text = extract_text(after_back_screenshot)
-        logger.info(f"After Back press text: {back_text}")
-        normalized_back = normalize_time_text(back_text)
-        logger.info(f"After Back press normalized: {normalized_back}")
-        # Check for 1:00 pattern (60 seconds added)
-        has_one_minute = has_time_pattern(back_text, minutes=1, tolerance=5)
-        assert has_one_minute, (
-            f"Expected '1:00' after Back press (60s added in edit sec mode), got: {back_text}"
-        )
-        # Also verify header still shows "Edit" or "New" (still in edit mode)
-        assert "Edit" in back_text or "New" in back_text, (
-            f"Expected 'Edit' or 'New' header after Back press, got: {back_text}"
-        )
+        assert state_back is not None
+        assert_time_equals(state_back, minutes=1, seconds=0)
+        assert_mode(state_back, "EditSec")
 
 
 class TestEditSecModeNoOp:
@@ -842,72 +663,57 @@ class TestEditSecModeNoOp:
     def test_long_press_select_in_edit_sec_mode_does_nothing(self, persistent_emulator):
         """
         Verify that long pressing select in ControlModeEditSec has no effect.
-
-        Steps:
-        1. Set a 2-minute timer and wait for countdown
-        2. Press Select to pause the timer
-        3. Long press Select to reset to chrono 0:00
-        4. Press Up to enter edit mode → enters ControlModeEditSec (since chrono was paused at 0:00)
-        5. Press Down to add seconds (e.g., "0:01")
-        6. Long press Select → no change, timer still shows same value
-
-        Key verification: The timer value should not change after long press in
-        ControlModeEditSec.
         """
         emulator = persistent_emulator
 
-        # Step 1: Set a 2-minute timer and wait for countdown mode
-        emulator.press_down()
-        emulator.press_down()
-        time.sleep(4)  # Wait for auto-start
+        # Start log capture
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        time.sleep(1.0)
+        capture.clear_state_queue()
+
+        # Step 1: Wait for auto-chrono mode (0:00 counting up)
+        logger.info("Waiting for chrono mode (0:00 counting up)...")
+        time.sleep(3.5)
+        capture.wait_for_state(event="mode_change", timeout=5.0)
 
         # Step 2: Press Select to pause
         emulator.press_select()
-        time.sleep(0.3)
+        capture.wait_for_state(event="button_select", timeout=5.0)
 
-        # Step 3: Long press Select to reset to chrono 0:00 (paused)
+        # Step 3: Long press Select to reset to chrono 0:00 (paused) -> enters EditSec
         emulator.hold_button(Button.SELECT)
         time.sleep(1)
         emulator.release_buttons()
-        time.sleep(0.3)
+        state_reset = capture.wait_for_state(event="long_press_select", timeout=5.0)
+        assert state_reset is not None
+        assert_mode(state_reset, "EditSec")
 
-        # Step 4: Press Up to enter edit mode
-        # Since chrono is paused at 0:00, this enters ControlModeEditSec
+        # Step 4: Press Up to add 20 seconds (verify we are in EditSec)
         emulator.press_up()
-        time.sleep(0.3)
+        state_up = capture.wait_for_state(event="button_up", timeout=5.0)
+        assert_mode(state_up, "EditSec")
+        assert_time_equals(state_up, minutes=0, seconds=20)
 
-        # Step 5: Press Down to add 1 second
+        # Step 5: Press Down to add 1 second (total 0:21)
         emulator.press_down()
-        time.sleep(0.3)
-        before_long_press = emulator.screenshot("edit_sec_before_long_press")
+        state_before = capture.wait_for_state(event="button_down", timeout=5.0)
+        assert state_before is not None
+        assert_time_equals(state_before, minutes=0, seconds=21)
+        assert_mode(state_before, "EditSec")
 
-        # Step 6: Long press Select → should do nothing
+        # Step 6: Long press Select -> should do nothing
         emulator.hold_button(Button.SELECT)
         time.sleep(1)
         emulator.release_buttons()
-        time.sleep(0.3)
-        after_long_press = emulator.screenshot("edit_sec_after_long_press")
+        state_after = capture.wait_for_state(event="long_press_select", timeout=5.0)
 
-        # --- Perform assertions ---
+        capture.stop()
 
-        # Verify both screenshots show the same timer value
-        before_text = extract_text(before_long_press)
-        logger.info(f"Before long press: {before_text}")
-        after_text = extract_text(after_long_press)
-        logger.info(f"After long press: {after_text}")
-
-        # Compare the timer display area (crop out footer with wall clock time)
-        before_cropped = before_long_press.crop(
-            (0, 0, before_long_press.width, int(before_long_press.height * 0.75))
-        )
-        after_cropped = after_long_press.crop(
-            (0, 0, after_long_press.width, int(after_long_press.height * 0.75))
-        )
-
-        assert before_cropped.tobytes() == after_cropped.tobytes(), (
-            f"Timer display should NOT change after long press in ControlModeEditSec. "
-            f"Before: {before_text}, After: {after_text}"
-        )
+        assert state_after is not None
+        # Should still be 0:21 and EditSec
+        assert_time_equals(state_after, minutes=0, seconds=21)
+        assert_mode(state_after, "EditSec")
 
 
 class TestEditRepeatModeNoOp:
@@ -916,59 +722,39 @@ class TestEditRepeatModeNoOp:
     def test_long_press_select_in_edit_repeat_mode_does_nothing(self, persistent_emulator):
         """
         Verify that long pressing select in ControlModeEditRepeat has no effect.
-
-        Steps:
-        1. Set a 2-minute timer and wait for countdown
-        2. Long press Up to enable repeat mode → enters ControlModeEditRepeat
-        3. Capture current timer value
-        4. Long press Select → no change, still in repeat edit mode
-
-        Key verification: The timer value should not change and repeat mode should
-        still be active after long press.
         """
         emulator = persistent_emulator
+
+        # Start log capture
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        time.sleep(1.0)
+        capture.clear_state_queue()
 
         # Step 1: Set a 2-minute timer and wait for countdown
         emulator.press_down()
         emulator.press_down()
-        time.sleep(4)  # Wait for auto-start
+        capture.wait_for_state(event="button_down", timeout=2.0)
+        capture.wait_for_state(event="button_down", timeout=2.0)
+        capture.wait_for_state(event="mode_change", timeout=5.0)
 
         # Step 2: Long press Up to enable repeat mode
         emulator.hold_button(Button.UP)
         time.sleep(1)
         emulator.release_buttons()
-        time.sleep(0.5)  # Allow flash indicator to appear
+        state_before = capture.wait_for_state(event="long_press_up", timeout=5.0)
+        assert state_before is not None
+        assert_mode(state_before, "EditRepeat")
 
-        before_long_press = emulator.screenshot("edit_repeat_before_long_press")
-
-        # Step 3: Long press Select → should do nothing
+        # Step 3: Long press Select -> should do nothing
         emulator.hold_button(Button.SELECT)
         time.sleep(1)
         emulator.release_buttons()
-        time.sleep(0.3)
+        state_after = capture.wait_for_state(event="long_press_select", timeout=5.0)
 
-        after_long_press = emulator.screenshot("edit_repeat_after_long_press")
+        capture.stop()
 
-        # --- Perform assertions ---
-
-        before_text = extract_text(before_long_press)
-        logger.info(f"Before long press: {before_text}")
-        after_text = extract_text(after_long_press)
-        logger.info(f"After long press: {after_text}")
-
-        # Verify repeat indicator is present in both screenshots
-        assert has_repeat_indicator(before_long_press, platform=emulator.platform), (
-            "Expected repeat indicator before long press in ControlModeEditRepeat"
-        )
-        assert has_repeat_indicator(after_long_press, platform=emulator.platform), (
-            "Expected repeat indicator after long press (still in ControlModeEditRepeat)"
-        )
-
-        # Verify header still says "Edit" or "New"
-        before_text = extract_text(before_long_press)
-        after_text = extract_text(after_long_press)
-        has_header_before = "Edit" in before_text or "New" in before_text
-        has_header_after = "Edit" in after_text or "New" in after_text
-        assert has_header_before and has_header_after, (
-            f"App should remain in an edit mode. Before: {before_text}, After: {after_text}"
-        )
+        assert state_after is not None
+        assert_mode(state_after, "EditRepeat")
+        # repeat_count should be same (0)
+        assert_repeat_count(state_after, 0)
