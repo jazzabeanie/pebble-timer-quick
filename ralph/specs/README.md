@@ -260,6 +260,36 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 ---
 
+### 18. Chrono Hold Select Restart
+**File:** [chrono-hold-select-restart.md](chrono-hold-select-restart.md)
+
+**Keywords:** chrono, stopwatch, hold select, long press, restart, paused chrono, edit seconds, simplify
+
+**Summary:** Changes the behavior of long-pressing Select on a chrono timer. Previously, a paused chrono would enter edit seconds mode; now it always restarts the chrono (whether paused or running). This simplifies the interaction model since edit seconds mode is accessible via long-press Select in edit mode.
+
+**Status:** Not Started
+
+**Tests:** NA
+
+**Dependencies:** edit-mode-reset.md (spec #9)
+
+---
+
+### 19. Backlight Control
+**File:** [backlight-control.md](backlight-control.md)
+
+**Keywords:** backlight, light, display, visibility, alarm, edit mode, light_enable, timeout, UX
+
+**Summary:** Adds automatic backlight control for improved usability. The backlight turns on during alarm (vibrating) and in edit modes, with a 30-second timeout. It turns off when entering counting mode or after the timeout expires.
+
+**Status:** Not Started
+
+**Tests:** NA
+
+**Dependencies:** None
+
+---
+
 ## Adding New Specifications
 
 When creating a new spec file:
