@@ -423,19 +423,10 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
 
   if (main_data.control_mode == ControlModeCounting) {
     if (timer_is_chrono()) {
-      if (timer_is_paused()) {
-        // Paused Chrono -> Paused New Timer (0:00) -> Edit Seconds
-        timer_reset();
-        timer_data.start_ms = 0; // Pause at 0 elapsed
-        timer_data.is_paused = true;
-        main_data.control_mode = ControlModeEditSec;
-        prv_stop_new_expire_timer();
-      } else {
-        // Running Chrono -> Counting New Timer (0:00)
-        timer_reset();
-        // timer_reset sets start_ms to epoch(), so it starts running
-        main_data.control_mode = ControlModeCounting;
-      }
+      // Chrono (paused or running) -> Restart chrono at 0:00
+      timer_reset();
+      // timer_reset sets start_ms to epoch(), so it starts running
+      main_data.control_mode = ControlModeCounting;
     } else {
       timer_restart();
     }

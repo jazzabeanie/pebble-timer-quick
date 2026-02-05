@@ -267,9 +267,9 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 **Summary:** Changes the behavior of long-pressing Select on a chrono timer. Previously, a paused chrono would enter edit seconds mode; now it always restarts the chrono (whether paused or running). This simplifies the interaction model since edit seconds mode is accessible via long-press Select in edit mode.
 
-**Status:** Not Started
+**Status:** Completed
 
-**Tests:** NA
+**Tests:** Passing
 
 **Dependencies:** edit-mode-reset.md (spec #9)
 

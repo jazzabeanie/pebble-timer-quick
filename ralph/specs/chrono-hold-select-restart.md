@@ -131,9 +131,10 @@ The change removes the `if (timer_is_paused())` branch, making both paused and r
 
 ## Progress
 - 2026-02-05: Spec created.
+- 2026-02-05: Implementation complete. Simplified `prv_select_long_click_handler` chrono handling (lines 425-430 in main.c). Updated `setup_short_timer` helper and `test_long_press_select_in_edit_sec_mode_does_nothing` test to use new path via ControlModeNew.
 
 ## Status
-**Not Started**
+**Completed**
 
 ## Tests
-**NA**
+**Passing**

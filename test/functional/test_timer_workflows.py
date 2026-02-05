@@ -97,9 +97,9 @@ def setup_short_timer(emulator, seconds=4):
     Flow:
     1. App starts fresh in ControlModeNew at 0:00
     2. Wait 3.5s for auto-transition to ControlModeCounting (chrono at 0:00)
-    3. Press Select to pause chrono
+    3. Press Up to enter ControlModeNew (edit mode)
     4. Long press Select to enter ControlModeEditSec with clean state
-       (timer_reset + start_ms=0, is_editing_existing_timer stays false)
+       (timer_reset + start_ms=0, is_editing_existing_timer=false)
     5. Press Down N times to add N seconds (uses timer_increment since
        is_editing_existing_timer=false, so length_ms is incremented)
     6. Wait 3.5s for expire timer to transition to ControlModeCounting
@@ -113,14 +113,14 @@ def setup_short_timer(emulator, seconds=4):
     # Step 2: Wait for transition to chrono mode (0:00 counting up)
     time.sleep(2.5)
 
-    # Step 3: Pause the chrono
-    emulator.press_select()
+    # Step 3: Press Up to enter ControlModeNew (edit mode)
+    emulator.press_up()
     time.sleep(0.3)
 
     # Step 4: Long press Select to enter ControlModeEditSec with clean state
-    # In ControlModeCounting with chrono paused, long press Select does:
+    # In ControlModeNew, long press Select does:
     # timer_reset() + start_ms=0 + control_mode=ControlModeEditSec
-    # Critically, is_editing_existing_timer remains false (only set by Up click)
+    # With is_editing_existing_timer=false (creating new timer)
     emulator.hold_button(Button.SELECT)
     time.sleep(1)  # Hold for 750ms+ (BUTTON_HOLD_RESET_MS)
     emulator.release_buttons()
@@ -232,7 +232,7 @@ class TestSetShortTimer:
         Verify that a short timer can be set and starts counting down.
 
         The setup_short_timer helper:
-        1. Enters ControlModeEditSec via long press Select on paused chrono
+        1. Enters ControlModeNew via Up button, then ControlModeEditSec via long press Select
         2. Adds seconds via Down button presses
         3. Waits for expire timer to transition to ControlModeCounting
         4. Presses Select to unpause the timer
@@ -681,11 +681,11 @@ class TestEditSecModeNoOp:
         time.sleep(3.5)
         capture.wait_for_state(event="mode_change", timeout=5.0)
 
-        # Step 2: Press Select to pause
-        emulator.press_select()
-        capture.wait_for_state(event="button_select", timeout=5.0)
+        # Step 2: Press Up to enter ControlModeNew (edit mode)
+        emulator.press_up()
+        capture.wait_for_state(event="button_up", timeout=5.0)
 
-        # Step 3: Long press Select to reset to chrono 0:00 (paused) -> enters EditSec
+        # Step 3: Long press Select to reset to 0:00 in EditSec mode
         emulator.hold_button(Button.SELECT)
         time.sleep(1)
         emulator.release_buttons()
