@@ -791,13 +791,14 @@ class TestRepeatTimerDuringAlarm:
         time.sleep(1.0)
         capture.clear_state_queue()
 
-        # Step 1: Set up 5-second timer manually using Select to start
+        # Step 1: Set up 4-second timer manually using Select to start
         # Wait for app to enter chrono mode (0:00 counting up)
         logger.info("Waiting for chrono mode...")
         time.sleep(3.5)
 
-        # Pause the chrono
-        emulator.press_select()
+        # Press Up to enter New mode (from Counting mode)
+        # Note: Long press Select from chrono restarts chrono, doesn't enter EditSec.
+        emulator.press_up()
         time.sleep(0.3)
 
         # Long press Select to enter EditSec mode
@@ -806,7 +807,7 @@ class TestRepeatTimerDuringAlarm:
         emulator.release_buttons()
         time.sleep(0.3)
 
-        # Add 5 seconds by pressing Down 5 times
+        # Add 4 seconds by pressing Down 4 times
         for i in range(4):
             emulator.press_down()
             time.sleep(0.2)
@@ -817,7 +818,7 @@ class TestRepeatTimerDuringAlarm:
         time.sleep(3.5)
 
         # Press Select to start the paused timer
-        logger.info("Pressing Select to start 5-second timer...")
+        logger.info("Pressing Select to start 4-second timer...")
         emulator.press_select()
 
         # Consume log events from setup
@@ -966,8 +967,9 @@ class TestRepeatTimerDuringAlarm:
         logger.info("Waiting for chrono mode...")
         time.sleep(3.5)
 
-        # Pause the chrono
-        emulator.press_select()
+        # Press Up to enter New mode (from Counting mode)
+        # Note: Long press Select from chrono restarts chrono, doesn't enter EditSec.
+        emulator.press_up()
         time.sleep(0.3)
 
         # Long press Select to enter EditSec mode
@@ -976,9 +978,9 @@ class TestRepeatTimerDuringAlarm:
         emulator.release_buttons()
         time.sleep(0.3)
 
-        # Add 5 seconds
+        # Add 10 seconds (Select adds +5s in EditSec mode)
         emulator.press_select()
-        time.sleep(1)
+        time.sleep(0.2)
         emulator.press_select()
 
         # Wait for edit mode to expire and transition to Counting mode
@@ -987,7 +989,7 @@ class TestRepeatTimerDuringAlarm:
         time.sleep(3.5)
 
         # Press Select to start the paused timer
-        logger.info("Pressing Select to start 5-second timer...")
+        logger.info("Pressing Select to start 10-second timer...")
         emulator.press_select()
 
         # Consume log events from setup
@@ -1043,7 +1045,7 @@ class TestSubMinuteTimerStaysPaused:
 
         Steps:
         1. Wait for app to enter chrono mode (0:00 counting up)
-        2. Pause the chrono with Select
+        2. Press Up to enter New mode (from Counting mode)
         3. Long press Select to enter EditSec mode
         4. Press Down 10 times to set 10 seconds
         5. Wait for edit mode to expire (3.5 seconds)
@@ -1064,12 +1066,14 @@ class TestSubMinuteTimerStaysPaused:
         # Consume any mode_change events from startup
         capture.wait_for_state(event="mode_change", timeout=2.0)
 
-        # Step 2: Pause the chrono
-        emulator.press_select()
-        state_paused = capture.wait_for_state(event="button_select", timeout=5.0)
-        assert state_paused is not None
-        assert_paused(state_paused, True)
-        logger.info("Chrono paused")
+        # Step 2: Press Up to enter New mode (from Counting mode)
+        # Note: Long press Select from chrono restarts chrono, doesn't enter EditSec.
+        # We need to go through New mode first.
+        emulator.press_up()
+        state_new = capture.wait_for_state(event="button_up", timeout=5.0)
+        assert state_new is not None
+        assert_mode(state_new, "New")
+        logger.info("Entered New mode")
 
         # Step 3: Long press Select to enter EditSec mode
         emulator.hold_button(Button.SELECT)

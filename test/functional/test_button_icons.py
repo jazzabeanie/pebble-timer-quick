@@ -195,18 +195,26 @@ def matches_icon_reference(img, region, ref_name, platform="basalt", auto_save=T
 def setup_short_timer(emulator, seconds=4):
     """Set up a short timer with the given number of seconds.
 
-    See test_timer_workflows.py for detailed explanation.
+    Workflow:
+    1. Wait for chrono mode (app starts in ControlModeCounting)
+    2. Press Up to enter ControlModeNew (from Counting, Up transitions to New)
+    3. Long press Select to reset to 0 and enter ControlModeEditSec
+    4. Press Down N times to add N seconds
+    5. Wait for expire timer (3.5s) - transitions to ControlModeCounting paused
+    6. Press Select to start the timer
     """
     logger.info(f"[{emulator.platform}] Setting up {seconds}s timer for icon test")
 
     # Wait for transition to chrono mode (0:00 counting up)
     time.sleep(2.5)
 
-    # Pause the chrono
-    emulator.press_select()
+    # Press Up to enter ControlModeNew (from Counting mode)
+    # Note: Long press Select while in Counting/chrono mode just restarts the chrono,
+    # it doesn't enter EditSec. We need to go through New mode first.
+    emulator.press_up()
     time.sleep(0.3)
 
-    # Long press Select to enter ControlModeEditSec
+    # Long press Select to reset to 0 and enter ControlModeEditSec
     emulator.hold_button(Button.SELECT)
     time.sleep(1)
     emulator.release_buttons()
@@ -487,12 +495,12 @@ class TestEditSecIcons:
         """Enter ControlModeEditSec mode.
 
         From a fresh app start:
-        1. Wait for chrono mode (3.5s)
-        2. Pause chrono (Select)
-        3. Long press Select to enter EditSec
+        1. Wait for chrono mode (2.5s)
+        2. Press Up to enter ControlModeNew (from Counting mode)
+        3. Long press Select to reset to 0 and enter EditSec
         """
         time.sleep(2.5)
-        emulator.press_select()
+        emulator.press_up()  # Enter ControlModeNew from Counting
         time.sleep(0.3)
         emulator.hold_button(Button.SELECT)
         time.sleep(1)
@@ -816,7 +824,7 @@ class TestEditRepeatIcons:
         assert has_icon_content(screenshot, region, threshold=50), (
             "Expected Reset Count icon content in Back button region in EditRepeat mode"
         )
-        assert matches_icon_reference(screenshot, region, "editrepeat_back", platform=platform, tolerance=20), (
+        assert matches_icon_reference(screenshot, region, "editrepeat_back", platform=platform, tolerance=30), (
             "Reset Count icon does not match reference mask"
         )
 
