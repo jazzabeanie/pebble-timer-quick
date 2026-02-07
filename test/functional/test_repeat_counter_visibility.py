@@ -447,39 +447,78 @@ class TestIconOverlapPrevention:
         in an empty UP region.
 
         This test captures the bug where the +20 rep icon is drawn unconditionally.
+
+        Approach: Take a burst of screenshots over several flash cycles (500ms ON,
+        500ms OFF). By comparing pixel counts across screenshots, we reliably
+        detect both phases without depending on precise sleep timing:
+        - Flash OFF screenshots have fewer non-bg pixels (truly empty)
+        - Flash ON screenshots have more (repeat counter text visible)
+        - If the +20 rep icon were drawn statically, ALL screenshots would have
+          elevated pixel counts and the minimum would be above the empty threshold.
         """
         emulator = persistent_emulator
         platform = emulator.platform
 
+        # Use log capture to reliably enter EditRepeat mode
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        time.sleep(1.0)
+        capture.clear_state_queue()
+
         # Set up timer and enter EditRepeat mode
         emulator.press_down()  # Add 1 minute
-        time.sleep(0.5)
+        capture.wait_for_state(event="button_down", timeout=5.0)
+
         # Wait for auto-start to counting mode
-        time.sleep(4)
+        capture.wait_for_state(event="mode_change", timeout=5.0)
 
         # Enter EditRepeat mode via long press Up
         emulator.hold_button(Button.UP)
         time.sleep(1)
         emulator.release_buttons()
+        state = capture.wait_for_state(event="long_press_up", timeout=5.0)
+        assert state is not None, "Did not enter EditRepeat mode"
+        assert_mode(state, "EditRepeat")
 
-        # Wait for flash OFF phase (~600ms after release to land in OFF window)
-        # Flash cycle: 0-500ms = ON, 500-1000ms = OFF
-        time.sleep(0.3)
+        capture.stop()
 
-        # Take screenshot during flash OFF
-        screenshot = emulator.screenshot("editrepeat_flash_off")
-
-        # Verify UP region has NO icon content
-        # We use a slightly higher threshold (120) because the green progress ring
-        # can produce ~100 non-background pixels in this region.
+        # Take a burst of screenshots over ~4 seconds to cover several flash cycles
+        # Flash cycle is 1000ms (500ms ON + 500ms OFF)
         region = get_region(platform, "UP")
-        has_content = has_icon_content(screenshot, region, threshold=120)
-        # FIXME: this does not detect when there is text in the up button region.
-        # If you change the sleep time above (to 0.6) so that the repat icon is
-        # flashing, it will still pass the test when it should fail.
+        pixel_counts = []
+        num_screenshots = 8
+        for i in range(num_screenshots):
+            screenshot = emulator.screenshot(f"editrepeat_flash_burst_{i}")
+            pixel_counts.append(count_non_bg_pixels(screenshot, region))
+            time.sleep(0.5)
 
-        assert not has_content, (
-            "UP region should be empty during flash OFF in EditRepeat mode. "
-            "The +20 rep icon should NOT be displayed to prevent overlap with "
-            "the repeat counter indicator."
+        min_pixels = min(pixel_counts)
+        max_pixels = max(pixel_counts)
+        logger.info(
+            f"UP region pixel counts across {num_screenshots} screenshots: {pixel_counts} "
+            f"(min={min_pixels}, max={max_pixels})"
+        )
+
+        # 1. Flash OFF must be truly empty. The progress ring can contribute
+        #    some pixels, but the minimum across the burst (which captures at
+        #    least one flash OFF frame) must stay well below any icon content.
+        #    Threshold 50 is generous for progress ring bleed but catches any
+        #    static icon that would add 100+ pixels.
+        assert min_pixels < 50, (
+            f"UP region should be empty during flash OFF in EditRepeat mode. "
+            f"Minimum pixel count across burst was {min_pixels} (expected < 50). "
+            f"This suggests the +20 rep icon is being drawn statically. "
+            f"All counts: {pixel_counts}"
+        )
+
+        # 2. There must be meaningful variation between screenshots, proving
+        #    the repeat counter text flashes on and off. If min == max, either
+        #    nothing is drawn (possible if repeat_count is 0) or the test
+        #    failed to capture both phases.
+        pixel_variation = max_pixels - min_pixels
+        assert pixel_variation > 20, (
+            f"Expected variation in UP region between flash ON/OFF phases. "
+            f"Got min={min_pixels}, max={max_pixels} (variation={pixel_variation}). "
+            f"The repeat counter text should appear during flash ON and disappear "
+            f"during flash OFF. All counts: {pixel_counts}"
         )
