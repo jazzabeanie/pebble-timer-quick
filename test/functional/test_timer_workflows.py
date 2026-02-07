@@ -158,19 +158,29 @@ class TestEditRunningTimer:
         1. Launch app and set a 2-minute timer (2x Down presses)
         2. Wait for auto-transition to counting mode (3s)
         3. Wait 2s for timer to count down a bit
-        4. Press Up to enter edit mode (adds 1 minute in edit mode via Up)
-        5. Verify header shows "Edit" and time increased
-        6. Wait for timer to resume counting (3s expire timer)
-        7. Verify timer continues counting down
+        4. Press Up to enter edit mode
+        5. Verify mode is "New" (edit existing timer) and time ~1:54
+        6. Press Down to add 1 minute, verify time ~2:54
+        7. Wait for mode transition back to Counting
         """
         emulator = persistent_emulator
 
+        # Start log capture
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        time.sleep(1.0)
+        capture.clear_state_queue()
+
         # Step 1: Set a 2-minute timer
         emulator.press_down()
+        capture.wait_for_state(event="button_down", timeout=5.0)
         emulator.press_down()
+        capture.wait_for_state(event="button_down", timeout=5.0)
 
         # Step 2: Wait for auto-transition to counting mode
-        time.sleep(4)
+        state_counting = capture.wait_for_state(event="mode_change", timeout=5.0)
+        assert state_counting is not None, "Did not receive mode_change to Counting"
+        assert_mode(state_counting, "Counting")
 
         # Step 3: Wait 2 seconds for countdown
         time.sleep(2)
@@ -178,50 +188,33 @@ class TestEditRunningTimer:
         # Step 4: Press Up to enter edit mode
         # In counting mode, Up transitions to ControlModeNew with is_editing_existing_timer=true
         emulator.press_up()
-        time.sleep(0.5)
+        state_edit = capture.wait_for_state(event="button_up", timeout=5.0)
+        assert state_edit is not None, "Did not receive button_up state"
 
-        # Capture screenshot in edit mode
-        edit_screenshot = emulator.screenshot("edit_mode")
+        # Step 5: Verify we're in New mode (editing existing timer) with time ~1:54
+        logger.info(f"Edit mode state: {state_edit}")
+        assert_mode(state_edit, "New")
+        assert_time_approximately(state_edit, minutes=1, seconds=54, tolerance=10)
 
-        # Step 5: Now the timer is in edit mode.
+        # Step 6: Press Down to add 1 minute
         emulator.press_down()
-        time.sleep(0.5)
+        state_after_add = capture.wait_for_state(event="button_down", timeout=5.0)
+        assert state_after_add is not None, "Did not receive button_down after adding time"
 
-        # Capture screenshot after adding time
-        after_add_screenshot = emulator.screenshot("after_add_time")
+        # Verify time increased by ~1 minute
+        logger.info(f"After adding time state: {state_after_add}")
+        assert_mode(state_after_add, "New")
+        assert_time_approximately(state_after_add, minutes=2, seconds=54, tolerance=10)
 
-        # Step 6: Wait for expire timer to start counting (3s)
-        time.sleep(4)
+        # Step 7: Wait for mode transition back to Counting (3s expire timer)
+        state_resumed = capture.wait_for_state(event="mode_change", timeout=5.0)
+        assert state_resumed is not None, "Did not receive mode_change back to Counting"
 
-        # Step 7: Capture screenshot of resumed counting
-        resumed_screenshot = emulator.screenshot("resumed_counting")
+        logger.info(f"Resumed counting state: {state_resumed}")
+        assert_mode(state_resumed, "Counting")
+        assert_paused(state_resumed, False)
 
-        # --- Now perform OCR assertions ---
-
-        # Verify edit mode shows "Edit" header
-        edit_text = extract_text(edit_screenshot)
-        logger.info(f"Edit mode text: {edit_text}")
-        assert "Edit" in edit_text, f"Expected 'Edit' header in edit mode, got: {edit_text}"
-
-        # Verify time was added (should show approximately 1:5x + 1:00 = 2:5x)
-        # After 6 seconds of counting from 2:00, timer was ~1:54
-        # Then we entered edit mode and added 1 minute → ~2:54
-        after_add_text = extract_text(after_add_screenshot)
-        logger.info(f"After adding time: {after_add_text}")
-        # Check for time around 2:50-2:59
-        normalized = normalize_time_text(after_add_text)
-        has_expected_time = has_time_pattern(after_add_text, minutes=3, tolerance=15)
-        assert has_expected_time, (
-            f"Expected time around 2:5x after adding 1 minute, got: {after_add_text}"
-        )
-
-        # Verify timer resumes counting (display should change from edit mode)
-        resumed_text = extract_text(resumed_screenshot)
-        logger.info(f"Resumed counting: {resumed_text}")
-        # Should no longer show "Edit" - should show time duration in header
-        assert "Edit" not in resumed_text and "New" not in resumed_text, (
-            f"Expected counting mode (no Edit/New), got: {resumed_text}"
-        )
+        capture.stop()
 
 
 class TestSetShortTimer:

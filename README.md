@@ -91,6 +91,12 @@ Test are moving to inspecting logs instead of relying on OCR. The `pebble logs` 
 To run functional tests (runs on basalt by default):
 
 ```bash
+./test/functional/run_pytest.sh
+```
+
+or
+
+```bash
 cd test/functional
 python -m pytest test_create_timer.py -v
 ```
