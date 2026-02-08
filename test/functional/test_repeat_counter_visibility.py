@@ -448,54 +448,81 @@ class TestIconOverlapPrevention:
 
         This test captures the bug where the +20 rep icon is drawn unconditionally.
 
-        Approach: Take a burst of screenshots over several flash cycles (500ms ON,
-        500ms OFF). By comparing pixel counts across screenshots, we reliably
-        detect both phases without depending on precise sleep timing:
-        - Flash OFF screenshots have fewer non-bg pixels (truly empty)
-        - Flash ON screenshots have more (repeat counter text visible)
-        - If the +20 rep icon were drawn statically, ALL screenshots would have
-          elevated pixel counts and the minimum would be above the empty threshold.
+        Approach:
+        - Use time.sleep for initial setup (avoids log capture timing issues)
+        - Start log capture just before entering EditRepeat for mode verification
+        - Take screenshots in batches, pressing Down between batches to keep the
+          3-second EditRepeat expire timer alive
+        - Each button press resets the flash timer (last_interaction_time), and
+          screenshots at varying offsets from the press sample different flash
+          phases (500ms ON + 500ms OFF cycle)
+        - Verify the minimum pixel count proves flash OFF is truly empty
+        - Verify variation between screenshots proves repeat counter flashing
         """
         emulator = persistent_emulator
         platform = emulator.platform
 
-        # Use log capture to reliably enter EditRepeat mode
+        # Step 1: Set up timer using sleep-based timing (reliable, no log dependency)
+        emulator.press_down()  # Add 1 minute
+        time.sleep(4)  # Wait for auto-transition to counting mode
+
+        # Step 2: Start log capture right before entering EditRepeat
+        # Starting it late avoids missing logs due to pebble logs connection delay
         capture = LogCapture(emulator.platform)
         capture.start()
-        time.sleep(1.0)
+        time.sleep(1.5)  # Wait for pebble logs to connect
         capture.clear_state_queue()
 
-        # Set up timer and enter EditRepeat mode
-        emulator.press_down()  # Add 1 minute
-        capture.wait_for_state(event="button_down", timeout=5.0)
-
-        # Wait for auto-start to counting mode
-        capture.wait_for_state(event="mode_change", timeout=5.0)
-
-        # Enter EditRepeat mode via long press Up
+        # Step 3: Enter EditRepeat mode via long press Up
         emulator.hold_button(Button.UP)
         time.sleep(1)
         emulator.release_buttons()
         state = capture.wait_for_state(event="long_press_up", timeout=5.0)
-        assert state is not None, "Did not enter EditRepeat mode"
+        assert state is not None, (
+            f"Did not receive long_press_up log. "
+            f"All logs: {capture.get_all_logs()[-5:]}"
+        )
         assert_mode(state, "EditRepeat")
+
+        # Step 4: Take screenshots, pressing Down before each one to keep
+        # the 3-second expire timer alive.
+        #
+        # Each Down press resets both the expire timer and the flash timer
+        # (last_interaction_time). A single screenshot takes ~1-1.5s, well
+        # within the 3s window. We vary the delay between the Down press
+        # and the screenshot to sample different offsets in the 1000ms flash
+        # cycle (0-499ms = ON, 500-999ms = OFF).
+        region = get_region(platform, "UP")
+        pixel_counts = []
+        # Delays between Down press and screenshot, chosen to sample
+        # different phases of the 1000ms flash cycle
+        pre_screenshot_delays = [0.0, 0.5, 0.2, 0.7, 0.0, 0.5, 0.2, 0.7, 0.3, 0.6]
+        for i, delay in enumerate(pre_screenshot_delays):
+            # Press Down to add +1 repeat and reset expire timer
+            emulator.press_down()
+            state = capture.wait_for_state(event="button_down", timeout=5.0)
+            if state is None or state.get('m') != 'EditRepeat':
+                logger.warning(
+                    f"Left EditRepeat at iteration {i}: {state}. "
+                    f"Recent logs: {capture.get_all_logs()[-5:]}"
+                )
+                break
+
+            time.sleep(delay)
+
+            screenshot = emulator.screenshot(f"editrepeat_burst_{i}")
+            pixel_counts.append(count_non_bg_pixels(screenshot, region))
 
         capture.stop()
 
-        # Take a burst of screenshots over ~4 seconds to cover several flash cycles
-        # Flash cycle is 1000ms (500ms ON + 500ms OFF)
-        region = get_region(platform, "UP")
-        pixel_counts = []
-        num_screenshots = 8
-        for i in range(num_screenshots):
-            screenshot = emulator.screenshot(f"editrepeat_flash_burst_{i}")
-            pixel_counts.append(count_non_bg_pixels(screenshot, region))
-            time.sleep(0.5)
+        assert len(pixel_counts) >= 6, (
+            f"Need at least 6 screenshots in EditRepeat mode, got {len(pixel_counts)}"
+        )
 
         min_pixels = min(pixel_counts)
         max_pixels = max(pixel_counts)
         logger.info(
-            f"UP region pixel counts across {num_screenshots} screenshots: {pixel_counts} "
+            f"UP region pixel counts across {len(pixel_counts)} screenshots: {pixel_counts} "
             f"(min={min_pixels}, max={max_pixels})"
         )
 
