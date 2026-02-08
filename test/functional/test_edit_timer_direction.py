@@ -8,7 +8,7 @@ Reference: specs/edit-timer-direction-tests.md
 
 Two test classes:
 - TestZeroCrossingTypeConversion: Verify existing type conversion (should pass)
-- TestAutoDirectionFlip: Verify auto-flip on zero-crossing (xfail until spec #22)
+- TestAutoDirectionFlip: Verify auto-flip on zero-crossing (spec #22)
 """
 
 import logging
@@ -157,9 +157,8 @@ class TestZeroCrossingTypeConversion:
 
 
 class TestAutoDirectionFlip:
-    """Tests verifying auto-direction-flip on zero-crossing (xfail until spec #22)."""
+    """Tests verifying auto-direction-flip on zero-crossing (spec #22)."""
 
-    @pytest.mark.xfail(strict=True, reason="Auto-flip not implemented until spec #22")
     def test_auto_flip_countdown_to_chrono_new_mode(self, persistent_emulator):
         """
         Test 3: When subtracting from a countdown causes zero-crossing,
@@ -214,7 +213,6 @@ class TestAutoDirectionFlip:
         assert_direction(state_sub, forward=True)
         assert_time_approximately(state_sub, minutes=18, seconds=4, tolerance=10)
 
-    @pytest.mark.xfail(strict=True, reason="Auto-flip not implemented until spec #22")
     def test_auto_flip_countdown_to_chrono_editsec(self, persistent_emulator):
         """
         Test 4: Auto-direction-flip works in ControlModeEditSec.
@@ -274,7 +272,6 @@ class TestAutoDirectionFlip:
         assert_direction(state_sub, forward=True)
         assert_time_approximately(state_sub, minutes=0, seconds=55, tolerance=5)
 
-    @pytest.mark.xfail(strict=True, reason="Auto-flip not implemented until spec #22")
     def test_continued_editing_after_auto_flip_new_mode(self, persistent_emulator):
         """
         Test 5: After auto-direction-flip, subsequent button presses work in
@@ -330,7 +327,6 @@ class TestAutoDirectionFlip:
         assert_time_approximately(state_add, minutes=1, seconds=58, tolerance=10)
         assert_direction(state_add, forward=True)
 
-    @pytest.mark.xfail(strict=True, reason="Auto-flip not implemented until spec #22")
     def test_round_trip_zero_crossing_editsec(self, persistent_emulator):
         """
         Test 6: Two consecutive zero-crossings both trigger auto-direction-flip.

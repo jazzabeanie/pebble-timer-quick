@@ -314,7 +314,7 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 **Status:** Completed
 
-**Tests:** Passing (2 passed, 4 xfailed on basalt)
+**Tests:** Passing (6 passed on basalt)
 
 **Dependencies:** functional-tests-emulator.md (spec #4), test-logging.md (spec #14), stopwatch-subtraction.md (spec #11), directional-icons.md (spec #10)
 
@@ -327,9 +327,9 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 **Summary:** When a button press in edit mode causes the timer to cross zero (converting between chrono and countdown), the direction automatically resets to forward. Applies to all buttons in both ControlModeNew and ControlModeEditSec. Uses a before/after check on `timer_is_chrono()` to detect zero-crossings.
 
-**Status:** Not Started
+**Status:** Completed
 
-**Tests:** NA (Tests defined in spec #21)
+**Tests:** Passing (6 tests on basalt: 2 type conversion + 4 auto-flip)
 
 **Dependencies:** edit-timer-direction-tests.md (spec #21), stopwatch-subtraction.md (spec #11), directional-icons.md (spec #10)
 

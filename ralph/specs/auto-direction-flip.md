@@ -102,8 +102,21 @@ After implementing, remove `@pytest.mark.xfail` markers from spec #21 tests (Tes
 - **stopwatch-subtraction.md** (spec #11): Zero-crossing timer math must work correctly
 - **directional-icons.md** (spec #10): Direction toggle and icon display system
 
+## Progress
+
+### 2026-02-09: Implementation Complete
+1. Added `prv_check_zero_crossing_direction_flip(bool was_chrono)` helper to `src/main.c`
+2. Added `was_chrono`/`prv_check_zero_crossing_direction_flip()` calls to all 8 edit-mode button handlers (4 in ControlModeNew, 4 in ControlModeEditSec)
+3. **Additional change: `prv_update_timer` routing** — Removed `control_mode != ControlModeEditSec` exclusion from the chrono increment routing. After a zero-crossing, the timer type changes, so `prv_update_timer` must correctly route through `timer_increment_chrono()` for chronos in EditSec too. The routing condition is now: `is_editing_existing_timer && base_length_ms == 0` → `timer_increment_chrono()`, else → `timer_increment()`
+4. **Additional change: Zero-crossing routing state update** — `prv_check_zero_crossing_direction_flip` also updates `base_length_ms` and `is_editing_existing_timer` after a crossing so that `prv_update_timer` routes through the correct increment function on subsequent presses:
+   - Crossing to chrono: `base_length_ms = 0`, `is_editing_existing_timer = true`
+   - Crossing to countdown: `base_length_ms = timer_get_value_ms()`
+5. Removed `@pytest.mark.xfail` markers from tests 3–6 in `test/functional/test_edit_timer_direction.py`
+6. All 6 direction tests pass on basalt (2 type conversion + 4 auto-flip)
+7. All 26 unit tests pass
+
 ## Status
-**Not Started**
+**Completed**
 
 ## Tests
-**NA** (Tests defined in spec #21)
+**Passing** (6 tests on basalt: 2 type conversion + 4 auto-flip)

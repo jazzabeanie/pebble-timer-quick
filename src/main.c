@@ -110,10 +110,29 @@ static void prv_update_timer(int64_t increment) {
   if (main_data.is_reverse_direction) {
     increment = -increment;
   }
-  if (main_data.control_mode != ControlModeEditSec && main_data.is_editing_existing_timer && timer_data.base_length_ms == 0) {
+  if (main_data.is_editing_existing_timer && timer_data.base_length_ms == 0) {
     timer_increment_chrono(increment);
   } else {
     timer_increment(increment);
+  }
+}
+
+// Check for zero-crossing and auto-flip direction to forward
+static void prv_check_zero_crossing_direction_flip(bool was_chrono) {
+  if (was_chrono != timer_is_chrono()) {
+    main_data.is_reverse_direction = false;
+    // Update routing state to match the new timer type so that
+    // prv_update_timer uses the correct increment function.
+    // After crossing to chrono: base_length_ms=0 + is_editing_existing=true
+    //   routes through timer_increment_chrono()
+    // After crossing to countdown: base_length_ms=current value
+    //   routes through timer_increment()
+    if (timer_is_chrono()) {
+      timer_data.base_length_ms = 0;
+      main_data.is_editing_existing_timer = true;
+    } else {
+      timer_data.base_length_ms = timer_get_value_ms();
+    }
   }
 }
 
@@ -255,11 +274,15 @@ static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   timer_reset_auto_snooze();
   if (main_data.control_mode == ControlModeNew) {
     // increment timer by 1 hour
+    bool was_chrono = timer_is_chrono();
     prv_update_timer(BACK_BUTTON_INCREMENT_MS);
+    prv_check_zero_crossing_direction_flip(was_chrono);
     main_data.timer_length_modified_in_edit_mode = true;
   } else if (main_data.control_mode == ControlModeEditSec) {
-    // increment timer by 30 seconds
+    // increment timer by 60 seconds
+    bool was_chrono = timer_is_chrono();
     prv_update_timer(BACK_BUTTON_INCREMENT_SEC_MS);
+    prv_check_zero_crossing_direction_flip(was_chrono);
     main_data.timer_length_modified_in_edit_mode = true;
   } else if (main_data.control_mode == ControlModeEditRepeat) {
     timer_data.repeat_count = 1;
@@ -319,7 +342,9 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     increment = UP_BUTTON_INCREMENT_SEC_MS;
   }
   // increment timer
+  bool was_chrono = timer_is_chrono();
   prv_update_timer(increment);
+  prv_check_zero_crossing_direction_flip(was_chrono);
   main_data.timer_length_modified_in_edit_mode = true;
   drawing_update();
   layer_mark_dirty(main_data.layer);
@@ -409,10 +434,13 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
       break;
     case ControlModeEditMin:
       break;
-    case ControlModeEditSec:
+    case ControlModeEditSec: {
+      bool was_chrono = timer_is_chrono();
       prv_update_timer(SELECT_BUTTON_INCREMENT_SEC_MS);
+      prv_check_zero_crossing_direction_flip(was_chrono);
       main_data.timer_length_modified_in_edit_mode = true;
       break;
+    }
     case ControlModeEditRepeat:
       timer_data.repeat_count += 5;
       prv_reset_new_expire_timer();
@@ -420,10 +448,13 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     case ControlModeCounting:
       timer_toggle_play_pause();
       break;
-    case ControlModeNew:
+    case ControlModeNew: {
+      bool was_chrono = timer_is_chrono();
       prv_update_timer(increment);
+      prv_check_zero_crossing_direction_flip(was_chrono);
       main_data.timer_length_modified_in_edit_mode = true;
       break;
+    }
   }
   // refresh
   drawing_update();
@@ -559,7 +590,9 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   }
   else if (main_data.control_mode == ControlModeNew) {
     int64_t increment = DOWN_BUTTON_INCREMENT_MS;
+    bool was_chrono = timer_is_chrono();
     prv_update_timer(increment);
+    prv_check_zero_crossing_direction_flip(was_chrono);
     main_data.timer_length_modified_in_edit_mode = true;
     drawing_update();
     layer_mark_dirty(main_data.layer);
@@ -567,7 +600,9 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   }
   else if (main_data.control_mode == ControlModeEditSec) {
     int64_t increment = DOWN_BUTTON_INCREMENT_SEC_MS;
+    bool was_chrono = timer_is_chrono();
     prv_update_timer(increment);
+    prv_check_zero_crossing_direction_flip(was_chrono);
     main_data.timer_length_modified_in_edit_mode = true;
     drawing_update();
     layer_mark_dirty(main_data.layer);
