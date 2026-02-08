@@ -11,7 +11,7 @@
 #include "timer.h"
 #include "utility.h"
 
-#define PERSIST_VERSION 4
+#define PERSIST_VERSION 5
 #define PERSIST_VERSION_KEY 4342896
 #define PERSIST_TIMER_KEY_V2_DATA 58734
 #define PERSIST_TIMER_KEY 58736
@@ -199,6 +199,11 @@ void timer_restart(void) {
     timer_data.can_vibrate = false;
   }
 
+  // Restore repeat count from base
+  if (timer_data.is_repeating) {
+    timer_data.repeat_count = timer_data.base_repeat_count;
+  }
+
   timer_data.auto_snooze_count = 0;
   timer_data.elapsed = false;
 }
@@ -214,6 +219,7 @@ void timer_reset(void) {
   timer_data.auto_snooze_count = 0;
   timer_data.is_repeating = false;
   timer_data.repeat_count = 0;
+  timer_data.base_repeat_count = 0;
   timer_data.elapsed = false;
 }
 

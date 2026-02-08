@@ -297,9 +297,9 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 **Summary:** Modifies long-press Select in `ControlModeCounting` to preserve paused/running state on restart for both countdown and chrono timers. Adds `base_repeat_count` field so restarting a repeating timer restores the full repeat count from the beginning.
 
-**Status:** Not Started
+**Status:** Completed
 
-**Tests:** NA
+**Tests:** Passing
 
 **Dependencies:** chrono-hold-select-restart.md (spec #18), edit-mode-reset.md (spec #9), repeating-timer.md (spec #6)
 

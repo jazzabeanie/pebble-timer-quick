@@ -242,9 +242,10 @@ In `prv_up_long_click_handler`, when `is_repeating` is toggled off:
 
 ## Progress
 - 2026-02-08: Spec created.
+- 2026-02-08: Implementation completed. Added `base_repeat_count` to `Timer` struct, updated `timer_restart` and `timer_reset`. Simplified `prv_select_long_click_handler` in `main.c`. Fixed `prv_select_raw_click_handler` to log `alarm_stop`. Updated functional tests to match correct repeat mode entry and avoid race conditions. All tests passing.
 
 ## Status
-**Not Started**
+**Completed**
 
 ## Tests
-**NA**
+**Passing**

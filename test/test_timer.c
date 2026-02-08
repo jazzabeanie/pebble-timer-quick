@@ -744,6 +744,60 @@ static void test_timer_chrono_subtraction_paused_to_countdown(void **state) {
     assert_int_equal(value, 55000);
 }
 
+// 25. test_timer_restart_restores_repeat_count
+// Purpose: Verify that timer_restart() restores repeat_count from base_repeat_count.
+static void test_timer_restart_restores_repeat_count(void **state) {
+    // Setup: reset timer
+    timer_reset();
+
+    // Set up repeating timer with count=3
+    timer_data.length_ms = 60000;
+    timer_data.base_length_ms = 60000;
+    timer_data.is_repeating = true;
+    timer_data.repeat_count = 3;
+    timer_data.base_repeat_count = 3;
+    timer_data.is_paused = false;
+    timer_data.start_ms = 10000;
+
+    // Simulate one repeat already happened
+    timer_data.repeat_count = 2;
+
+    // Call timer_restart()
+    will_return(epoch, 20000);
+    timer_restart();
+
+    // Assert repeat_count restored to 3
+    assert_int_equal(timer_data.repeat_count, 3);
+    assert_int_equal(timer_data.base_repeat_count, 3);
+}
+
+// 26. test_timer_restart_preserves_paused_state
+// Purpose: Verify that timer_restart() preserves the paused/running state.
+static void test_timer_restart_preserves_paused_state(void **state) {
+    // Setup: running countdown
+    timer_data.length_ms = 30000;
+    timer_data.base_length_ms = 60000;
+    timer_data.is_paused = false;
+    timer_data.start_ms = 10000;
+
+    // Restart running -> should be running
+    will_return(epoch, 20000);
+    timer_restart();
+    assert_false(timer_data.is_paused);
+    assert_int_equal(timer_data.start_ms, 20000);
+
+    // Setup: paused countdown
+    timer_data.length_ms = 30000;
+    timer_data.base_length_ms = 60000;
+    timer_data.is_paused = true;
+    timer_data.start_ms = 5000; // elapsed
+
+    // Restart paused -> should be paused
+    timer_restart();
+    assert_true(timer_data.is_paused);
+    assert_int_equal(timer_data.start_ms, 0);
+}
+
 int main(void) {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test_setup_teardown(test_timer_reset, setup, teardown),
@@ -770,6 +824,8 @@ int main(void) {
         cmocka_unit_test_setup_teardown(test_timer_check_elapsed_repeat_zero_count, setup, teardown),
         cmocka_unit_test_setup_teardown(test_timer_chrono_subtraction_to_countdown, setup, teardown),
         cmocka_unit_test_setup_teardown(test_timer_chrono_subtraction_paused_to_countdown, setup, teardown),
+        cmocka_unit_test_setup_teardown(test_timer_restart_restores_repeat_count, setup, teardown),
+        cmocka_unit_test_setup_teardown(test_timer_restart_preserves_paused_state, setup, teardown),
     };
 
     return cmocka_run_group_tests(tests, NULL, NULL);

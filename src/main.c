@@ -153,6 +153,11 @@ static void prv_new_expire_callback(void *data) {
         timer_data.base_length_ms = 0;
       }
     }
+
+    if (main_data.control_mode == ControlModeEditRepeat) {
+      timer_data.base_repeat_count = timer_data.repeat_count;
+    }
+
     main_data.control_mode = ControlModeCounting;
     // Sub-minute timers (from EditSec mode) should stay paused and require manual start
     if (timer_is_paused() && !was_edit_sec_mode) {
@@ -360,6 +365,7 @@ static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) 
       prv_reset_new_expire_timer();
     } else {
       timer_data.repeat_count = 0;
+      timer_data.base_repeat_count = 0;
       main_data.control_mode = ControlModeCounting;
     }
     vibes_short_pulse();
@@ -433,7 +439,7 @@ static void prv_select_raw_click_handler(ClickRecognizerRef recognizer, void *ct
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
   // stop vibration
-  vibes_cancel();
+  prv_handle_alarm();
   // animate and refresh
   drawing_start_reset_animation();
   layer_mark_dirty(main_data.layer);
@@ -475,14 +481,7 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
   }
 
   if (main_data.control_mode == ControlModeCounting) {
-    if (timer_is_chrono()) {
-      // Chrono (paused or running) -> Restart chrono at 0:00
-      timer_reset();
-      // timer_reset sets start_ms to epoch(), so it starts running
-      main_data.control_mode = ControlModeCounting;
-    } else {
-      timer_restart();
-    }
+    timer_restart();
   } else {
     timer_reset();
     main_data.control_mode = ControlModeNew;
