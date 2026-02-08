@@ -818,6 +818,7 @@ class TestEditRepeatIcons:
         """
         emulator = persistent_emulator
         platform = emulator.platform
+        emulator.press_up()  # to ensure visual indicator doesn't overlap region
         screenshot = self._enter_editrepeat(emulator)
         region = get_region(platform, "BACK")
         # Verify it has some content
