@@ -310,7 +310,7 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 **Keywords:** edit timer, direction, reverse, zero-crossing, chrono to countdown, countdown to chrono, auto-flip, direction flip, ControlModeNew, ControlModeEditSec, functional tests
 
-**Summary:** Defines functional tests for timer editing with direction changes and zero-crossing behavior. Includes infrastructure changes (adding chrono field to TEST_STATE log, `assert_is_chrono` helper) and 7 test cases covering type conversion and auto-direction-flip. Type conversion tests should pass; auto-flip tests are marked `xfail` until spec #22 is implemented.
+**Summary:** Defines functional tests for timer editing with direction changes and zero-crossing behavior. Includes infrastructure changes (adding chrono field to TEST_STATE log, `assert_is_chrono` helper) and 6 test cases covering type conversion and auto-direction-flip. Type conversion tests should pass; auto-flip tests are marked `xfail` until spec #22 is implemented.
 
 **Status:** Not Started
 

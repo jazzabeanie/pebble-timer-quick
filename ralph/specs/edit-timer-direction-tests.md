@@ -107,8 +107,8 @@ All new tests go in this file. Tests are organized into two classes:
 
 | Step | Action | Expected State |
 |------|--------|----------------|
-| 1 | Wait 2.5s for chrono mode | ControlModeCounting, chrono at ~0:02 |
-| 2 | Press Up to enter ControlModeNew | ControlModeNew |
+| 1 | Wait 3.5s for chrono mode | ControlModeCounting, chrono at ~0:03 |
+| 2 | Press Up to enter Edit mode | ControlModeNew and `main_data.is_editing_existing_timer = true` |
 | 3 | Long press Select to enter EditSec at 0:00 | ControlModeEditSec, paused at 0:00 |
 | 4 | Press Down 5 times (+5 seconds) | Time shows 0:05 |
 | 5 | Long press Up to toggle reverse | Direction reverse |
@@ -120,34 +120,7 @@ All new tests go in this file. Tests are organized into two classes:
 
 ---
 
-### Test 3: Auto-flip after chrono → countdown in ControlModeNew
-
-**Class:** `TestAutoDirectionFlip`
-
-**Purpose:** Verify that when subtracting from a chrono timer causes it to cross zero and become a countdown, the direction automatically flips to forward.
-
-**Expected result:** Fails until spec #22 is implemented. Mark with `@pytest.mark.xfail(reason="Auto-direction-flip not yet implemented (spec #22)")`.
-
-**Preconditions:**
-- App launches fresh (auto-enters chrono after ~3.5s).
-
-**Steps:**
-
-| Step | Action | Expected State |
-|------|--------|----------------|
-| 1 | Wait 5s for chrono mode with elapsed time | Chrono ~0:02 |
-| 2 | Press Up to enter ControlModeNew | ControlModeNew, direction forward |
-| 3 | Long press Up to toggle reverse | Direction reverse |
-| 4 | Press Down (subtract 1 minute) | Timer crosses zero → countdown ~0:58, direction auto-flips to forward |
-
-**Verification:**
-- Step 4: `assert_is_chrono(state, is_chrono=False)` — "Expected chrono to convert to countdown after subtracting past zero"
-- Step 4: `assert_direction(state, forward=True)` — "Expected direction to auto-flip to forward after zero-crossing"
-- Step 4: `assert_time_approximately(state, minutes=0, seconds=58, tolerance=10)`
-
----
-
-### Test 4: Auto-flip after countdown → chrono in ControlModeNew
+### Test 3: Auto-flip after countdown → chrono in ControlModeNew
 
 **Class:** `TestAutoDirectionFlip`
 
@@ -175,7 +148,7 @@ All new tests go in this file. Tests are organized into two classes:
 
 ---
 
-### Test 5: Auto-flip after countdown → chrono in ControlModeEditSec
+### Test 4: Auto-flip after countdown → chrono in ControlModeEditSec
 
 **Class:** `TestAutoDirectionFlip`
 
@@ -190,21 +163,19 @@ All new tests go in this file. Tests are organized into two classes:
 
 | Step | Action | Expected State |
 |------|--------|----------------|
-| 1 | Wait 2.5s for chrono mode | ControlModeCounting |
-| 2 | Press Up to enter ControlModeNew | ControlModeNew |
-| 3 | Long press Select to enter EditSec at 0:00 | ControlModeEditSec, paused at 0:00 |
-| 4 | Press Down 5 times (+5 seconds) | Time shows 0:05 (countdown) |
-| 5 | Long press Up to toggle reverse | Direction reverse |
-| 6 | Press Back (subtract 60 seconds) | Timer crosses zero → chrono ~0:55, direction auto-flips to forward |
+| 1 | Long press Select to enter EditSec at 0:00 | ControlModeEditSec, paused at 0:00 |
+| 2 | Press Down 5 times (+5 seconds) | Time shows 0:05 (countdown) |
+| 3 | Long press Up to toggle reverse | Direction reverse |
+| 4 | Press Back (subtract 60 seconds) | Timer crosses zero → chrono ~0:55, direction auto-flips to forward |
 
 **Verification:**
-- Step 6: `assert_is_chrono(state, is_chrono=True)` — "Expected countdown to convert to chrono after subtracting past zero in EditSec"
-- Step 6: `assert_direction(state, forward=True)` — "Expected direction to auto-flip to forward after zero-crossing in EditSec"
-- Step 6: `assert_time_approximately(state, minutes=0, seconds=55, tolerance=5)`
+- Step 4: `assert_is_chrono(state, is_chrono=True)` — "Expected countdown to convert to chrono after subtracting past zero in EditSec"
+- Step 4: `assert_direction(state, forward=True)` — "Expected direction to auto-flip to forward after zero-crossing in EditSec"
+- Step 4: `assert_time_approximately(state, minutes=0, seconds=55, tolerance=5)`
 
 ---
 
-### Test 6: Continued editing after auto-flip in ControlModeNew
+### Test 5: Continued editing after auto-flip in ControlModeNew
 
 **Class:** `TestAutoDirectionFlip`
 
@@ -219,11 +190,11 @@ All new tests go in this file. Tests are organized into two classes:
 
 | Step | Action | Expected State |
 |------|--------|----------------|
-| 1 | Wait 5s for chrono mode with elapsed time | Chrono ~0:02 |
+| 1 | Wait 4s for chrono mode with elapsed time | Chrono ~0:03 |
 | 2 | Press Up to enter ControlModeNew | ControlModeNew, direction forward |
 | 3 | Long press Up to toggle reverse | Direction reverse |
-| 4 | Press Down (subtract 1 minute) | Crosses zero → countdown ~0:58, direction forward (auto-flip) |
-| 5 | Press Down (add 1 minute in forward direction) | Countdown ~1:58 |
+| 4 | Press Down (subtract 1 minute) | Crosses zero → countdown ~0:56, direction forward (auto-flip) |
+| 5 | Press Down (add 1 minute in forward direction) | Countdown ~1:56 |
 
 **Verification:**
 - Step 4: `assert_direction(state, forward=True)` — auto-flip occurred
@@ -233,7 +204,7 @@ All new tests go in this file. Tests are organized into two classes:
 
 ---
 
-### Test 7: Round-trip zero-crossing in ControlModeEditSec
+### Test 6: Round-trip zero-crossing in ControlModeEditSec
 
 **Class:** `TestAutoDirectionFlip`
 

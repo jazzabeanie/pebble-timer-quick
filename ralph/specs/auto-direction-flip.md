@@ -95,7 +95,7 @@ prv_check_zero_crossing_direction_flip(was_chrono);
 ```
 
 ### Verification
-After implementing, remove `@pytest.mark.xfail` markers from spec #21 tests (Tests 3–7 in `test/functional/test_edit_timer_direction.py`). All tests should pass.
+After implementing, remove `@pytest.mark.xfail` markers from spec #21 tests (Tests 3–6 in `test/functional/test_edit_timer_direction.py`). All tests should pass.
 
 ## Dependencies
 - **edit-timer-direction-tests.md** (spec #21): Tests must be implemented first (TDD approach)
