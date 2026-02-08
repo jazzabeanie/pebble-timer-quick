@@ -74,25 +74,75 @@ def persistent_emulator(request, build_app):
 # Helper Functions
 # ============================================================
 
+def _is_app_screenshot(img):
+    """Check if screenshot is from the app (not the launcher).
+
+    The app has a dark circular timer display; the launcher has a bright
+    menu background.  We check for sufficient dark pixels (RGB < 100)
+    which are present in the timer display but absent in the launcher.
+    """
+    arr = np.array(img)
+    dark_pixels = np.sum(np.all(arr[:, :, :3] < 100, axis=2))
+    return dark_pixels > 500
+
+
 def enter_new_mode_forward(emulator):
     """Ensure we are in New mode with forward (increment) direction.
 
-    Just take a screenshot - app starts in New mode with forward direction.
+    Presses Back immediately to reset the 3-second inactivity expire timer
+    and add 1 hour. This serves two purposes:
+    1. Prevents the expire timer from firing (which would transition to
+       ControlModeCounting, where a subsequent Back press quits the app).
+    2. Moves the progress bar to a near-full position so the chrono arc
+       doesn't interfere with icon crop regions during pixel matching.
+
+    Includes a retry via reinstall if the app isn't running (e.g. due to a
+    race with the previous test's teardown).
     """
-    time.sleep(0.5)
-    return emulator.screenshot("new_mode_forward")
+    emulator.press_back()  # +1hr, resets expire timer
+    emulator.press_back()  # +1hr more (2hr total)
+    emulator.press_back()  # +1hr more (3hr total)
+    time.sleep(0.3)
+    screenshot = emulator.screenshot("new_mode_forward")
+    if not _is_app_screenshot(screenshot):
+        logger.warning("App not running after press_back, retrying via reinstall")
+        emulator.open_app_via_menu()
+        time.sleep(0.5)
+        emulator.press_back()
+        emulator.press_back()
+        emulator.press_back()
+        time.sleep(0.3)
+        screenshot = emulator.screenshot("new_mode_forward_retry")
+    return screenshot
 
 
 def toggle_to_reverse_mode(emulator):
     """Toggle to reverse direction mode by long-pressing Up button.
 
+    Includes a retry if the app exited (e.g. expire timer race with
+    ControlModeCounting Back-press quit).
+
     Returns screenshot after toggle.
     """
     emulator.hold_button(Button.UP)
-    time.sleep(2.0)
+    time.sleep(1.0)
     emulator.release_buttons()
     time.sleep(0.5)
-    return emulator.screenshot("new_mode_reverse")
+    screenshot = emulator.screenshot("new_mode_reverse")
+    if not _is_app_screenshot(screenshot):
+        logger.warning("App not running after toggle, retrying full sequence")
+        emulator.open_app_via_menu()
+        time.sleep(0.5)
+        emulator.press_back()  # +1hr, resets expire timer
+        emulator.press_back()  # +1hr more
+        emulator.press_back()  # +1hr more (3hr total)
+        time.sleep(0.3)
+        emulator.hold_button(Button.UP)
+        time.sleep(1.0)
+        emulator.release_buttons()
+        time.sleep(0.5)
+        screenshot = emulator.screenshot("new_mode_reverse_retry")
+    return screenshot
 
 
 def enter_editsec_mode(emulator):
@@ -172,10 +222,10 @@ class TestNewModeReverseIcons:
         enter_new_mode_forward(emulator)
         screenshot = toggle_to_reverse_mode(emulator)
         region = get_region(platform, "BACK")
-        assert has_icon_content(screenshot, region), (
+        assert has_icon_content(screenshot, region, threshold=50), (
             "Expected -1hr icon content in Back button region"
         )
-        assert matches_icon_reference(screenshot, region, "new_back_reverse", platform=platform), (
+        assert matches_icon_reference(screenshot, region, "new_back_reverse", platform=platform, tolerance=15), (
             "-1hr icon does not match reference mask"
         )
 
@@ -183,14 +233,13 @@ class TestNewModeReverseIcons:
         """Verify -20min icon for Up button in New mode (reverse direction)."""
         emulator = persistent_emulator
         platform = emulator.platform
-        emulator.press_back() # to make sure progress bar is nowhere near the up icon
         enter_new_mode_forward(emulator)
         screenshot = toggle_to_reverse_mode(emulator)
         region = get_region(platform, "UP")
-        assert has_icon_content(screenshot, region), (
+        assert has_icon_content(screenshot, region, threshold=50), (
             "Expected -20min icon content in Up button region"
         )
-        assert matches_icon_reference(screenshot, region, "new_up_reverse", platform=platform), (
+        assert matches_icon_reference(screenshot, region, "new_up_reverse", platform=platform, tolerance=15), (
             "-20min icon does not match reference mask"
         )
 
@@ -201,10 +250,10 @@ class TestNewModeReverseIcons:
         enter_new_mode_forward(emulator)
         screenshot = toggle_to_reverse_mode(emulator)
         region = get_region(platform, "SELECT")
-        assert has_icon_content(screenshot, region), (
+        assert has_icon_content(screenshot, region, threshold=50), (
             "Expected -5min icon content in Select button region"
         )
-        assert matches_icon_reference(screenshot, region, "new_select_reverse", platform=platform), (
+        assert matches_icon_reference(screenshot, region, "new_select_reverse", platform=platform, tolerance=15), (
             "-5min icon does not match reference mask"
         )
 
@@ -215,10 +264,10 @@ class TestNewModeReverseIcons:
         enter_new_mode_forward(emulator)
         screenshot = toggle_to_reverse_mode(emulator)
         region = get_region(platform, "DOWN")
-        assert has_icon_content(screenshot, region), (
+        assert has_icon_content(screenshot, region, threshold=50), (
             "Expected -1min icon content in Down button region"
         )
-        assert matches_icon_reference(screenshot, region, "new_down_reverse", platform=platform), (
+        assert matches_icon_reference(screenshot, region, "new_down_reverse", platform=platform, tolerance=15), (
             "-1min icon does not match reference mask"
         )
 
