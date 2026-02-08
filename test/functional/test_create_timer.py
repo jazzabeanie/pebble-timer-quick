@@ -284,40 +284,39 @@ class TestCreateTimer:
         """
         Test creating a 2-minute timer via two Down button presses.
 
+        Uses log-based assertions instead of OCR for reliable verification.
+
         This test verifies:
-        1. The app shows "New" mode initially
-        2. After pressing Down twice, the timer shows approximately 2 minutes (1:5x)
+        1. After pressing Down twice, mode is "New"
+        2. Timer shows approximately 2:00 (slightly less due to countdown)
         """
+        from .conftest import LogCapture, assert_time_approximately, assert_mode, assert_paused
+
         emulator = persistent_emulator
 
-        # Step 1: Take initial screenshot
-        img1 = emulator.screenshot("step1_initial")
+        # Start log capture
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        time.sleep(1.0)  # Wait for pebble logs to connect
+        capture.clear_state_queue()
 
-        # Step 2: Press Down twice to set 2 minutes
+        # Press Down twice to set 2 minutes
         emulator.press_down()
+        capture.wait_for_state(event="button_down", timeout=5.0)
         emulator.press_down()
-        img2 = emulator.screenshot("step2_after_two_down")
+        state = capture.wait_for_state(event="button_down", timeout=5.0)
 
-        # Step 3: Verify new in first screenshot (this takes some time so is done after)
-        text1 = extract_text(img1)
-        assert "New" in text1, f"Expected 'New' in initial screen, got: {text1}"
-        
-        # Step 4: Verify the timer shows ~2 minutes (1:5x due to countdown)
-        # EasyOCR may read colon as '.' or ';', and digits may vary
-        text2 = extract_text(img2)
-        logger.info(f"extracted text {text2}")
+        # Stop capture
+        capture.stop()
 
-        # Use flexible pattern matching that handles OCR variations
-        # Also check for simple digit patterns: "15x" could be "1:5x"
-        normalized = normalize_time_text(text2)
-        time_patterns = ["1:5", "1.5", "1;5", "15"]  # Various colon representations
-        has_time = any(pattern in normalized for pattern in time_patterns)
+        # Assert using structured log data
+        assert state is not None, "Did not receive button_down state log"
+        logger.info(f"After 2 Down presses - state: {state}")
 
-        # Also try the helper function for range matching
-        if not has_time:
-            has_time = has_time_pattern(text2, minutes=2, tolerance=15)
-
-        assert has_time, f"Expected time around 1:5x after 2 Down presses, got: {text2}"
+        # Verify time is approximately 2:00 (timer is running so may have counted down slightly)
+        assert_time_approximately(state, minutes=1, seconds=58, tolerance=5)
+        assert_mode(state, "New")
+        assert_paused(state, False)  # Timer runs immediately in ControlModeNew
 
     def test_initial_state_shows_new(self, persistent_emulator):
         """Test that the initial state shows 'New' in the header."""
