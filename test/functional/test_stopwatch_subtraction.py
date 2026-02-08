@@ -31,6 +31,7 @@ from .conftest import (
     assert_paused,
     assert_time_approximately,
     assert_direction,
+    assert_is_chrono,
 )
 from .test_create_timer import (
     extract_text,
@@ -90,8 +91,9 @@ class TestStopwatchSubtraction:
         # Verify countdown state
         assert state_sub is not None
         logger.info(f"After subtraction state: {state_sub}")
-        
+
         # Should be ~0:55 countdown
+        assert_is_chrono(state_sub, is_chrono=False)
         assert_time_approximately(state_sub, minutes=0, seconds=55, tolerance=10)
         assert_mode(state_sub, "New")
         assert_paused(state_sub, True)

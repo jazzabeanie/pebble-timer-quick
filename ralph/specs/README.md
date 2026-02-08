@@ -312,9 +312,9 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 **Summary:** Defines functional tests for timer editing with direction changes and zero-crossing behavior. Includes infrastructure changes (adding chrono field to TEST_STATE log, `assert_is_chrono` helper) and 6 test cases covering type conversion and auto-direction-flip. Type conversion tests should pass; auto-flip tests are marked `xfail` until spec #22 is implemented.
 
-**Status:** Not Started
+**Status:** Completed
 
-**Tests:** NA
+**Tests:** Passing (2 passed, 4 xfailed on basalt)
 
 **Dependencies:** functional-tests-emulator.md (spec #4), test-logging.md (spec #14), stopwatch-subtraction.md (spec #11), directional-icons.md (spec #10)
 

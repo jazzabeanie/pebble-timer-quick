@@ -251,7 +251,19 @@ test/
 ```
 
 ## Status
-**Not Started**
+**Completed**
 
 ## Tests
-**NA**
+**Passing** (2 passed, 4 xfailed on basalt)
+
+## Progress
+
+### 2026-02-09: Implementation Complete
+- Added `c` (chrono) field to TEST_STATE log format in `src/utility.c`
+- Added `assert_is_chrono` helper to `test/functional/conftest.py`
+- Updated `test/functional/test_stopwatch_subtraction.py` to use `assert_is_chrono` for explicit chrono/countdown verification
+- Created `test/functional/test_edit_timer_direction.py` with 6 test cases:
+  - `TestZeroCrossingTypeConversion` (2 tests): Both pass — verify existing chrono ↔ countdown conversion
+  - `TestAutoDirectionFlip` (4 tests): All xfail with `strict=True` — will pass after spec #22 implementation
+- All 26 unit tests pass
+- All 3 stopwatch subtraction tests pass with new `assert_is_chrono` assertion

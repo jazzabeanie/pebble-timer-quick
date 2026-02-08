@@ -764,3 +764,16 @@ def assert_backlight(state: dict, on: bool = True):
     expected = '1' if on else '0'
     actual = state.get('l', '')
     assert actual == expected, f"Expected backlight={expected}, got backlight={actual}"
+
+
+def assert_is_chrono(state: dict, is_chrono: bool = True):
+    """Assert whether timer is in chrono mode.
+
+    Note: State uses short field name 'c' for chrono.
+    """
+    expected = '1' if is_chrono else '0'
+    actual = state.get('c', '')
+    assert actual == expected, (
+        f"Expected timer to be {'chrono' if is_chrono else 'countdown'}, "
+        f"but timer is {'chrono' if actual == '1' else 'countdown'}"
+    )

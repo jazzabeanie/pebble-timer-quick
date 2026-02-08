@@ -32,7 +32,7 @@ static const char* prv_get_mode_name(ControlMode mode) {
 }
 
 // Log current app state for functional test assertions
-// Format: TEST_STATE:<event>,t=M:SS,m=<mode>,r=<n>,p=<0|1>,v=<0|1>,d=<1|-1>,l=<0|1>
+// Format: TEST_STATE:<event>,t=M:SS,m=<mode>,r=<n>,p=<0|1>,v=<0|1>,d=<1|-1>,l=<0|1>,c=<0|1>
 // (Short field names to fit within APP_LOG's ~100 char limit)
 void test_log_state(const char *event) {
   uint16_t hr, min, sec;
@@ -42,7 +42,7 @@ void test_log_state(const char *event) {
   uint16_t total_min = hr * 60 + min;
 
   TEST_LOG(APP_LOG_LEVEL_DEBUG,
-    "TEST_STATE:%s,t=%d:%02d,m=%s,r=%d,p=%d,v=%d,d=%d,l=%d",
+    "TEST_STATE:%s,t=%d:%02d,m=%s,r=%d,p=%d,v=%d,d=%d,l=%d,c=%d",
     event,
     total_min,
     sec,
@@ -51,7 +51,8 @@ void test_log_state(const char *event) {
     timer_is_paused() ? 1 : 0,
     timer_is_vibrating() ? 1 : 0,
     main_is_reverse_direction() ? -1 : 1,
-    main_is_backlight_on() ? 1 : 0
+    main_is_backlight_on() ? 1 : 0,
+    timer_is_chrono() ? 1 : 0
   );
 }
 
