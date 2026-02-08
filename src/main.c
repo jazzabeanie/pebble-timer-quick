@@ -44,17 +44,57 @@ static struct {
     bool        is_reverse_direction; //< True if the timer should be decremented instead of incremented
   } main_data;
 
+static AppTimer *backlight_timer = NULL;
+static bool backlight_on = false;
+
 // Function declarations
 static void prv_app_timer_callback(void *data);
 static void prv_new_expire_callback(void *data);
 static void prv_reset_new_expire_timer(void);
 static void prv_quit_callback(void *data);
 static void prv_cancel_quit_timer(void);
+static void prv_set_backlight(bool on);
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Private Functions
 //
+
+// Callback for the backlight timer
+static void prv_backlight_timer_callback(void *data) {
+  backlight_timer = NULL;
+  prv_set_backlight(false);
+}
+
+// Helper to set backlight state
+static void prv_set_backlight(bool on) {
+  // Cancel existing timer
+  if (backlight_timer) {
+    app_timer_cancel(backlight_timer);
+    backlight_timer = NULL;
+  }
+
+  if (on != backlight_on) {
+    backlight_on = on;
+    light_enable(on);
+  }
+
+  if (on) {
+    backlight_timer = app_timer_register(30000, prv_backlight_timer_callback, NULL);
+  }
+}
+
+// Helper to check if currently in an edit mode
+static bool prv_is_edit_mode(void) {
+  return main_data.control_mode == ControlModeNew ||
+         main_data.control_mode == ControlModeEditSec ||
+         main_data.control_mode == ControlModeEditRepeat;
+}
+
+// Helper to update backlight based on state
+static void prv_update_backlight(void) {
+  prv_set_backlight(prv_is_edit_mode() || timer_is_vibrating());
+}
 
 // Helper to record interaction time
 static void prv_record_interaction(void) {
@@ -118,6 +158,7 @@ static void prv_new_expire_callback(void *data) {
     if (timer_is_paused() && !was_edit_sec_mode) {
       timer_toggle_play_pause();
     }
+    prv_update_backlight();
     test_log_state("mode_change");
 
     // Exit if timer is longer than AUTO_BACKGROUND_TIMER_LENGTH_MS, after a delay
@@ -151,10 +192,10 @@ static void prv_reset_new_expire_timer(void) {
 static bool prv_handle_alarm(void) {
   // check if timer is vibrating
   if (timer_is_vibrating()) {
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "Cancelling vibration");
     timer_data.can_vibrate = false;
     vibes_cancel();
     drawing_update();
+    prv_update_backlight();
     test_log_state("alarm_stop");
     return true;
   }
@@ -190,6 +231,11 @@ bool main_is_reverse_direction(void) {
   return main_data.is_reverse_direction;
 }
 
+// Get whether the backlight is currently on
+bool main_is_backlight_on(void) {
+  return backlight_on;
+}
+
 // Background layer update procedure
 static void prv_layer_update_proc_handler(Layer *layer, GContext *ctx) {
   // render the timer's visuals
@@ -202,7 +248,6 @@ static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "Back button pressed");
   if (main_data.control_mode == ControlModeNew) {
     // increment timer by 1 hour
     prv_update_timer(BACK_BUTTON_INCREMENT_MS);
@@ -222,6 +267,7 @@ static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   }
   drawing_update();
   layer_mark_dirty(main_data.layer);
+  prv_update_backlight();
   test_log_state("button_back");
 }
 
@@ -231,7 +277,6 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "Up button handler");
  if (timer_is_vibrating()) {
     prv_handle_alarm();
   }
@@ -249,6 +294,7 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     main_data.timer_length_modified_in_edit_mode = false;
     drawing_update();
     layer_mark_dirty(main_data.layer);
+    prv_update_backlight();
     test_log_state("button_up");
     return;
   }
@@ -258,6 +304,7 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     prv_reset_new_expire_timer();
     drawing_update();
     layer_mark_dirty(main_data.layer);
+    prv_update_backlight();
     test_log_state("button_up");
     return;
   }
@@ -271,6 +318,7 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   main_data.timer_length_modified_in_edit_mode = true;
   drawing_update();
   layer_mark_dirty(main_data.layer);
+  prv_update_backlight();
   test_log_state("button_up");
 }
 
@@ -280,7 +328,6 @@ static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) 
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "Up long press");
 
   if (timer_is_vibrating()) {
     // Check if we have a "base" duration to add
@@ -294,6 +341,7 @@ static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) 
     }
     drawing_update();
     layer_mark_dirty(main_data.layer);
+    prv_update_backlight();
     test_log_state("long_press_up");
     return;
   }
@@ -317,6 +365,7 @@ static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) 
     vibes_short_pulse();
     drawing_update();
     layer_mark_dirty(main_data.layer);
+    prv_update_backlight();
     test_log_state("long_press_up");
     return;
   }
@@ -329,6 +378,7 @@ static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) 
   prv_reset_new_expire_timer();
   drawing_update();
   layer_mark_dirty(main_data.layer);
+  prv_update_backlight();
   test_log_state("long_press_up");
 }
 
@@ -338,11 +388,11 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "Select button pressed");
   if (prv_handle_alarm()) {
     if (main_data.control_mode == ControlModeCounting) {
       timer_toggle_play_pause();
     }
+    prv_update_backlight();
     test_log_state("button_select");
     return;
   }
@@ -372,6 +422,7 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   // refresh
   drawing_update();
   layer_mark_dirty(main_data.layer);
+  prv_update_backlight();
   test_log_state("button_select");
 }
 
@@ -401,6 +452,7 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
       main_data.control_mode == ControlModeEditRepeat) {
     drawing_update();
     layer_mark_dirty(main_data.layer);
+    prv_update_backlight();
     test_log_state("long_press_select");
     return;
   }
@@ -417,6 +469,7 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
     main_data.timer_length_modified_in_edit_mode = false;
     drawing_update();
     layer_mark_dirty(main_data.layer);
+    prv_update_backlight();
     test_log_state("long_press_select");
     return;
   }
@@ -439,6 +492,7 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
   // animate and refresh
   drawing_update();
   layer_mark_dirty(main_data.layer);
+  prv_update_backlight();
   test_log_state("long_press_select");
 }
 
@@ -482,7 +536,6 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "Down button pressed");
   if (timer_is_vibrating()) {
     vibes_cancel();
     if (timer_data.is_repeating && timer_data.repeat_count > 1) {
@@ -497,6 +550,7 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     }
     drawing_update();
     layer_mark_dirty(main_data.layer);
+    prv_update_backlight();
     test_log_state("button_down");
     return;
   }
@@ -525,6 +579,7 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     prv_reset_new_expire_timer();
     drawing_update();
     layer_mark_dirty(main_data.layer);
+    prv_update_backlight();
     test_log_state("button_down");
   }
 }
@@ -534,9 +589,9 @@ static void prv_down_long_click_handler(ClickRecognizerRef recognizer, void *ctx
   prv_record_interaction();
   prv_cancel_quit_timer();
   timer_reset_auto_snooze();
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "Down long press");
   // Reset timer
   timer_data.reset_on_init = true;
+  prv_update_backlight();
   test_log_state("long_press_down");
   // quit app
   window_stack_pop(true);
@@ -570,8 +625,10 @@ static void prv_app_timer_callback(void *data) {
   bool is_elapsed = timer_data.elapsed;
 
   if (!was_elapsed && is_elapsed) {
+    prv_update_backlight();
     test_log_state("alarm_start");
   } else if (was_elapsed && !is_elapsed) {
+    prv_update_backlight();
     test_log_state("alarm_stop");
   }
 
@@ -718,6 +775,7 @@ static void prv_initialize(void) {
     main_data.timer_length_modified_in_edit_mode = false;
   }
   prv_reset_new_expire_timer();
+  prv_update_backlight();
   test_log_state("init");
 
   // initialize window
@@ -750,6 +808,11 @@ static void prv_initialize(void) {
 static void prv_terminate(void) {
   // unsubscribe from timer service
   tick_timer_service_unsubscribe();
+  // cancel backlight timer
+  if (backlight_timer) {
+    app_timer_cancel(backlight_timer);
+    backlight_timer = NULL;
+  }
   // schedule wakeup
   if (!timer_is_chrono() && !timer_is_paused() && !timer_data.reset_on_init) {
     time_t wakeup_time = (epoch() + timer_get_value_ms()) / MSEC_IN_SEC;

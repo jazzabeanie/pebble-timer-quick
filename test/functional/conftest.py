@@ -27,7 +27,7 @@ PYTHON_CMD = CONDA_ENV / "bin" / "python"
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 # Emulator platforms
-PLATFORMS = ["aplite", "basalt", "chalk", "diorite", "emery"]
+PLATFORMS = ["aplite", "basalt", "chalk", "diorite"]
 
 # Button constants (from libpebble2)
 class Button:
@@ -749,3 +749,13 @@ def assert_direction(state: dict, forward: bool = True):
     expected = '1' if forward else '-1'
     actual = state.get('d', '')
     assert actual == expected, f"Expected direction={expected}, got direction={actual}"
+
+
+def assert_backlight(state: dict, on: bool = True):
+    """Assert backlight state.
+
+    Note: State uses short field name 'l' for light.
+    """
+    expected = '1' if on else '0'
+    actual = state.get('l', '')
+    assert actual == expected, f"Expected backlight={expected}, got backlight={actual}"

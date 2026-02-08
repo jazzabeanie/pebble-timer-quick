@@ -282,9 +282,9 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 **Summary:** Adds automatic backlight control for improved usability. The backlight turns on during alarm (vibrating) and in edit modes, with a 30-second timeout. It turns off when entering counting mode or after the timeout expires.
 
-**Status:** Not Started
+**Status:** Completed
 
-**Tests:** NA
+**Tests:** Passing
 
 **Dependencies:** None
 

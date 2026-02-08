@@ -205,9 +205,11 @@ if (!was_elapsed && is_elapsed) {
 
 ## Progress
 - 2026-02-05: Spec created.
+- 2026-02-08: Implementation started. Identifying integration points in `src/main.c`.
+- 2026-02-08: Feature implemented and verified with functional tests on basalt, chalk, and diorite.
 
 ## Status
-**Not Started**
+**Completed**
 
 ## Tests
-**NA**
+**Passing**

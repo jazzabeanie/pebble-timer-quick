@@ -46,3 +46,7 @@ bool main_is_last_interaction_down(void);
 //! Get whether the app is in reverse direction mode
 //! @return True if decrementing instead of incrementing
 bool main_is_reverse_direction(void);
+
+//! Get whether the backlight is currently on
+//! @return True if the backlight is on
+bool main_is_backlight_on(void);
