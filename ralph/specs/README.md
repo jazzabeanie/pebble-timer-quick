@@ -290,6 +290,21 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 ---
 
+### 20. Hold Select Restart (Pause-Preserving)
+**File:** [hold-select-restart.md](hold-select-restart.md)
+
+**Keywords:** hold select, long press, restart, pause, running, chrono, countdown, repeat count, base_repeat_count, timer_restart
+
+**Summary:** Modifies long-press Select in `ControlModeCounting` to preserve paused/running state on restart for both countdown and chrono timers. Adds `base_repeat_count` field so restarting a repeating timer restores the full repeat count from the beginning.
+
+**Status:** Not Started
+
+**Tests:** NA
+
+**Dependencies:** chrono-hold-select-restart.md (spec #18), edit-mode-reset.md (spec #9), repeating-timer.md (spec #6)
+
+---
+
 ## Adding New Specifications
 
 When creating a new spec file:
