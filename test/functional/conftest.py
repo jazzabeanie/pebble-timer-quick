@@ -130,10 +130,15 @@ class EmulatorHelper:
         )
         if result.returncode != 0:
             raise RuntimeError(f"Install failed:\n{result.stderr}")
-        # Give the app time to fully load (but not too long - app has 3-second inactivity timer)
-        time.sleep(1)
-        # Get emulator info for button presses
-        self._connect_transport()
+        if self._ws is not None:
+            # Transport already connected from a previous install; the pypkjs
+            # WebSocket survives app reinstalls. Use a shorter wait to stay
+            # within the app's 3-second inactivity timer.
+            time.sleep(0.5)
+        else:
+            # First install: give app time to fully load, then connect transport
+            time.sleep(1)
+            self._connect_transport()
         logger.info(f"[{self.platform}] App installed and transport connected")
 
     def _connect_transport(self):
