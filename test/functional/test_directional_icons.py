@@ -183,6 +183,7 @@ class TestNewModeReverseIcons:
         """Verify -20min icon for Up button in New mode (reverse direction)."""
         emulator = persistent_emulator
         platform = emulator.platform
+        emulator.press_back() # to make sure progress bar is nowhere near the up icon
         enter_new_mode_forward(emulator)
         screenshot = toggle_to_reverse_mode(emulator)
         region = get_region(platform, "UP")
