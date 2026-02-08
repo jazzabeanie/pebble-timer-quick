@@ -305,6 +305,36 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 ---
 
+### 21. Edit Timer Direction Tests
+**File:** [edit-timer-direction-tests.md](edit-timer-direction-tests.md)
+
+**Keywords:** edit timer, direction, reverse, zero-crossing, chrono to countdown, countdown to chrono, auto-flip, direction flip, ControlModeNew, ControlModeEditSec, functional tests
+
+**Summary:** Defines functional tests for timer editing with direction changes and zero-crossing behavior. Includes infrastructure changes (adding chrono field to TEST_STATE log, `assert_is_chrono` helper) and 7 test cases covering type conversion and auto-direction-flip. Type conversion tests should pass; auto-flip tests are marked `xfail` until spec #22 is implemented.
+
+**Status:** Not Started
+
+**Tests:** NA
+
+**Dependencies:** functional-tests-emulator.md (spec #4), test-logging.md (spec #14), stopwatch-subtraction.md (spec #11), directional-icons.md (spec #10)
+
+---
+
+### 22. Auto Direction Flip on Zero-Crossing
+**File:** [auto-direction-flip.md](auto-direction-flip.md)
+
+**Keywords:** auto-flip, direction flip, zero-crossing, reverse direction, is_reverse_direction, chrono to countdown, countdown to chrono, edit mode, ControlModeNew, ControlModeEditSec
+
+**Summary:** When a button press in edit mode causes the timer to cross zero (converting between chrono and countdown), the direction automatically resets to forward. Applies to all buttons in both ControlModeNew and ControlModeEditSec. Uses a before/after check on `timer_is_chrono()` to detect zero-crossings.
+
+**Status:** Not Started
+
+**Tests:** NA (Tests defined in spec #21)
+
+**Dependencies:** edit-timer-direction-tests.md (spec #21), stopwatch-subtraction.md (spec #11), directional-icons.md (spec #10)
+
+---
+
 ## Adding New Specifications
 
 When creating a new spec file:
