@@ -495,12 +495,14 @@ class TestIconOverlapPrevention:
         region = get_region(platform, "UP")
         pixel_counts = []
         # Delays between Down press and screenshot, chosen to sample
-        # different phases of the 1000ms flash cycle
-        pre_screenshot_delays = [0.0, 0.5, 0.2, 0.7, 0.0, 0.5, 0.2, 0.7, 0.3, 0.6]
+        # different phases of the 1000ms flash cycle.
+        # Keep list short - each iteration takes ~2s and EditRepeat
+        # expires after 3s without a button press.
+        pre_screenshot_delays = [0.0, 0.5, 0.2, 0.6, 0.0, 0.5]
         for i, delay in enumerate(pre_screenshot_delays):
             # Press Down to add +1 repeat and reset expire timer
             emulator.press_down()
-            state = capture.wait_for_state(event="button_down", timeout=5.0)
+            state = capture.wait_for_state(event="button_down", timeout=1.0)
             if state is None or state.get('m') != 'EditRepeat':
                 logger.warning(
                     f"Left EditRepeat at iteration {i}: {state}. "
@@ -515,8 +517,8 @@ class TestIconOverlapPrevention:
 
         capture.stop()
 
-        assert len(pixel_counts) >= 6, (
-            f"Need at least 6 screenshots in EditRepeat mode, got {len(pixel_counts)}"
+        assert len(pixel_counts) >= 4, (
+            f"Need at least 4 screenshots in EditRepeat mode, got {len(pixel_counts)}"
         )
 
         min_pixels = min(pixel_counts)

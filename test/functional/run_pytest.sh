@@ -2,7 +2,7 @@
 
 LOG_DIR="./test/functional"
 LOG_PREFIX="pytest_results_"
-MAX_LOG_FILES=3
+MAX_LOG_FILES=1
 CONDA_ENV_PATH="/home/jared/Workspace/pebble-timer-quick/conda-env" # Absolute path
 
 # Create a timestamp for the log file
