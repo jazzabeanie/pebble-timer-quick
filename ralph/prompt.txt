@@ -2,6 +2,8 @@
 
 Your task is to work on a spec detail in the ./ralph/spec folder. Choose the most import spec to work on, and one that will make implementing future specs easier. If possible, write tests and confirm that they fail before implementing the feature.
 
+Note that the virtual environment for this project is conda, which has been created in the conda-env folder.
+
 ## Initial Review
 Before beginning any work, carefully study the following files in order:
 1. **context.md** - Read the context file to understand recent changes, key components, and important decisions
@@ -12,10 +14,12 @@ Before beginning any work, carefully study the following files in order:
 If you find specs that are in marked as "In Progress", work on completing these. If you have been asked to work on a specific spec, **STOP AND FLAG** if you discover any features marked as "In Progress" that the user may have assumed to be completed. Confirm the actual status with the user before proceeding. Check the specs/README.md file for current status of all features.
 
 ## IMPORTANT: Testing Requirements
-- CREATE new tests for any new functionality you implement
-- RUN all relevant tests after making changes
-- ENSURE all tests pass before considering your work complete
-- UPDATE test status in the spec README.md file
+- UPDATE test status in the spec README.md file between each step
+- FIRST create new tests for any new functionality you plan to implement
+- run new tests and unsure that they fail
+- implement changes to meet spec file
+- rerun new tests and ensure they pass
+- rerun all tests and ensure the changes have not broken other functionality
 
 ## Implementation Strategy
 1. **Identify Dependencies**: Determine if any other specs need to be implemented first
