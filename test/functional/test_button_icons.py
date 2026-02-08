@@ -593,6 +593,7 @@ class TestCountingIcons:
         """Verify exit/background indicator for Back button in Counting mode."""
         emulator = persistent_emulator
         platform = emulator.platform
+        emulator.press_back()  # to ensure annimation indicator isn't near back icon
         screenshot = self._enter_counting(emulator)
         region = get_region(platform, "BACK")
         assert has_icon_content(screenshot, region), (
