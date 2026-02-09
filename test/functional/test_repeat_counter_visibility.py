@@ -97,6 +97,12 @@ class TestRepeatCounterVisibility:
         state_select = capture.wait_for_state(event="button_select", timeout=5.0)
         assert_repeat_count(state_select, 5)
 
+        # Press Down (+1 repeat) to reset the flash timer, ensuring we're at
+        # the start of a flash-ON phase when we take the screenshot
+        emulator.press_down()
+        state_down = capture.wait_for_state(event="button_down", timeout=5.0)
+        assert_mode(state_down, "EditRepeat")
+
         # Screenshot in EditRepeat mode showing the repeat count indicator
         editrepeat_screenshot = emulator.screenshot("editrepeat_with_repeats")
 

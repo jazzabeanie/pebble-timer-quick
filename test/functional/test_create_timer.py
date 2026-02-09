@@ -17,7 +17,16 @@ from PIL import Image
 import easyocr
 import time
 
-from .conftest import Button, EmulatorHelper, PLATFORMS
+from .conftest import (
+    Button,
+    EmulatorHelper,
+    PLATFORMS,
+    LogCapture,
+    assert_mode,
+    assert_paused,
+    assert_time_approximately,
+    parse_time,
+)
 
 # Configure module logger
 logger = logging.getLogger(__name__)
@@ -590,61 +599,70 @@ class TestPlayPause:
         """
         Test that pressing Select in counting mode toggles play/pause.
 
-        In counting mode (after the 3-second timeout), pressing Select
-        should pause/resume the timer.
-
-        Note: All screenshots are taken first and OCR text extraction + assertions
-        are deferred to the end, since OCR is slow and the elapsed time would
-        interfere with the app's timing behavior.
+        Uses log-based state verification instead of pixel-perfect screenshot
+        comparison, which is flaky due to emulator rendering differences.
         """
         emulator = persistent_emulator
 
-        # --- Capture all screenshots first (OCR is deferred to avoid timing issues) ---
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        time.sleep(1.0)
+        capture.clear_state_queue()
 
-        # Set a timer and wait for it to start counting
+        # Set a 1-minute timer and wait for counting mode
         emulator.press_down()  # Add 1 minute
-        time.sleep(4)  # Wait for counting mode
-
-        # Take screenshot while running
-        running = emulator.screenshot("playpause_running")
+        capture.wait_for_state(event="button_down", timeout=2.0)
+        capture.wait_for_state(event="mode_change", timeout=5.0)
 
         # Press Select to pause
         emulator.press_select()
-        time.sleep(0.5)
-        paused = emulator.screenshot("playpause_paused")
+        state_paused = capture.wait_for_state(event="button_select", timeout=5.0)
+        assert state_paused is not None, "Did not get state after pause"
+        assert_mode(state_paused, "Counting")
+        assert_paused(state_paused, True)
 
-        # Wait a moment - if paused, the time value shouldn't change
+        # Record time while paused
+        paused_time = state_paused.get('t', '0:00')
+        paused_min, paused_sec = parse_time(paused_time)
+        logger.info(f"Paused at: {paused_time}")
+
+        # Wait 2 seconds, then press Down to get a fresh state log
+        # (Down in Counting mode triggers an extended refresh without modifying timer)
         time.sleep(2)
-        still_paused = emulator.screenshot("playpause_still_paused")
+        emulator.press_down()
+        state_still_paused = capture.wait_for_state(event="button_down", timeout=5.0)
+        assert state_still_paused is not None, "Did not get state after wait"
 
-        # Press Select again to resume
+        # Verify time hasn't changed (still paused)
+        assert_paused(state_still_paused, True)
+        assert_time_approximately(state_still_paused, paused_min, paused_sec, tolerance=1)
+        logger.info(f"Still paused at: {state_still_paused.get('t', '?')}")
+
+        # Press Select to resume
         emulator.press_select()
+        state_resumed = capture.wait_for_state(event="button_select", timeout=5.0)
+        assert state_resumed is not None, "Did not get state after resume"
+        assert_mode(state_resumed, "Counting")
+        assert_paused(state_resumed, False)
+        logger.info(f"Resumed at: {state_resumed.get('t', '?')}")
+
+        # Wait 2 seconds, then press Down to get a fresh state log
         time.sleep(2)
-        resumed = emulator.screenshot("playpause_resumed")
+        emulator.press_down()
+        state_after_resume = capture.wait_for_state(event="button_down", timeout=5.0)
+        assert state_after_resume is not None, "Did not get state after resume wait"
 
-        # --- Now perform OCR and assertions (after all screenshots captured) ---
-
-        text_running = extract_text(running)
-        logger.info(f"Running timer: {text_running}")
-
-        text_paused = extract_text(paused)
-        logger.info(f"Paused timer: {text_paused}")
-
-        text_still_paused = extract_text(still_paused)
-        logger.info(f"Still paused: {text_still_paused}")
-
-        # The paused screenshots should show the same time (timer stopped)
-        assert paused.tobytes() == still_paused.tobytes(), (
-            f"Display should not change while paused. Before: {text_paused}, After: {text_still_paused}"
+        # Verify time HAS changed (timer was running for ~2 seconds)
+        resumed_min, resumed_sec = parse_time(state_after_resume.get('t', '0:00'))
+        resumed_total = resumed_min * 60 + resumed_sec
+        paused_total = paused_min * 60 + paused_sec
+        assert resumed_total != paused_total, (
+            f"Timer should have changed after resuming. "
+            f"Paused: {paused_time}, After resume: {state_after_resume.get('t', '?')}"
         )
+        logger.info(f"After resume: {state_after_resume.get('t', '?')}")
 
-        text_resumed = extract_text(resumed)
-        logger.info(f"Resumed timer: {text_resumed}")
-
-        # Display should have changed (timer resumed counting)
-        assert still_paused.tobytes() != resumed.tobytes(), (
-            f"Display should change after resuming. Paused: {text_still_paused}, Resumed: {text_resumed}"
-        )
+        capture.stop()
 
 
 class TestTimerStartsImmediately:
