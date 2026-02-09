@@ -82,12 +82,20 @@ class TestZeroCrossingTypeConversion:
         emulator.press_up()
         state_sub = capture.wait_for_state(event="button_up", timeout=5.0)
 
-        capture.stop()
-
         assert state_sub is not None
         logger.info(f"After subtraction state: {state_sub}")
         assert_is_chrono(state_sub, is_chrono=True)
+        emulator.screenshot("chrono_via_subtraction_new_mode_after_subtraction")
         assert_time_approximately(state_sub, minutes=18, seconds=4, tolerance=10)
+
+        time.sleep(3)
+
+        emulator.press_down()
+        state_display = capture.wait_for_state(event="button_down", timeout=5.0)
+
+        capture.stop()
+        emulator.screenshot("chrono_via_subtraction_new_mode_after_down_press")
+        assert_time_approximately(state_display, minutes=18, seconds=1, tolerance=10)
 
     def test_countdown_to_chrono_via_subtraction_editsec(self, persistent_emulator):
         """
