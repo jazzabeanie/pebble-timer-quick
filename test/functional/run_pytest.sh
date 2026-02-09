@@ -26,7 +26,7 @@ fi
 
 # Run pytest and redirect output to the log file
 # After activating the environment, pytest should be directly in PATH
-pytest -v --platform=basalt ${LOG_DIR} > "${LOG_FILE}" 2>&1
+pytest -v --platform=basalt ${LOG_DIR} 2>&1 | tee "${LOG_FILE}" | grep '%'
 
 # Check if pytest ran successfully
 if [ $? -eq 0 ]; then
