@@ -121,17 +121,37 @@ static void prv_update_timer(int64_t increment) {
 static void prv_check_zero_crossing_direction_flip(bool was_chrono) {
   if (was_chrono != timer_is_chrono()) {
     main_data.is_reverse_direction = false;
-    // Update routing state to match the new timer type so that
-    // prv_update_timer uses the correct increment function.
-    // After crossing to chrono: base_length_ms=0 + is_editing_existing=true
-    //   routes through timer_increment_chrono()
-    // After crossing to countdown: base_length_ms=current value
-    //   routes through timer_increment()
+    // Normalize the timer's internal state to match the new type.
+    // After timer_increment crosses zero, length_ms and start_ms may not
+    // represent the new type correctly (e.g. negative length_ms for chrono).
+    // We must fix this so that prv_new_expire_callback and
+    // timer_check_elapsed work correctly when the timer starts running.
+    //
+    // Note: the timer may be running (not paused) during edit mode.
+    // When running: start_ms = epoch start time, elapsed = epoch() - start_ms
+    // When paused:  start_ms = elapsed time
+    int64_t display_value = timer_get_value_ms();
     if (timer_is_chrono()) {
+      // Chrono: length_ms=0, elapsed=display_value
+      timer_data.length_ms = 0;
+      if (!timer_data.is_paused) {
+        timer_data.start_ms = epoch() - display_value;
+      } else {
+        timer_data.start_ms = display_value;
+      }
+      timer_data.can_vibrate = false;
       timer_data.base_length_ms = 0;
       main_data.is_editing_existing_timer = true;
     } else {
-      timer_data.base_length_ms = timer_get_value_ms();
+      // Countdown: length_ms=display_value, elapsed=0
+      timer_data.length_ms = display_value;
+      if (!timer_data.is_paused) {
+        timer_data.start_ms = epoch();
+      } else {
+        timer_data.start_ms = 0;
+      }
+      timer_data.can_vibrate = true;
+      timer_data.base_length_ms = display_value;
     }
   }
 }
