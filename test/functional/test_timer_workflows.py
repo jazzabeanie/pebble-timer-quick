@@ -1195,3 +1195,60 @@ class TestMinuteAndSecondsTimerStaysPaused:
 
         # Verify time is approximately 0:20
         assert_time_approximately(state_after_expire, minutes=0, seconds=20, tolerance=2)
+
+
+class TestEditRepeatBackButton:
+    """Test: Back button in ControlModeEditRepeat resets repeat count to 0."""
+
+    def test_back_button_resets_repeat_count_to_zero(self, persistent_emulator):
+        """
+        Verify that pressing Back in ControlModeEditRepeat resets repeat_count to 0.
+
+        Steps:
+        1. Set up a short timer
+        2. Long press Up to enable repeat mode (enters EditRepeat with count=0)
+        3. Press Down 3 times to set repeat_count to 3
+        4. Press Back to reset repeat_count
+        5. Assert repeat_count is 0
+        """
+        emulator = persistent_emulator
+
+        # Start log capture
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        time.sleep(1.0)
+        capture.clear_state_queue()
+
+        # Step 1: Set up 10-second timer
+        setup_short_timer(emulator, seconds=10)
+
+        # Step 2: Long press Up to enable repeat mode
+        emulator.hold_button(Button.UP)
+        time.sleep(1.0)
+        emulator.release_buttons()
+
+        state_repeat_init = capture.wait_for_state(event="long_press_up", timeout=5.0)
+        assert state_repeat_init is not None, "Did not enter repeat mode"
+        assert_mode(state_repeat_init, "EditRepeat")
+        assert_repeat_count(state_repeat_init, 0)
+
+        # Step 3: Press Down 3 times (repeat_count: 0 -> 1 -> 2 -> 3)
+        emulator.press_down()
+        emulator.press_down()
+        emulator.press_down()
+
+        capture.wait_for_state(event="button_down", timeout=2.0)
+        capture.wait_for_state(event="button_down", timeout=2.0)
+        state_r3 = capture.wait_for_state(event="button_down", timeout=2.0)
+        assert_repeat_count(state_r3, 3)
+
+        # Step 4: Press Back to reset repeat count
+        emulator.press_back()
+        state_after_back = capture.wait_for_state(event="button_back", timeout=5.0)
+
+        capture.stop()
+
+        assert state_after_back is not None, "Did not receive button_back event"
+        assert_mode(state_after_back, "EditRepeat")
+        # KEY ASSERTION: Back should reset repeat_count to 0, not 1
+        assert_repeat_count(state_after_back, 0)

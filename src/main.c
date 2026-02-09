@@ -305,7 +305,7 @@ static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     prv_check_zero_crossing_direction_flip(was_chrono);
     main_data.timer_length_modified_in_edit_mode = true;
   } else if (main_data.control_mode == ControlModeEditRepeat) {
-    timer_data.repeat_count = 1;
+    timer_data.repeat_count = 0;
     prv_reset_new_expire_timer();
   } else {
     // silence the alarm, or quit if no alarm
