@@ -143,15 +143,21 @@ static void prv_check_zero_crossing_direction_flip(bool was_chrono) {
       timer_data.base_length_ms = 0;
       main_data.is_editing_existing_timer = true;
     } else {
-      // Countdown: length_ms=display_value, elapsed=0
-      timer_data.length_ms = display_value;
+      // Countdown: normalize length_ms and reset elapsed to 0.
+      // When editing an existing timer (e.g. subtracting from a chrono),
+      // use display_value to account for the chrono's elapsed time.
+      // When setting up a new timer, keep length_ms as-is so the user
+      // gets exactly the value they entered (no elapsed editing time lost).
+      if (main_data.is_editing_existing_timer) {
+        timer_data.length_ms = display_value;
+      }
       if (!timer_data.is_paused) {
         timer_data.start_ms = epoch();
       } else {
         timer_data.start_ms = 0;
       }
       timer_data.can_vibrate = true;
-      timer_data.base_length_ms = display_value;
+      timer_data.base_length_ms = timer_data.length_ms;
     }
   }
 }

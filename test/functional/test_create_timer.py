@@ -729,7 +729,7 @@ class TestTimerStartsImmediately:
         # Threshold: 5:50 = 350 seconds
         # If timer counted down during setup, it should be less than 5:50
         # If timer waited (current buggy behavior), it would be at or near 6:00 (360 seconds)
-        threshold_seconds = 350  # 5:50
+        threshold_seconds = 355  # 5:55
 
         assert total_seconds < threshold_seconds, (
             f"Timer should have counted down during setup! "

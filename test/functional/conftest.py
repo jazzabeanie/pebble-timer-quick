@@ -766,6 +766,19 @@ def assert_backlight(state: dict, on: bool = True):
     assert actual == expected, f"Expected backlight={expected}, got backlight={actual}"
 
 
+def assert_base_length(state: dict, expected_ms: int, tolerance_ms: int = 0):
+    """Assert the base_length_ms value.
+
+    Note: State uses short field name 'bl' for base_length_ms.
+    """
+    actual = int(state.get('bl', '0'))
+    diff = abs(actual - expected_ms)
+    assert diff <= tolerance_ms, (
+        f"Expected base_length_ms={expected_ms} (±{tolerance_ms}ms), "
+        f"got {actual}"
+    )
+
+
 def assert_is_chrono(state: dict, is_chrono: bool = True):
     """Assert whether timer is in chrono mode.
 
