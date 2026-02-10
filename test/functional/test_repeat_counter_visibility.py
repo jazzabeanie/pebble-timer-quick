@@ -103,8 +103,21 @@ class TestRepeatCounterVisibility:
         state_down = capture.wait_for_state(event="button_down", timeout=5.0)
         assert_mode(state_down, "EditRepeat")
 
-        # Screenshot in EditRepeat mode showing the repeat count indicator
-        editrepeat_screenshot = emulator.screenshot("editrepeat_with_repeats")
+        # Take multiple screenshots to reliably capture flash-ON phase.
+        # The repeat counter blinks with a 1s cycle (500ms ON, 500ms OFF).
+        # A single screenshot can land on the OFF phase, causing flaky failures.
+        region = get_region(emulator.platform, "UP")
+        best_screenshot = None
+        best_pixel_count = -1
+        for i in range(4):
+            img = emulator.screenshot(f"editrepeat_with_repeats_{i}")
+            pixel_count = count_non_bg_pixels(img, region)
+            logger.debug(f"EditRepeat screenshot {i}: {pixel_count} non-bg pixels in UP region")
+            if pixel_count > best_pixel_count:
+                best_pixel_count = pixel_count
+                best_screenshot = img
+            time.sleep(0.25)
+        editrepeat_screenshot = best_screenshot
 
         # Wait for EditRepeat mode to auto-exit (returns to counting)
         capture.wait_for_state(event="mode_change", timeout=5.0)
