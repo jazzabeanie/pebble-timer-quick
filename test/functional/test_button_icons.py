@@ -197,8 +197,8 @@ def setup_short_timer(emulator, seconds=4):
 
     Workflow:
     1. Wait for chrono mode (app starts in ControlModeCounting)
-    2. Press Up to enter ControlModeNew (from Counting, Up transitions to New)
-    3. Long press Select to reset to 0 and enter ControlModeEditSec
+    2. Press Select to pause the chrono
+    3. Long press Select to reset to 0:00 and enter ControlModeEditSec
     4. Press Down N times to add N seconds
     5. Wait for expire timer (3.5s) - transitions to ControlModeCounting paused
     6. Press Select to start the timer
@@ -208,13 +208,12 @@ def setup_short_timer(emulator, seconds=4):
     # Wait for transition to chrono mode (0:00 counting up)
     time.sleep(2.5)
 
-    # Press Up to enter ControlModeNew (from Counting mode)
-    # Note: Long press Select while in Counting/chrono mode just restarts the chrono,
-    # it doesn't enter EditSec. We need to go through New mode first.
-    emulator.press_up()
+    # Press Select to pause the chrono
+    emulator.press_select()
     time.sleep(0.3)
 
-    # Long press Select to reset to 0 and enter ControlModeEditSec
+    # Long press Select to reset to 0:00 and enter ControlModeEditSec
+    # In paused Counting mode, long press Select resets to 0:00 + enters EditSec
     emulator.hold_button(Button.SELECT)
     time.sleep(1)
     emulator.release_buttons()
@@ -227,12 +226,12 @@ def setup_short_timer(emulator, seconds=4):
 
     logger.info(f"[{emulator.platform}] Short timer set to {seconds}s, waiting for expire")
 
-    # Step 6: Wait for expire timer (3s after last button press)
+    # Step 5: Wait for expire timer (3s after last button press)
     # This transitions from ControlModeEditSec to ControlModeCounting
     # Sub-minute timers stay paused after edit expires, so we need to start manually.
     time.sleep(3.5)
 
-    # Step 7: Press Select to start the timer (sub-minute timers stay paused after edit expires)
+    # Step 6: Press Select to start the timer (sub-minute timers stay paused after edit expires)
     emulator.press_select()
     time.sleep(0.3)
 
@@ -496,11 +495,11 @@ class TestEditSecIcons:
 
         From a fresh app start:
         1. Wait for chrono mode (2.5s)
-        2. Press Up to enter ControlModeNew (from Counting mode)
-        3. Long press Select to reset to 0 and enter EditSec
+        2. Press Select to pause the chrono
+        3. Long press Select to reset to 0:00 and enter EditSec
         """
         time.sleep(2.5)
-        emulator.press_up()  # Enter ControlModeNew from Counting
+        emulator.press_select()  # Pause chrono
         time.sleep(0.3)
         emulator.hold_button(Button.SELECT)
         time.sleep(1)

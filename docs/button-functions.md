@@ -32,14 +32,14 @@ When reverse direction is active (toggled via long-press Up), all increments bec
 | Up | Short | Add 20 minutes to timer | `test_create_timer.py::TestButtonPresses::test_up_button_increments_20_minutes`, `test_log_based.py::test_up_button_increments_20_minutes_log_based` |
 | Up | Long | Toggle reverse direction (increment becomes decrement) | `test_directional_icons.py::TestNewModeReverseIcons::test_new_reverse_up_icon`, `test_stopwatch_subtraction.py::test_chrono_add_then_subtract` |
 | Select | Short | Add 5 minutes to timer | `test_create_timer.py::TestButtonPresses::test_select_button_increments_5_minutes` |
-| Select | Long | Reset timer to 0:00 and enter EditSec mode | `test_edit_mode_reset.py::test_long_press_select_resets_in_control_mode_new`, `test_timer_workflows.py::TestEditModeReset::test_long_press_select_in_edit_mode_resets_to_edit_seconds` |
+| Select | Long | Switch to EditSec mode (preserving current timer value and direction) | `test_edit_mode_reset.py::test_long_press_select_toggles_new_to_editsec`, `test_timer_workflows.py::TestEditModeToggle::test_long_press_select_toggles_new_to_editsec`, `test_edit_mode_reset.py::test_toggle_new_to_editsec_preserves_reverse_direction` |
 | Down | Short | Add 1 minute to timer | `test_create_timer.py::TestCreateTimer::test_down_button_increments_minutes`, `test_create_timer.py::TestCreateTimer::test_create_2_minute_timer`, `test_log_based.py::test_multiple_button_presses_log_sequence` |
 | Down | Long | Quit app (sets reset flag and closes) | `test_button_icons.py::TestNewModeIcons::test_new_long_down_icon` (icon only) |
 | Back | Short | Add 60 minutes (1 hour) to timer | `test_edit_mode_reset.py::test_long_press_select_resets_in_control_mode_new` (used after reset) |
 
 **Mode transitions:**
 - After 3 seconds of inactivity: auto-transitions to Counting mode (`test_create_timer.py::TestTimerCountdown::test_timer_transitions_to_counting_mode`, `test_log_based.py::test_mode_transition_via_logs`)
-- Long-press Select: transitions to EditSec mode
+- Long-press Select: toggles to EditSec mode (preserving value and direction)
 
 **Reverse direction icons:**
 
@@ -59,7 +59,7 @@ When reverse direction is active (toggled via long-press Up), all increments bec
 | Up | Short | Add 20 seconds to timer | `test_timer_workflows.py::TestSetShortTimer::test_set_4_second_timer` (used to build timer) |
 | Up | Long | Toggle reverse direction | `test_directional_icons.py::TestEditSecModeReverseIcons::test_editsec_reverse_up_icon` |
 | Select | Short | Add 5 seconds to timer | `test_timer_workflows.py::TestSetShortTimer::test_set_4_second_timer` (used to build timer) |
-| Select | Long | No-op (stays in EditSec) | `test_edit_mode_reset.py::test_long_press_select_no_op_in_edit_sec` (skipped), `test_timer_workflows.py::TestEditSecModeNoOp::test_long_press_select_in_edit_sec_mode_does_nothing` |
+| Select | Long | Switch to New mode (preserving current timer value and direction) | `test_edit_mode_reset.py::test_long_press_select_toggles_editsec_to_new`, `test_timer_workflows.py::TestEditModeToggle::test_long_press_select_toggles_editsec_to_new`, `test_edit_mode_reset.py::test_toggle_editsec_to_new_preserves_reverse_direction` |
 | Down | Short | Add 1 second to timer | `test_timer_workflows.py::TestSetShortTimer::test_set_4_second_timer` (used to build timer) |
 | Down | Long | Quit app | *(no dedicated test)* |
 | Back | Short | Add 60 seconds (1 minute) to timer | `test_directional_icons.py::TestEditSecModeForwardIcons::test_editsec_forward_back_icon_plus60` |
@@ -104,7 +104,8 @@ When reverse direction is active (toggled via long-press Up), all increments bec
 | Up | Short | Enter edit mode (New if timer > 0:00, EditSec if at 0:00) | `test_timer_workflows.py::TestEditRunningTimer::test_edit_running_timer`, `test_timer_workflows.py::TestEditCompletedTimer::test_edit_completed_timer_add_minute` |
 | Up | Long | Toggle repeat mode on/off (countdown only; no-op for chrono) | `test_timer_workflows.py::TestEnableRepeatingTimer::test_enable_repeating_timer` |
 | Select | Short | Toggle play/pause | `test_create_timer.py::TestPlayPause::test_select_toggles_play_pause_in_counting_mode`, `test_timer_workflows.py::TestPauseCompletedTimer::test_pause_completed_timer` |
-| Select | Long | Restart timer to original base_length_ms (preserves play/pause state) | `test_hold_select_restart.py::test_restart_running_countdown_preserves_running`, `test_hold_select_restart.py::test_restart_paused_countdown_preserves_paused`, `test_hold_select_restart.py::test_restart_running_chrono_preserves_running`, `test_hold_select_restart.py::test_restart_paused_chrono_preserves_paused`, `test_hold_select_restart.py::test_restart_repeating_timer_restores_count`, `test_create_timer.py::TestLongPressReset::test_long_press_select_resets_timer` |
+| Select | Long (running) | Restart timer to original base_length_ms (preserves running state) | `test_hold_select_restart.py::test_restart_running_countdown_preserves_running`, `test_hold_select_restart.py::test_restart_running_chrono_preserves_running`, `test_hold_select_restart.py::test_restart_repeating_timer_restores_count`, `test_create_timer.py::TestLongPressReset::test_long_press_select_resets_timer` |
+| Select | Long (paused) | Reset to 0:00 and enter EditSec mode | `test_hold_select_restart.py::test_long_press_select_paused_countdown_resets_to_editsec`, `test_hold_select_restart.py::test_long_press_select_paused_chrono_resets_to_editsec` |
 | Down | Short | Extend high-refresh display rate (cosmetic, no timer change) | *(no dedicated behavioral test)* |
 | Down | Long | Quit app | *(no dedicated test)* |
 | Back | Short | Quit app (pop window) | *(no dedicated test)* |

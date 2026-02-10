@@ -76,7 +76,10 @@ class TestBacklight:
         capture.clear_state_queue()
 
         # Set a very short timer
-        # 1. Enter EditSec mode by long-pressing Select from New mode
+        # 1. Wait for chrono mode, pause, then enter EditSec via long-press Select
+        time.sleep(3.5)
+        emulator.press_select()  # Pause chrono
+        time.sleep(0.3)
         emulator.hold_button(Button.SELECT)
         time.sleep(1)
         emulator.release_buttons()
@@ -87,10 +90,10 @@ class TestBacklight:
         assert capture.wait_for_state(event="button_select", timeout=10.0 if is_aplite else 5.0) is not None
         emulator.press_select()
         assert capture.wait_for_state(event="button_select", timeout=10.0 if is_aplite else 5.0) is not None
-        
+
         # 3. Wait for mode transition to Counting
         assert capture.wait_for_state(event="mode_change", timeout=15.0 if is_aplite else 10.0) is not None
-        
+
         # 4. Start the timer (it stays paused for sub-minute timers from EditSec)
         emulator.press_select()
         assert capture.wait_for_state(event="button_select", timeout=10.0 if is_aplite else 5.0) is not None

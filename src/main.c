@@ -502,11 +502,10 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
-  main_data.is_reverse_direction = false;
 
-  // No-op in ControlModeEditSec or ControlModeEditRepeat
-  if (main_data.control_mode == ControlModeEditSec ||
-      main_data.control_mode == ControlModeEditRepeat) {
+  // EditSec: toggle to New mode, preserving timer value and direction
+  if (main_data.control_mode == ControlModeEditSec) {
+    main_data.control_mode = ControlModeNew;
     drawing_update();
     layer_mark_dirty(main_data.layer);
     prv_update_backlight();
@@ -514,16 +513,19 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
     return;
   }
 
-  // In ControlModeNew: reset to 0:00 in paused edit seconds mode
-  // This is creating a NEW timer (not editing existing), so is_editing_existing_timer = false
+  // EditRepeat: no-op
+  if (main_data.control_mode == ControlModeEditRepeat) {
+    main_data.is_reverse_direction = false;
+    drawing_update();
+    layer_mark_dirty(main_data.layer);
+    prv_update_backlight();
+    test_log_state("long_press_select");
+    return;
+  }
+
+  // New: toggle to EditSec mode, preserving timer value and direction
   if (main_get_control_mode() == ControlModeNew) {
-    timer_reset();
-    timer_data.start_ms = 0;  // Pause at 0 elapsed
-    timer_data.is_paused = true;
     main_data.control_mode = ControlModeEditSec;
-    prv_stop_new_expire_timer();
-    main_data.is_editing_existing_timer = false;
-    main_data.timer_length_modified_in_edit_mode = false;
     drawing_update();
     layer_mark_dirty(main_data.layer);
     prv_update_backlight();
@@ -531,14 +533,28 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
     return;
   }
 
+  main_data.is_reverse_direction = false;
   if (main_data.control_mode == ControlModeCounting) {
-    timer_restart();
+    if (timer_data.is_paused) {
+      // Paused: reset to 0:00 and enter EditSec
+      timer_reset();
+      timer_data.start_ms = 0;
+      timer_data.is_paused = true;
+      main_data.control_mode = ControlModeEditSec;
+      prv_stop_new_expire_timer();
+      main_data.is_editing_existing_timer = false;
+      main_data.timer_length_modified_in_edit_mode = false;
+    } else {
+      // Running: restart as before
+      timer_restart();
+      main_data.timer_length_modified_in_edit_mode = false;
+    }
   } else {
     timer_reset();
     main_data.control_mode = ControlModeNew;
     main_data.is_editing_existing_timer = false;
+    main_data.timer_length_modified_in_edit_mode = false;
   }
-  main_data.timer_length_modified_in_edit_mode = false;
   // animate and refresh
   drawing_update();
   layer_mark_dirty(main_data.layer);

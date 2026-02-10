@@ -1,0 +1,1948 @@
+============================= test session starts ==============================
+platform linux -- Python 3.10.19, pytest-9.0.2, pluggy-1.6.0 -- /home/jared/Workspace/pebble-timer-quick/conda-env/bin/python3.10
+cachedir: .pytest_cache
+rootdir: /home/jared/Workspace/pebble-timer-quick/test/functional
+configfile: pytest.ini
+plugins: anyio-4.12.1
+collecting ... collected 440 items
+
+test/functional/test_backlight.py::TestBacklight::test_backlight_on_in_edit_mode[aplite] SKIPPED [  0%]
+test/functional/test_backlight.py::TestBacklight::test_backlight_off_in_counting_mode[aplite] SKIPPED [  0%]
+test/functional/test_backlight.py::TestBacklight::test_backlight_on_during_alarm[aplite] SKIPPED [  0%]
+test/functional/test_backlight.py::TestBacklight::test_backlight_on_in_edit_sec_mode[aplite] SKIPPED [  0%]
+test/functional/test_backlight.py::TestBacklight::test_backlight_on_in_edit_repeat_mode[aplite] SKIPPED [  1%]
+test/functional/test_backlight.py::TestBacklight::test_backlight_stays_on_when_silencing_to_edit_mode[aplite] SKIPPED [  1%]
+test/functional/test_backlight.py::TestBacklight::test_backlight_on_in_edit_mode[basalt] 
+-------------------------------- live log setup --------------------------------
+14:15:54 [INFO] functional.conftest: [basalt] Starting warm-up cycle to clear stale state
+14:15:58 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:16:06 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:16:06 [INFO] functional.conftest: [basalt] Waiting for emulator to stabilize (2s)
+14:16:07 [INFO] pebble_tool.util.updates: Update check failed: 404 (Not Found)
+14:16:08 [INFO] functional.conftest: [basalt] Holding down button to quit app and set persist state
+14:16:10 [INFO] functional.conftest: [basalt] App quit via long press, persist state set
+14:16:10 [INFO] functional.conftest: [basalt] Emulator ready for tests
+14:16:10 [INFO] functional.conftest: [basalt] Opening app for test: test_backlight_on_in_edit_mode[basalt]
+14:16:10 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:16:10 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:16:13 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:16:13 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [  1%]
+------------------------------ live log teardown -------------------------------
+14:16:15 [INFO] functional.conftest: [basalt] Quitting app after test: test_backlight_on_in_edit_mode[basalt]
+
+test/functional/test_backlight.py::TestBacklight::test_backlight_off_in_counting_mode[basalt] 
+-------------------------------- live log setup --------------------------------
+14:16:17 [INFO] functional.conftest: [basalt] Opening app for test: test_backlight_off_in_counting_mode[basalt]
+14:16:17 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:16:17 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:16:19 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:16:19 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [  1%]
+------------------------------ live log teardown -------------------------------
+14:16:24 [INFO] functional.conftest: [basalt] Quitting app after test: test_backlight_off_in_counting_mode[basalt]
+
+test/functional/test_backlight.py::TestBacklight::test_backlight_on_during_alarm[basalt] 
+-------------------------------- live log setup --------------------------------
+14:16:26 [INFO] functional.conftest: [basalt] Opening app for test: test_backlight_on_during_alarm[basalt]
+14:16:26 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:16:26 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:16:29 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:16:29 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [  2%]
+------------------------------ live log teardown -------------------------------
+14:16:50 [INFO] functional.conftest: [basalt] Quitting app after test: test_backlight_on_during_alarm[basalt]
+
+test/functional/test_backlight.py::TestBacklight::test_backlight_on_in_edit_sec_mode[basalt] 
+-------------------------------- live log setup --------------------------------
+14:16:52 [INFO] functional.conftest: [basalt] Opening app for test: test_backlight_on_in_edit_sec_mode[basalt]
+14:16:52 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:16:52 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:16:54 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:16:54 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [  2%]
+------------------------------ live log teardown -------------------------------
+14:16:57 [INFO] functional.conftest: [basalt] Quitting app after test: test_backlight_on_in_edit_sec_mode[basalt]
+
+test/functional/test_backlight.py::TestBacklight::test_backlight_on_in_edit_repeat_mode[basalt] 
+-------------------------------- live log setup --------------------------------
+14:16:59 [INFO] functional.conftest: [basalt] Opening app for test: test_backlight_on_in_edit_repeat_mode[basalt]
+14:16:59 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:16:59 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:17:01 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:17:01 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [  2%]
+------------------------------ live log teardown -------------------------------
+14:17:07 [INFO] functional.conftest: [basalt] Quitting app after test: test_backlight_on_in_edit_repeat_mode[basalt]
+
+test/functional/test_backlight.py::TestBacklight::test_backlight_stays_on_when_silencing_to_edit_mode[basalt] 
+-------------------------------- live log setup --------------------------------
+14:17:09 [INFO] functional.conftest: [basalt] Opening app for test: test_backlight_stays_on_when_silencing_to_edit_mode[basalt]
+14:17:09 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:17:09 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:17:11 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:17:11 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [  2%]
+------------------------------ live log teardown -------------------------------
+14:17:33 [INFO] functional.conftest: [basalt] Quitting app after test: test_backlight_stays_on_when_silencing_to_edit_mode[basalt]
+
+test/functional/test_backlight.py::TestBacklight::test_backlight_on_in_edit_mode[chalk] 
+-------------------------------- live log setup --------------------------------
+14:17:35 [INFO] functional.conftest: [basalt] Tearing down - killing emulator
+SKIPPED (Skipping test for chalk since --platform=basalt was specified.) [  2%]
+test/functional/test_backlight.py::TestBacklight::test_backlight_off_in_counting_mode[chalk] SKIPPED [  3%]
+test/functional/test_backlight.py::TestBacklight::test_backlight_on_during_alarm[chalk] SKIPPED [  3%]
+test/functional/test_backlight.py::TestBacklight::test_backlight_on_in_edit_sec_mode[chalk] SKIPPED [  3%]
+test/functional/test_backlight.py::TestBacklight::test_backlight_on_in_edit_repeat_mode[chalk] SKIPPED [  3%]
+test/functional/test_backlight.py::TestBacklight::test_backlight_stays_on_when_silencing_to_edit_mode[chalk] SKIPPED [  4%]
+test/functional/test_backlight.py::TestBacklight::test_backlight_on_in_edit_mode[diorite] SKIPPED [  4%]
+test/functional/test_backlight.py::TestBacklight::test_backlight_off_in_counting_mode[diorite] SKIPPED [  4%]
+test/functional/test_backlight.py::TestBacklight::test_backlight_on_during_alarm[diorite] SKIPPED [  4%]
+test/functional/test_backlight.py::TestBacklight::test_backlight_on_in_edit_sec_mode[diorite] SKIPPED [  5%]
+test/functional/test_backlight.py::TestBacklight::test_backlight_on_in_edit_repeat_mode[diorite] SKIPPED [  5%]
+test/functional/test_backlight.py::TestBacklight::test_backlight_stays_on_when_silencing_to_edit_mode[diorite] SKIPPED [  5%]
+test/functional/test_button_icons.py::TestAlarmIcons::test_alarm_back_icon_silence[aplite] SKIPPED [  5%]
+test/functional/test_button_icons.py::TestAlarmIcons::test_alarm_up_icon_edit[aplite] SKIPPED [  5%]
+test/functional/test_button_icons.py::TestAlarmIcons::test_alarm_long_up_icon_reset[aplite] SKIPPED [  6%]
+test/functional/test_button_icons.py::TestAlarmIcons::test_alarm_select_icon_pause[aplite] SKIPPED [  6%]
+test/functional/test_button_icons.py::TestAlarmIcons::test_alarm_down_icon_snooze[aplite] SKIPPED [  6%]
+test/functional/test_button_icons.py::TestNewModeIcons::test_new_back_icon[aplite] SKIPPED [  6%]
+test/functional/test_button_icons.py::TestNewModeIcons::test_new_up_icon[aplite] SKIPPED [  7%]
+test/functional/test_button_icons.py::TestNewModeIcons::test_new_select_icon[aplite] SKIPPED [  7%]
+test/functional/test_button_icons.py::TestNewModeIcons::test_new_down_icon[aplite] SKIPPED [  7%]
+test/functional/test_button_icons.py::TestNewModeIcons::test_new_long_up_direction_toggle[aplite] SKIPPED [  7%]
+test/functional/test_button_icons.py::TestNewModeIcons::test_new_long_select_icon[aplite] SKIPPED [  7%]
+test/functional/test_button_icons.py::TestNewModeIcons::test_new_long_down_icon[aplite] SKIPPED [  8%]
+test/functional/test_button_icons.py::TestEditSecIcons::test_editsec_back_icon[aplite] SKIPPED [  8%]
+test/functional/test_button_icons.py::TestEditSecIcons::test_editsec_up_icon[aplite] SKIPPED [  8%]
+test/functional/test_button_icons.py::TestEditSecIcons::test_editsec_select_icon[aplite] SKIPPED [  8%]
+test/functional/test_button_icons.py::TestEditSecIcons::test_editsec_down_icon[aplite] SKIPPED [  9%]
+test/functional/test_button_icons.py::TestEditSecIcons::test_editsec_long_up_direction_toggle[aplite] SKIPPED [  9%]
+test/functional/test_button_icons.py::TestCountingIcons::test_counting_back_icon[aplite] SKIPPED [  9%]
+test/functional/test_button_icons.py::TestCountingIcons::test_counting_up_icon[aplite] SKIPPED [  9%]
+test/functional/test_button_icons.py::TestCountingIcons::test_counting_select_icon[aplite] SKIPPED [ 10%]
+test/functional/test_button_icons.py::TestCountingIcons::test_counting_down_icon[aplite] SKIPPED [ 10%]
+test/functional/test_button_icons.py::TestCountingIcons::test_counting_long_up_icon[aplite] SKIPPED [ 10%]
+test/functional/test_button_icons.py::TestCountingIcons::test_counting_long_select_icon[aplite] SKIPPED [ 10%]
+test/functional/test_button_icons.py::TestCountingIcons::test_counting_long_down_icon[aplite] SKIPPED [ 10%]
+test/functional/test_button_icons.py::TestPausedIcons::test_paused_select_icon_play[aplite] SKIPPED [ 11%]
+test/functional/test_button_icons.py::TestChronoIcons::test_chrono_select_icon[aplite] SKIPPED [ 11%]
+test/functional/test_button_icons.py::TestChronoIcons::test_chrono_long_select_icon[aplite] SKIPPED [ 11%]
+test/functional/test_button_icons.py::TestEditRepeatIcons::test_editrepeat_back_icon[aplite] SKIPPED [ 11%]
+test/functional/test_button_icons.py::TestEditRepeatIcons::test_editrepeat_up_icon[aplite] SKIPPED [ 12%]
+test/functional/test_button_icons.py::TestEditRepeatIcons::test_editrepeat_select_icon[aplite] SKIPPED [ 12%]
+test/functional/test_button_icons.py::TestEditRepeatIcons::test_editrepeat_down_icon[aplite] SKIPPED [ 12%]
+test/functional/test_button_icons.py::TestAlarmIcons::test_alarm_back_icon_silence[basalt] 
+-------------------------------- live log setup --------------------------------
+14:17:39 [INFO] functional.test_button_icons: [basalt] Starting warm-up cycle
+14:17:42 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:17:51 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:17:51 [INFO] functional.test_button_icons: [basalt] Waiting for emulator to stabilize (2s)
+14:17:53 [INFO] functional.test_button_icons: [basalt] Holding down button to quit app and set persist state
+14:17:55 [INFO] functional.test_button_icons: [basalt] Emulator ready for tests
+14:17:55 [INFO] functional.conftest: [basalt] Opening app for test: test_alarm_back_icon_silence[basalt]
+14:17:55 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:17:55 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:17:58 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:17:58 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:18:00 [INFO] functional.test_button_icons: [basalt] Setting up 4s timer for icon test
+14:18:07 [INFO] functional.test_button_icons: [basalt] Short timer set to 4s, waiting for expire
+14:18:11 [INFO] functional.test_button_icons: [basalt] Short timer started, counting down from 4s
+14:18:18 [INFO] functional.test_button_icons: All captured states: [{'event': 'mode_change', 't': '0:02', 'm': 'Counting', 'r': '0', 'p': '0', 'v': '0', 'd': '1', 'l': '0', 'c': '1'}, {'event': 'button_select', 't': '0:04', 'm': 'Counting', 'r': '0', 'p': '1', 'v': '0', 'd': '1', 'l': '0', 'c': '1'}, {'event': 'long_press_select', 't': '0:00', 'm': 'EditSec', 'r': '0', 'p': '1', 'v': '0', 'd': '1', 'l': '1', 'c': '1'}, {'event': 'button_down', 't': '0:01', 'm': 'EditSec', 'r': '0', 'p': '1', 'v': '0', 'd': '1', 'l': '1', 'c': '0'}, {'event': 'button_down', 't': '0:02', 'm': 'EditSec', 'r': '0', 'p': '1', 'v': '0', 'd': '1', 'l': '1', 'c': '0'}, {'event': 'button_down', 't': '0:03', 'm': 'EditSec', 'r': '0', 'p': '1', 'v': '0', 'd': '1', 'l': '1', 'c': '0'}, {'event': 'button_down', 't': '0:04', 'm': 'EditSec', 'r': '0', 'p': '1', 'v': '0', 'd': '1', 'l': '1', 'c': '0'}, {'event': 'mode_change', 't': '0:04', 'm': 'Counting', 'r': '0', 'p': '1', 'v': '0', 'd': '1', 'l': '0', 'c': '0'}, {'event': 'button_select', 't': '0:03', 'm': 'Counting', 'r': '0', 'p': '0', 'v': '0', 'd': '1', 'l': '0', 'c': '0'}, {'event': 'alarm_start', 't': '0:00', 'm': 'Counting', 'r': '0', 'p': '0', 'v': '1', 'd': '1', 'l': '1', 'c': '1'}]
+PASSED                                                                   [ 12%]
+------------------------------ live log teardown -------------------------------
+14:18:18 [INFO] functional.conftest: [basalt] Quitting app after test: test_alarm_back_icon_silence[basalt]
+
+test/functional/test_button_icons.py::TestAlarmIcons::test_alarm_up_icon_edit[basalt] 
+-------------------------------- live log setup --------------------------------
+14:18:20 [INFO] functional.conftest: [basalt] Opening app for test: test_alarm_up_icon_edit[basalt]
+14:18:20 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:18:20 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:18:22 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:18:22 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:18:23 [INFO] functional.test_button_icons: [basalt] Setting up 4s timer for icon test
+14:18:30 [INFO] functional.test_button_icons: [basalt] Short timer set to 4s, waiting for expire
+14:18:34 [INFO] functional.test_button_icons: [basalt] Short timer started, counting down from 4s
+PASSED                                                                   [ 12%]
+------------------------------ live log teardown -------------------------------
+14:18:41 [INFO] functional.conftest: [basalt] Quitting app after test: test_alarm_up_icon_edit[basalt]
+
+test/functional/test_button_icons.py::TestAlarmIcons::test_alarm_long_up_icon_reset[basalt] 
+-------------------------------- live log setup --------------------------------
+14:18:43 [INFO] functional.conftest: [basalt] Opening app for test: test_alarm_long_up_icon_reset[basalt]
+14:18:43 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:18:43 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:18:45 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:18:45 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:18:46 [INFO] functional.test_button_icons: [basalt] Setting up 4s timer for icon test
+14:18:53 [INFO] functional.test_button_icons: [basalt] Short timer set to 4s, waiting for expire
+14:18:57 [INFO] functional.test_button_icons: [basalt] Short timer started, counting down from 4s
+PASSED                                                                   [ 13%]
+------------------------------ live log teardown -------------------------------
+14:19:04 [INFO] functional.conftest: [basalt] Quitting app after test: test_alarm_long_up_icon_reset[basalt]
+
+test/functional/test_button_icons.py::TestAlarmIcons::test_alarm_select_icon_pause[basalt] 
+-------------------------------- live log setup --------------------------------
+14:19:06 [INFO] functional.conftest: [basalt] Opening app for test: test_alarm_select_icon_pause[basalt]
+14:19:06 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:19:06 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:19:08 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:19:08 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:19:09 [INFO] functional.test_button_icons: [basalt] Setting up 4s timer for icon test
+14:19:16 [INFO] functional.test_button_icons: [basalt] Short timer set to 4s, waiting for expire
+14:19:21 [INFO] functional.test_button_icons: [basalt] Short timer started, counting down from 4s
+PASSED                                                                   [ 13%]
+------------------------------ live log teardown -------------------------------
+14:19:27 [INFO] functional.conftest: [basalt] Quitting app after test: test_alarm_select_icon_pause[basalt]
+
+test/functional/test_button_icons.py::TestAlarmIcons::test_alarm_down_icon_snooze[basalt] 
+-------------------------------- live log setup --------------------------------
+14:19:29 [INFO] functional.conftest: [basalt] Opening app for test: test_alarm_down_icon_snooze[basalt]
+14:19:29 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:19:29 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:19:32 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:19:32 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:19:32 [INFO] functional.test_button_icons: [basalt] Setting up 4s timer for icon test
+14:19:39 [INFO] functional.test_button_icons: [basalt] Short timer set to 4s, waiting for expire
+14:19:44 [INFO] functional.test_button_icons: [basalt] Short timer started, counting down from 4s
+PASSED                                                                   [ 13%]
+------------------------------ live log teardown -------------------------------
+14:19:50 [INFO] functional.conftest: [basalt] Quitting app after test: test_alarm_down_icon_snooze[basalt]
+
+test/functional/test_button_icons.py::TestNewModeIcons::test_new_back_icon[basalt] 
+-------------------------------- live log setup --------------------------------
+14:19:52 [INFO] functional.conftest: [basalt] Opening app for test: test_new_back_icon[basalt]
+14:19:52 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:19:52 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:19:55 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:19:55 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 13%]
+------------------------------ live log teardown -------------------------------
+14:19:56 [INFO] functional.conftest: [basalt] Quitting app after test: test_new_back_icon[basalt]
+
+test/functional/test_button_icons.py::TestNewModeIcons::test_new_up_icon[basalt] 
+-------------------------------- live log setup --------------------------------
+14:19:58 [INFO] functional.conftest: [basalt] Opening app for test: test_new_up_icon[basalt]
+14:19:58 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:19:58 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:20:01 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:20:01 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 14%]
+------------------------------ live log teardown -------------------------------
+14:20:02 [INFO] functional.conftest: [basalt] Quitting app after test: test_new_up_icon[basalt]
+
+test/functional/test_button_icons.py::TestNewModeIcons::test_new_select_icon[basalt] 
+-------------------------------- live log setup --------------------------------
+14:20:04 [INFO] functional.conftest: [basalt] Opening app for test: test_new_select_icon[basalt]
+14:20:04 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:20:04 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:20:07 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:20:07 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 14%]
+------------------------------ live log teardown -------------------------------
+14:20:08 [INFO] functional.conftest: [basalt] Quitting app after test: test_new_select_icon[basalt]
+
+test/functional/test_button_icons.py::TestNewModeIcons::test_new_down_icon[basalt] 
+-------------------------------- live log setup --------------------------------
+14:20:10 [INFO] functional.conftest: [basalt] Opening app for test: test_new_down_icon[basalt]
+14:20:10 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:20:10 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:20:13 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:20:13 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 14%]
+------------------------------ live log teardown -------------------------------
+14:20:15 [INFO] functional.conftest: [basalt] Quitting app after test: test_new_down_icon[basalt]
+
+test/functional/test_button_icons.py::TestNewModeIcons::test_new_long_up_direction_toggle[basalt] 
+-------------------------------- live log setup --------------------------------
+14:20:16 [INFO] functional.conftest: [basalt] Opening app for test: test_new_long_up_direction_toggle[basalt]
+14:20:16 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:20:16 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:20:19 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:20:19 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 14%]
+------------------------------ live log teardown -------------------------------
+14:20:21 [INFO] functional.conftest: [basalt] Quitting app after test: test_new_long_up_direction_toggle[basalt]
+
+test/functional/test_button_icons.py::TestNewModeIcons::test_new_long_select_icon[basalt] 
+-------------------------------- live log setup --------------------------------
+14:20:23 [INFO] functional.conftest: [basalt] Opening app for test: test_new_long_select_icon[basalt]
+14:20:23 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:20:23 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:20:25 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:20:25 [INFO] functional.conftest: [basalt] App opened via install
+SKIPPED (Long press select icon disabled due to display overlap (see...) [ 15%]
+------------------------------ live log teardown -------------------------------
+14:20:26 [INFO] functional.conftest: [basalt] Quitting app after test: test_new_long_select_icon[basalt]
+
+test/functional/test_button_icons.py::TestNewModeIcons::test_new_long_down_icon[basalt] 
+-------------------------------- live log setup --------------------------------
+14:20:28 [INFO] functional.conftest: [basalt] Opening app for test: test_new_long_down_icon[basalt]
+14:20:28 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:20:28 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:20:30 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:20:30 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 15%]
+------------------------------ live log teardown -------------------------------
+14:20:32 [INFO] functional.conftest: [basalt] Quitting app after test: test_new_long_down_icon[basalt]
+
+test/functional/test_button_icons.py::TestEditSecIcons::test_editsec_back_icon[basalt] 
+-------------------------------- live log setup --------------------------------
+14:20:34 [INFO] functional.conftest: [basalt] Opening app for test: test_editsec_back_icon[basalt]
+14:20:34 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:20:34 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:20:36 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:20:36 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 15%]
+------------------------------ live log teardown -------------------------------
+14:20:43 [INFO] functional.conftest: [basalt] Quitting app after test: test_editsec_back_icon[basalt]
+
+test/functional/test_button_icons.py::TestEditSecIcons::test_editsec_up_icon[basalt] 
+-------------------------------- live log setup --------------------------------
+14:20:45 [INFO] functional.conftest: [basalt] Opening app for test: test_editsec_up_icon[basalt]
+14:20:45 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:20:45 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:20:47 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:20:47 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 15%]
+------------------------------ live log teardown -------------------------------
+14:20:54 [INFO] functional.conftest: [basalt] Quitting app after test: test_editsec_up_icon[basalt]
+
+test/functional/test_button_icons.py::TestEditSecIcons::test_editsec_select_icon[basalt] 
+-------------------------------- live log setup --------------------------------
+14:20:56 [INFO] functional.conftest: [basalt] Opening app for test: test_editsec_select_icon[basalt]
+14:20:56 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:20:56 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:20:58 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:20:58 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 15%]
+------------------------------ live log teardown -------------------------------
+14:21:05 [INFO] functional.conftest: [basalt] Quitting app after test: test_editsec_select_icon[basalt]
+
+test/functional/test_button_icons.py::TestEditSecIcons::test_editsec_down_icon[basalt] 
+-------------------------------- live log setup --------------------------------
+14:21:07 [INFO] functional.conftest: [basalt] Opening app for test: test_editsec_down_icon[basalt]
+14:21:07 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:21:07 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:21:10 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:21:10 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 16%]
+------------------------------ live log teardown -------------------------------
+14:21:16 [INFO] functional.conftest: [basalt] Quitting app after test: test_editsec_down_icon[basalt]
+
+test/functional/test_button_icons.py::TestEditSecIcons::test_editsec_long_up_direction_toggle[basalt] 
+-------------------------------- live log setup --------------------------------
+14:21:18 [INFO] functional.conftest: [basalt] Opening app for test: test_editsec_long_up_direction_toggle[basalt]
+14:21:18 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:21:18 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:21:21 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:21:21 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 16%]
+------------------------------ live log teardown -------------------------------
+14:21:27 [INFO] functional.conftest: [basalt] Quitting app after test: test_editsec_long_up_direction_toggle[basalt]
+
+test/functional/test_button_icons.py::TestCountingIcons::test_counting_back_icon[basalt] 
+-------------------------------- live log setup --------------------------------
+14:21:29 [INFO] functional.conftest: [basalt] Opening app for test: test_counting_back_icon[basalt]
+14:21:29 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:21:29 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:21:32 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:21:32 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 16%]
+------------------------------ live log teardown -------------------------------
+14:21:38 [INFO] functional.conftest: [basalt] Quitting app after test: test_counting_back_icon[basalt]
+
+test/functional/test_button_icons.py::TestCountingIcons::test_counting_up_icon[basalt] 
+-------------------------------- live log setup --------------------------------
+14:21:40 [INFO] functional.conftest: [basalt] Opening app for test: test_counting_up_icon[basalt]
+14:21:40 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:21:40 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:21:43 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:21:43 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 16%]
+------------------------------ live log teardown -------------------------------
+14:21:49 [INFO] functional.conftest: [basalt] Quitting app after test: test_counting_up_icon[basalt]
+
+test/functional/test_button_icons.py::TestCountingIcons::test_counting_select_icon[basalt] 
+-------------------------------- live log setup --------------------------------
+14:21:51 [INFO] functional.conftest: [basalt] Opening app for test: test_counting_select_icon[basalt]
+14:21:51 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:21:51 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:21:53 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:21:53 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 17%]
+------------------------------ live log teardown -------------------------------
+14:21:59 [INFO] functional.conftest: [basalt] Quitting app after test: test_counting_select_icon[basalt]
+
+test/functional/test_button_icons.py::TestCountingIcons::test_counting_down_icon[basalt] 
+-------------------------------- live log setup --------------------------------
+14:22:01 [INFO] functional.conftest: [basalt] Opening app for test: test_counting_down_icon[basalt]
+14:22:01 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:22:01 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:22:04 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:22:04 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 17%]
+------------------------------ live log teardown -------------------------------
+14:22:10 [INFO] functional.conftest: [basalt] Quitting app after test: test_counting_down_icon[basalt]
+
+test/functional/test_button_icons.py::TestCountingIcons::test_counting_long_up_icon[basalt] 
+-------------------------------- live log setup --------------------------------
+14:22:12 [INFO] functional.conftest: [basalt] Opening app for test: test_counting_long_up_icon[basalt]
+14:22:12 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:22:12 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:22:15 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:22:15 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 17%]
+------------------------------ live log teardown -------------------------------
+14:22:20 [INFO] functional.conftest: [basalt] Quitting app after test: test_counting_long_up_icon[basalt]
+
+test/functional/test_button_icons.py::TestCountingIcons::test_counting_long_select_icon[basalt] 
+-------------------------------- live log setup --------------------------------
+14:22:22 [INFO] functional.conftest: [basalt] Opening app for test: test_counting_long_select_icon[basalt]
+14:22:22 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:22:22 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:22:25 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:22:25 [INFO] functional.conftest: [basalt] App opened via install
+SKIPPED (Long press select icon disabled due to display overlap (see...) [ 17%]
+------------------------------ live log teardown -------------------------------
+14:22:26 [INFO] functional.conftest: [basalt] Quitting app after test: test_counting_long_select_icon[basalt]
+
+test/functional/test_button_icons.py::TestCountingIcons::test_counting_long_down_icon[basalt] 
+-------------------------------- live log setup --------------------------------
+14:22:27 [INFO] functional.conftest: [basalt] Opening app for test: test_counting_long_down_icon[basalt]
+14:22:27 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:22:27 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:22:30 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:22:30 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 17%]
+------------------------------ live log teardown -------------------------------
+14:22:36 [INFO] functional.conftest: [basalt] Quitting app after test: test_counting_long_down_icon[basalt]
+
+test/functional/test_button_icons.py::TestPausedIcons::test_paused_select_icon_play[basalt] 
+-------------------------------- live log setup --------------------------------
+14:22:38 [INFO] functional.conftest: [basalt] Opening app for test: test_paused_select_icon_play[basalt]
+14:22:38 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:22:38 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:22:41 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:22:41 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 18%]
+------------------------------ live log teardown -------------------------------
+14:22:48 [INFO] functional.conftest: [basalt] Quitting app after test: test_paused_select_icon_play[basalt]
+
+test/functional/test_button_icons.py::TestChronoIcons::test_chrono_select_icon[basalt] 
+-------------------------------- live log setup --------------------------------
+14:22:49 [INFO] functional.conftest: [basalt] Opening app for test: test_chrono_select_icon[basalt]
+14:22:49 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:22:49 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:22:52 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:22:52 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:22:54 [INFO] functional.test_button_icons: [basalt] Setting up 4s timer for icon test
+14:23:01 [INFO] functional.test_button_icons: [basalt] Short timer set to 4s, waiting for expire
+14:23:05 [INFO] functional.test_button_icons: [basalt] Short timer started, counting down from 4s
+14:23:14 [INFO] functional.test_button_icons: Chrono mode state: {'event': 'button_down', 't': '0:05', 'm': 'Counting', 'r': '0', 'p': '0', 'v': '0', 'd': '1', 'l': '0', 'c': '1'}
+PASSED                                                                   [ 18%]
+------------------------------ live log teardown -------------------------------
+14:23:14 [INFO] functional.conftest: [basalt] Quitting app after test: test_chrono_select_icon[basalt]
+
+test/functional/test_button_icons.py::TestChronoIcons::test_chrono_long_select_icon[basalt] 
+-------------------------------- live log setup --------------------------------
+14:23:15 [INFO] functional.conftest: [basalt] Opening app for test: test_chrono_long_select_icon[basalt]
+14:23:15 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:23:15 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:23:18 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:23:18 [INFO] functional.conftest: [basalt] App opened via install
+SKIPPED (Long press select icon disabled due to display overlap (see...) [ 18%]
+------------------------------ live log teardown -------------------------------
+14:23:19 [INFO] functional.conftest: [basalt] Quitting app after test: test_chrono_long_select_icon[basalt]
+
+test/functional/test_button_icons.py::TestEditRepeatIcons::test_editrepeat_back_icon[basalt] 
+-------------------------------- live log setup --------------------------------
+14:23:21 [INFO] functional.conftest: [basalt] Opening app for test: test_editrepeat_back_icon[basalt]
+14:23:21 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:23:21 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:23:23 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:23:23 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 18%]
+------------------------------ live log teardown -------------------------------
+14:23:32 [INFO] functional.conftest: [basalt] Quitting app after test: test_editrepeat_back_icon[basalt]
+
+test/functional/test_button_icons.py::TestEditRepeatIcons::test_editrepeat_up_icon[basalt] 
+-------------------------------- live log setup --------------------------------
+14:23:34 [INFO] functional.conftest: [basalt] Opening app for test: test_editrepeat_up_icon[basalt]
+14:23:34 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:23:34 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:23:36 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:23:36 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:23:45 [INFO] functional.test_button_icons: No reference found for 'editrepeat_up' (auto_save=False)
+PASSED                                                                   [ 19%]
+------------------------------ live log teardown -------------------------------
+14:23:45 [INFO] functional.conftest: [basalt] Quitting app after test: test_editrepeat_up_icon[basalt]
+
+test/functional/test_button_icons.py::TestEditRepeatIcons::test_editrepeat_select_icon[basalt] 
+-------------------------------- live log setup --------------------------------
+14:23:47 [INFO] functional.conftest: [basalt] Opening app for test: test_editrepeat_select_icon[basalt]
+14:23:47 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:23:47 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:23:49 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:23:49 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 19%]
+------------------------------ live log teardown -------------------------------
+14:23:57 [INFO] functional.conftest: [basalt] Quitting app after test: test_editrepeat_select_icon[basalt]
+
+test/functional/test_button_icons.py::TestEditRepeatIcons::test_editrepeat_down_icon[basalt] 
+-------------------------------- live log setup --------------------------------
+14:23:59 [INFO] functional.conftest: [basalt] Opening app for test: test_editrepeat_down_icon[basalt]
+14:23:59 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:23:59 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:24:02 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:24:02 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 19%]
+------------------------------ live log teardown -------------------------------
+14:24:10 [INFO] functional.conftest: [basalt] Quitting app after test: test_editrepeat_down_icon[basalt]
+
+test/functional/test_button_icons.py::TestAlarmIcons::test_alarm_back_icon_silence[chalk] 
+-------------------------------- live log setup --------------------------------
+14:24:12 [INFO] functional.test_button_icons: [basalt] Tearing down - killing emulator
+SKIPPED (Skipping test for chalk since --platform=basalt was specified.) [ 19%]
+test/functional/test_button_icons.py::TestAlarmIcons::test_alarm_up_icon_edit[chalk] SKIPPED [ 20%]
+test/functional/test_button_icons.py::TestAlarmIcons::test_alarm_long_up_icon_reset[chalk] SKIPPED [ 20%]
+test/functional/test_button_icons.py::TestAlarmIcons::test_alarm_select_icon_pause[chalk] SKIPPED [ 20%]
+test/functional/test_button_icons.py::TestAlarmIcons::test_alarm_down_icon_snooze[chalk] SKIPPED [ 20%]
+test/functional/test_button_icons.py::TestNewModeIcons::test_new_back_icon[chalk] SKIPPED [ 20%]
+test/functional/test_button_icons.py::TestNewModeIcons::test_new_up_icon[chalk] SKIPPED [ 21%]
+test/functional/test_button_icons.py::TestNewModeIcons::test_new_select_icon[chalk] SKIPPED [ 21%]
+test/functional/test_button_icons.py::TestNewModeIcons::test_new_down_icon[chalk] SKIPPED [ 21%]
+test/functional/test_button_icons.py::TestNewModeIcons::test_new_long_up_direction_toggle[chalk] SKIPPED [ 21%]
+test/functional/test_button_icons.py::TestNewModeIcons::test_new_long_select_icon[chalk] SKIPPED [ 22%]
+test/functional/test_button_icons.py::TestNewModeIcons::test_new_long_down_icon[chalk] SKIPPED [ 22%]
+test/functional/test_button_icons.py::TestEditSecIcons::test_editsec_back_icon[chalk] SKIPPED [ 22%]
+test/functional/test_button_icons.py::TestEditSecIcons::test_editsec_up_icon[chalk] SKIPPED [ 22%]
+test/functional/test_button_icons.py::TestEditSecIcons::test_editsec_select_icon[chalk] SKIPPED [ 22%]
+test/functional/test_button_icons.py::TestEditSecIcons::test_editsec_down_icon[chalk] SKIPPED [ 23%]
+test/functional/test_button_icons.py::TestEditSecIcons::test_editsec_long_up_direction_toggle[chalk] SKIPPED [ 23%]
+test/functional/test_button_icons.py::TestCountingIcons::test_counting_back_icon[chalk] SKIPPED [ 23%]
+test/functional/test_button_icons.py::TestCountingIcons::test_counting_up_icon[chalk] SKIPPED [ 23%]
+test/functional/test_button_icons.py::TestCountingIcons::test_counting_select_icon[chalk] SKIPPED [ 24%]
+test/functional/test_button_icons.py::TestCountingIcons::test_counting_down_icon[chalk] SKIPPED [ 24%]
+test/functional/test_button_icons.py::TestCountingIcons::test_counting_long_up_icon[chalk] SKIPPED [ 24%]
+test/functional/test_button_icons.py::TestCountingIcons::test_counting_long_select_icon[chalk] SKIPPED [ 24%]
+test/functional/test_button_icons.py::TestCountingIcons::test_counting_long_down_icon[chalk] SKIPPED [ 25%]
+test/functional/test_button_icons.py::TestPausedIcons::test_paused_select_icon_play[chalk] SKIPPED [ 25%]
+test/functional/test_button_icons.py::TestChronoIcons::test_chrono_select_icon[chalk] SKIPPED [ 25%]
+test/functional/test_button_icons.py::TestChronoIcons::test_chrono_long_select_icon[chalk] SKIPPED [ 25%]
+test/functional/test_button_icons.py::TestEditRepeatIcons::test_editrepeat_back_icon[chalk] SKIPPED [ 25%]
+test/functional/test_button_icons.py::TestEditRepeatIcons::test_editrepeat_up_icon[chalk] SKIPPED [ 26%]
+test/functional/test_button_icons.py::TestEditRepeatIcons::test_editrepeat_select_icon[chalk] SKIPPED [ 26%]
+test/functional/test_button_icons.py::TestEditRepeatIcons::test_editrepeat_down_icon[chalk] SKIPPED [ 26%]
+test/functional/test_button_icons.py::TestAlarmIcons::test_alarm_back_icon_silence[diorite] SKIPPED [ 26%]
+test/functional/test_button_icons.py::TestAlarmIcons::test_alarm_up_icon_edit[diorite] SKIPPED [ 27%]
+test/functional/test_button_icons.py::TestAlarmIcons::test_alarm_long_up_icon_reset[diorite] SKIPPED [ 27%]
+test/functional/test_button_icons.py::TestAlarmIcons::test_alarm_select_icon_pause[diorite] SKIPPED [ 27%]
+test/functional/test_button_icons.py::TestAlarmIcons::test_alarm_down_icon_snooze[diorite] SKIPPED [ 27%]
+test/functional/test_button_icons.py::TestNewModeIcons::test_new_back_icon[diorite] SKIPPED [ 27%]
+test/functional/test_button_icons.py::TestNewModeIcons::test_new_up_icon[diorite] SKIPPED [ 28%]
+test/functional/test_button_icons.py::TestNewModeIcons::test_new_select_icon[diorite] SKIPPED [ 28%]
+test/functional/test_button_icons.py::TestNewModeIcons::test_new_down_icon[diorite] SKIPPED [ 28%]
+test/functional/test_button_icons.py::TestNewModeIcons::test_new_long_up_direction_toggle[diorite] SKIPPED [ 28%]
+test/functional/test_button_icons.py::TestNewModeIcons::test_new_long_select_icon[diorite] SKIPPED [ 29%]
+test/functional/test_button_icons.py::TestNewModeIcons::test_new_long_down_icon[diorite] SKIPPED [ 29%]
+test/functional/test_button_icons.py::TestEditSecIcons::test_editsec_back_icon[diorite] SKIPPED [ 29%]
+test/functional/test_button_icons.py::TestEditSecIcons::test_editsec_up_icon[diorite] SKIPPED [ 29%]
+test/functional/test_button_icons.py::TestEditSecIcons::test_editsec_select_icon[diorite] SKIPPED [ 30%]
+test/functional/test_button_icons.py::TestEditSecIcons::test_editsec_down_icon[diorite] SKIPPED [ 30%]
+test/functional/test_button_icons.py::TestEditSecIcons::test_editsec_long_up_direction_toggle[diorite] SKIPPED [ 30%]
+test/functional/test_button_icons.py::TestCountingIcons::test_counting_back_icon[diorite] SKIPPED [ 30%]
+test/functional/test_button_icons.py::TestCountingIcons::test_counting_up_icon[diorite] SKIPPED [ 30%]
+test/functional/test_button_icons.py::TestCountingIcons::test_counting_select_icon[diorite] SKIPPED [ 31%]
+test/functional/test_button_icons.py::TestCountingIcons::test_counting_down_icon[diorite] SKIPPED [ 31%]
+test/functional/test_button_icons.py::TestCountingIcons::test_counting_long_up_icon[diorite] SKIPPED [ 31%]
+test/functional/test_button_icons.py::TestCountingIcons::test_counting_long_select_icon[diorite] SKIPPED [ 31%]
+test/functional/test_button_icons.py::TestCountingIcons::test_counting_long_down_icon[diorite] SKIPPED [ 32%]
+test/functional/test_button_icons.py::TestPausedIcons::test_paused_select_icon_play[diorite] SKIPPED [ 32%]
+test/functional/test_button_icons.py::TestChronoIcons::test_chrono_select_icon[diorite] SKIPPED [ 32%]
+test/functional/test_button_icons.py::TestChronoIcons::test_chrono_long_select_icon[diorite] SKIPPED [ 32%]
+test/functional/test_button_icons.py::TestEditRepeatIcons::test_editrepeat_back_icon[diorite] SKIPPED [ 32%]
+test/functional/test_button_icons.py::TestEditRepeatIcons::test_editrepeat_up_icon[diorite] SKIPPED [ 33%]
+test/functional/test_button_icons.py::TestEditRepeatIcons::test_editrepeat_select_icon[diorite] SKIPPED [ 33%]
+test/functional/test_button_icons.py::TestEditRepeatIcons::test_editrepeat_down_icon[diorite] SKIPPED [ 33%]
+test/functional/test_create_timer.py::TestCreateTimer::test_create_2_minute_timer[aplite] SKIPPED [ 33%]
+test/functional/test_create_timer.py::TestCreateTimer::test_initial_state_shows_new[aplite] SKIPPED [ 34%]
+test/functional/test_create_timer.py::TestCreateTimer::test_down_button_increments_minutes[aplite] SKIPPED [ 34%]
+test/functional/test_create_timer.py::TestButtonPresses::test_up_button_increments_20_minutes[aplite] SKIPPED [ 34%]
+test/functional/test_create_timer.py::TestButtonPresses::test_select_button_increments_5_minutes[aplite] SKIPPED [ 34%]
+test/functional/test_create_timer.py::TestTimerCountdown::test_timer_counts_down[aplite] SKIPPED [ 35%]
+test/functional/test_create_timer.py::TestTimerCountdown::test_timer_transitions_to_counting_mode[aplite] SKIPPED [ 35%]
+test/functional/test_create_timer.py::TestChronoMode::test_chrono_mode_counts_up[aplite] SKIPPED [ 35%]
+test/functional/test_create_timer.py::TestPlayPause::test_select_toggles_play_pause_in_counting_mode[aplite] SKIPPED [ 35%]
+test/functional/test_create_timer.py::TestTimerStartsImmediately::test_timer_counts_down_during_setup[aplite] SKIPPED [ 35%]
+test/functional/test_create_timer.py::TestTimerStartsImmediately::test_chrono_has_elapsed_time_when_mode_expires[aplite] SKIPPED [ 36%]
+test/functional/test_create_timer.py::TestLongPressReset::test_long_press_select_resets_timer[aplite] SKIPPED [ 36%]
+test/functional/test_create_timer.py::TestCreateTimer::test_create_2_minute_timer[basalt] 
+-------------------------------- live log setup --------------------------------
+14:24:16 [INFO] functional.conftest: [basalt] Starting warm-up cycle to clear stale state
+14:24:19 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:24:27 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:24:27 [INFO] functional.conftest: [basalt] Waiting for emulator to stabilize (2s)
+14:24:29 [INFO] functional.conftest: [basalt] Holding down button to quit app and set persist state
+14:24:31 [INFO] functional.conftest: [basalt] App quit via long press, persist state set
+14:24:31 [INFO] functional.conftest: [basalt] Emulator ready for tests
+14:24:31 [INFO] functional.conftest: [basalt] Opening app for test: test_create_2_minute_timer[basalt]
+14:24:31 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:24:31 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:24:34 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:24:34 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:24:36 [INFO] functional.test_create_timer: After 2 Down presses - state: {'event': 'button_down', 't': '1:57', 'm': 'New', 'r': '0', 'p': '0', 'v': '0', 'd': '1', 'l': '1', 'c': '0'}
+PASSED                                                                   [ 36%]
+------------------------------ live log teardown -------------------------------
+14:24:36 [INFO] functional.conftest: [basalt] Quitting app after test: test_create_2_minute_timer[basalt]
+
+test/functional/test_create_timer.py::TestCreateTimer::test_initial_state_shows_new[basalt] 
+-------------------------------- live log setup --------------------------------
+14:24:38 [INFO] functional.conftest: [basalt] Opening app for test: test_initial_state_shows_new[basalt]
+14:24:38 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:24:38 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:24:41 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:24:41 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:24:46 [INFO] functional.test_create_timer: Initial state text: +1h 1 +20 New -d:pi 1424 +Im
+PASSED                                                                   [ 36%]
+------------------------------ live log teardown -------------------------------
+14:24:46 [INFO] functional.conftest: [basalt] Quitting app after test: test_initial_state_shows_new[basalt]
+
+test/functional/test_create_timer.py::TestCreateTimer::test_down_button_increments_minutes[basalt] 
+-------------------------------- live log setup --------------------------------
+14:24:48 [INFO] functional.conftest: [basalt] Opening app for test: test_down_button_increments_minutes[basalt]
+14:24:48 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:24:48 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:24:50 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:24:50 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:24:55 [INFO] functional.test_create_timer: After 3 Down presses: #1m 1 +20 New 2.57 6 1427 #i II}
+PASSED                                                                   [ 37%]
+------------------------------ live log teardown -------------------------------
+14:24:55 [INFO] functional.conftest: [basalt] Quitting app after test: test_down_button_increments_minutes[basalt]
+
+test/functional/test_create_timer.py::TestButtonPresses::test_up_button_increments_20_minutes[basalt] 
+-------------------------------- live log setup --------------------------------
+14:24:57 [INFO] functional.conftest: [basalt] Opening app for test: test_up_button_increments_20_minutes[basalt]
+14:24:57 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:24:57 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:25:00 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:25:00 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:25:01 [INFO] functional.test_create_timer: After Up press - state: {'event': 'button_up', 't': '19:58', 'm': 'New', 'r': '0', 'p': '0', 'v': '0', 'd': '1', 'l': '1', 'c': '0'}
+PASSED                                                                   [ 37%]
+------------------------------ live log teardown -------------------------------
+14:25:01 [INFO] functional.conftest: [basalt] Quitting app after test: test_up_button_increments_20_minutes[basalt]
+
+test/functional/test_create_timer.py::TestButtonPresses::test_select_button_increments_5_minutes[basalt] 
+-------------------------------- live log setup --------------------------------
+14:25:03 [INFO] functional.conftest: [basalt] Opening app for test: test_select_button_increments_5_minutes[basalt]
+14:25:03 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:25:03 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:25:06 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:25:06 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:25:10 [INFO] functional.test_create_timer: After Select press: #1m 1 +20 New 4.58 5 1430 +Im III}
+14:25:10 [INFO] functional.test_create_timer:   normalized: 1 1 20  4:58 5 1430 1 111
+PASSED                                                                   [ 37%]
+------------------------------ live log teardown -------------------------------
+14:25:10 [INFO] functional.conftest: [basalt] Quitting app after test: test_select_button_increments_5_minutes[basalt]
+
+test/functional/test_create_timer.py::TestTimerCountdown::test_timer_counts_down[basalt] 
+-------------------------------- live log setup --------------------------------
+14:25:12 [INFO] functional.conftest: [basalt] Opening app for test: test_timer_counts_down[basalt]
+14:25:12 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:25:12 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:25:15 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:25:15 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:25:28 [INFO] functional.test_create_timer: Countdown start text: 09 e 00,59 0:64 1425 Ker M J
+14:25:30 [INFO] functional.test_create_timer: After 5s text: 4 e 00;59 0:4- 1425 Ker M J
+PASSED                                                                   [ 37%]
+------------------------------ live log teardown -------------------------------
+14:25:30 [INFO] functional.conftest: [basalt] Quitting app after test: test_timer_counts_down[basalt]
+
+test/functional/test_create_timer.py::TestTimerCountdown::test_timer_transitions_to_counting_mode[basalt] 
+-------------------------------- live log setup --------------------------------
+14:25:32 [INFO] functional.conftest: [basalt] Opening app for test: test_timer_transitions_to_counting_mode[basalt]
+14:25:32 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:25:32 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:25:35 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:25:35 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:25:37 [INFO] functional.test_create_timer: After Down press state: {'event': 'button_down', 't': '0:58', 'm': 'New', 'r': '0', 'p': '0', 'v': '0', 'd': '1', 'l': '1', 'c': '0'}
+14:25:40 [INFO] functional.test_create_timer: After transition state: {'event': 'mode_change', 't': '0:55', 'm': 'Counting', 'r': '0', 'p': '0', 'v': '0', 'd': '1', 'l': '0', 'c': '0'}
+PASSED                                                                   [ 37%]
+------------------------------ live log teardown -------------------------------
+14:25:40 [INFO] functional.conftest: [basalt] Quitting app after test: test_timer_transitions_to_counting_mode[basalt]
+
+test/functional/test_create_timer.py::TestChronoMode::test_chrono_mode_counts_up[basalt] 
+-------------------------------- live log setup --------------------------------
+14:25:42 [INFO] functional.conftest: [basalt] Opening app for test: test_chrono_mode_counts_up[basalt]
+14:25:42 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:25:42 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:25:44 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:25:44 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:25:55 [INFO] functional.test_create_timer: Chrono mode start: e Oo;00--> 0:s 1425 M %
+14:25:57 [INFO] functional.test_create_timer: Chrono after 3s: @ Oo;00--> d:E 1425 M %
+PASSED                                                                   [ 38%]
+------------------------------ live log teardown -------------------------------
+14:25:57 [INFO] functional.conftest: [basalt] Quitting app after test: test_chrono_mode_counts_up[basalt]
+
+test/functional/test_create_timer.py::TestPlayPause::test_select_toggles_play_pause_in_counting_mode[basalt] 
+-------------------------------- live log setup --------------------------------
+14:25:59 [INFO] functional.conftest: [basalt] Opening app for test: test_select_toggles_play_pause_in_counting_mode[basalt]
+14:25:59 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:25:59 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:26:01 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:26:01 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:26:06 [INFO] functional.test_create_timer: Paused at: 0:54
+14:26:09 [INFO] functional.test_create_timer: Still paused at: 0:54
+14:26:09 [INFO] functional.test_create_timer: Resumed at: 0:54
+14:26:12 [INFO] functional.test_create_timer: After resume: 0:51
+PASSED                                                                   [ 38%]
+------------------------------ live log teardown -------------------------------
+14:26:12 [INFO] functional.conftest: [basalt] Quitting app after test: test_select_toggles_play_pause_in_counting_mode[basalt]
+
+test/functional/test_create_timer.py::TestTimerStartsImmediately::test_timer_counts_down_during_setup[basalt] 
+-------------------------------- live log setup --------------------------------
+14:26:13 [INFO] functional.conftest: [basalt] Opening app for test: test_timer_counts_down_during_setup[basalt]
+14:26:13 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:26:13 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:26:16 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:26:16 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:26:31 [INFO] functional.test_create_timer: After 6 Down presses with 2s delays - state: {'event': 'button_down', 't': '5:46', 'm': 'New', 'r': '0', 'p': '0', 'v': '0', 'd': '1', 'l': '1', 'c': '0'}
+PASSED                                                                   [ 38%]
+------------------------------ live log teardown -------------------------------
+14:26:31 [INFO] functional.conftest: [basalt] Quitting app after test: test_timer_counts_down_during_setup[basalt]
+
+test/functional/test_create_timer.py::TestTimerStartsImmediately::test_chrono_has_elapsed_time_when_mode_expires[basalt] 
+-------------------------------- live log setup --------------------------------
+14:26:33 [INFO] functional.conftest: [basalt] Opening app for test: test_chrono_has_elapsed_time_when_mode_expires[basalt]
+14:26:33 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:26:33 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:26:36 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:26:36 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:26:38 [INFO] functional.test_create_timer: Mode change state: {'event': 'mode_change', 't': '0:02', 'm': 'Counting', 'r': '0', 'p': '0', 'v': '0', 'd': '1', 'l': '0', 'c': '1'}
+PASSED                                                                   [ 38%]
+------------------------------ live log teardown -------------------------------
+14:26:38 [INFO] functional.conftest: [basalt] Quitting app after test: test_chrono_has_elapsed_time_when_mode_expires[basalt]
+
+test/functional/test_create_timer.py::TestLongPressReset::test_long_press_select_resets_timer[basalt] 
+-------------------------------- live log setup --------------------------------
+14:26:40 [INFO] functional.conftest: [basalt] Opening app for test: test_long_press_select_resets_timer[basalt]
+14:26:40 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:26:40 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:26:43 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:26:43 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:26:54 [INFO] functional.test_create_timer: Before reset: 9 e 19.59 19:64m 1426 Ker M J
+14:26:56 [INFO] functional.test_create_timer: After reset: 9 e 19.59 19 66 1426 Ker M J
+PASSED                                                                   [ 39%]
+------------------------------ live log teardown -------------------------------
+14:26:56 [INFO] functional.conftest: [basalt] Quitting app after test: test_long_press_select_resets_timer[basalt]
+
+test/functional/test_create_timer.py::TestCreateTimer::test_create_2_minute_timer[chalk] 
+-------------------------------- live log setup --------------------------------
+14:26:58 [INFO] functional.conftest: [basalt] Tearing down - killing emulator
+SKIPPED (Skipping test for chalk since --platform=basalt was specified.) [ 39%]
+test/functional/test_create_timer.py::TestCreateTimer::test_initial_state_shows_new[chalk] SKIPPED [ 39%]
+test/functional/test_create_timer.py::TestCreateTimer::test_down_button_increments_minutes[chalk] SKIPPED [ 39%]
+test/functional/test_create_timer.py::TestButtonPresses::test_up_button_increments_20_minutes[chalk] SKIPPED [ 40%]
+test/functional/test_create_timer.py::TestButtonPresses::test_select_button_increments_5_minutes[chalk] SKIPPED [ 40%]
+test/functional/test_create_timer.py::TestTimerCountdown::test_timer_counts_down[chalk] SKIPPED [ 40%]
+test/functional/test_create_timer.py::TestTimerCountdown::test_timer_transitions_to_counting_mode[chalk] SKIPPED [ 40%]
+test/functional/test_create_timer.py::TestChronoMode::test_chrono_mode_counts_up[chalk] SKIPPED [ 40%]
+test/functional/test_create_timer.py::TestPlayPause::test_select_toggles_play_pause_in_counting_mode[chalk] SKIPPED [ 41%]
+test/functional/test_create_timer.py::TestTimerStartsImmediately::test_timer_counts_down_during_setup[chalk] SKIPPED [ 41%]
+test/functional/test_create_timer.py::TestTimerStartsImmediately::test_chrono_has_elapsed_time_when_mode_expires[chalk] SKIPPED [ 41%]
+test/functional/test_create_timer.py::TestLongPressReset::test_long_press_select_resets_timer[chalk] SKIPPED [ 41%]
+test/functional/test_create_timer.py::TestCreateTimer::test_create_2_minute_timer[diorite] SKIPPED [ 42%]
+test/functional/test_create_timer.py::TestCreateTimer::test_initial_state_shows_new[diorite] SKIPPED [ 42%]
+test/functional/test_create_timer.py::TestCreateTimer::test_down_button_increments_minutes[diorite] SKIPPED [ 42%]
+test/functional/test_create_timer.py::TestButtonPresses::test_up_button_increments_20_minutes[diorite] SKIPPED [ 42%]
+test/functional/test_create_timer.py::TestButtonPresses::test_select_button_increments_5_minutes[diorite] SKIPPED [ 42%]
+test/functional/test_create_timer.py::TestTimerCountdown::test_timer_counts_down[diorite] SKIPPED [ 43%]
+test/functional/test_create_timer.py::TestTimerCountdown::test_timer_transitions_to_counting_mode[diorite] SKIPPED [ 43%]
+test/functional/test_create_timer.py::TestChronoMode::test_chrono_mode_counts_up[diorite] SKIPPED [ 43%]
+test/functional/test_create_timer.py::TestPlayPause::test_select_toggles_play_pause_in_counting_mode[diorite] SKIPPED [ 43%]
+test/functional/test_create_timer.py::TestTimerStartsImmediately::test_timer_counts_down_during_setup[diorite] SKIPPED [ 44%]
+test/functional/test_create_timer.py::TestTimerStartsImmediately::test_chrono_has_elapsed_time_when_mode_expires[diorite] SKIPPED [ 44%]
+test/functional/test_create_timer.py::TestLongPressReset::test_long_press_select_resets_timer[diorite] SKIPPED [ 44%]
+test/functional/test_directional_icons.py::TestNewModeForwardIcons::test_new_forward_has_icons[aplite] SKIPPED [ 44%]
+test/functional/test_directional_icons.py::TestNewModeReverseIcons::test_new_reverse_back_icon[aplite] SKIPPED [ 45%]
+test/functional/test_directional_icons.py::TestNewModeReverseIcons::test_new_reverse_up_icon[aplite] SKIPPED [ 45%]
+test/functional/test_directional_icons.py::TestNewModeReverseIcons::test_new_reverse_select_icon[aplite] SKIPPED [ 45%]
+test/functional/test_directional_icons.py::TestNewModeReverseIcons::test_new_reverse_down_icon[aplite] SKIPPED [ 45%]
+test/functional/test_directional_icons.py::TestEditSecModeForwardIcons::test_editsec_forward_back_icon_plus60[aplite] SKIPPED [ 45%]
+test/functional/test_directional_icons.py::TestEditSecModeForwardIcons::test_editsec_forward_has_icons[aplite] SKIPPED [ 46%]
+test/functional/test_directional_icons.py::TestEditSecModeReverseIcons::test_editsec_reverse_back_icon[aplite] SKIPPED [ 46%]
+test/functional/test_directional_icons.py::TestEditSecModeReverseIcons::test_editsec_reverse_up_icon[aplite] SKIPPED [ 46%]
+test/functional/test_directional_icons.py::TestEditSecModeReverseIcons::test_editsec_reverse_select_icon[aplite] SKIPPED [ 46%]
+test/functional/test_directional_icons.py::TestEditSecModeReverseIcons::test_editsec_reverse_down_icon[aplite] SKIPPED [ 47%]
+test/functional/test_directional_icons.py::TestNewModeForwardIcons::test_new_forward_has_icons[basalt] 
+-------------------------------- live log setup --------------------------------
+14:27:02 [INFO] functional.test_directional_icons: [basalt] Starting warm-up cycle
+14:27:05 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:27:14 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:27:14 [INFO] functional.test_directional_icons: [basalt] Waiting for emulator to stabilize (2s)
+14:27:16 [INFO] functional.test_directional_icons: [basalt] Holding down button to quit app and set persist state
+14:27:19 [INFO] functional.test_directional_icons: [basalt] Emulator ready for tests
+14:27:19 [INFO] functional.conftest: [basalt] Opening app for test: test_new_forward_has_icons[basalt]
+14:27:19 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:27:19 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:27:21 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:27:21 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 47%]
+------------------------------ live log teardown -------------------------------
+14:27:24 [INFO] functional.conftest: [basalt] Quitting app after test: test_new_forward_has_icons[basalt]
+
+test/functional/test_directional_icons.py::TestNewModeReverseIcons::test_new_reverse_back_icon[basalt] 
+-------------------------------- live log setup --------------------------------
+14:27:26 [INFO] functional.conftest: [basalt] Opening app for test: test_new_reverse_back_icon[basalt]
+14:27:26 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:27:26 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:27:29 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:27:29 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 47%]
+------------------------------ live log teardown -------------------------------
+14:27:35 [INFO] functional.conftest: [basalt] Quitting app after test: test_new_reverse_back_icon[basalt]
+
+test/functional/test_directional_icons.py::TestNewModeReverseIcons::test_new_reverse_up_icon[basalt] 
+-------------------------------- live log setup --------------------------------
+14:27:37 [INFO] functional.conftest: [basalt] Opening app for test: test_new_reverse_up_icon[basalt]
+14:27:37 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:27:37 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:27:40 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:27:40 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 47%]
+------------------------------ live log teardown -------------------------------
+14:27:46 [INFO] functional.conftest: [basalt] Quitting app after test: test_new_reverse_up_icon[basalt]
+
+test/functional/test_directional_icons.py::TestNewModeReverseIcons::test_new_reverse_select_icon[basalt] 
+-------------------------------- live log setup --------------------------------
+14:27:48 [INFO] functional.conftest: [basalt] Opening app for test: test_new_reverse_select_icon[basalt]
+14:27:48 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:27:48 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:27:50 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:27:50 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 47%]
+------------------------------ live log teardown -------------------------------
+14:27:56 [INFO] functional.conftest: [basalt] Quitting app after test: test_new_reverse_select_icon[basalt]
+
+test/functional/test_directional_icons.py::TestNewModeReverseIcons::test_new_reverse_down_icon[basalt] 
+-------------------------------- live log setup --------------------------------
+14:27:58 [INFO] functional.conftest: [basalt] Opening app for test: test_new_reverse_down_icon[basalt]
+14:27:58 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:27:58 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:28:01 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:28:01 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 48%]
+------------------------------ live log teardown -------------------------------
+14:28:07 [INFO] functional.conftest: [basalt] Quitting app after test: test_new_reverse_down_icon[basalt]
+
+test/functional/test_directional_icons.py::TestEditSecModeForwardIcons::test_editsec_forward_back_icon_plus60[basalt] 
+-------------------------------- live log setup --------------------------------
+14:28:09 [INFO] functional.conftest: [basalt] Opening app for test: test_editsec_forward_back_icon_plus60[basalt]
+14:28:09 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:28:09 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:28:12 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:28:12 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 48%]
+------------------------------ live log teardown -------------------------------
+14:28:19 [INFO] functional.conftest: [basalt] Quitting app after test: test_editsec_forward_back_icon_plus60[basalt]
+
+test/functional/test_directional_icons.py::TestEditSecModeForwardIcons::test_editsec_forward_has_icons[basalt] 
+-------------------------------- live log setup --------------------------------
+14:28:21 [INFO] functional.conftest: [basalt] Opening app for test: test_editsec_forward_has_icons[basalt]
+14:28:21 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:28:21 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:28:24 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:28:24 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 48%]
+------------------------------ live log teardown -------------------------------
+14:28:32 [INFO] functional.conftest: [basalt] Quitting app after test: test_editsec_forward_has_icons[basalt]
+
+test/functional/test_directional_icons.py::TestEditSecModeReverseIcons::test_editsec_reverse_back_icon[basalt] 
+-------------------------------- live log setup --------------------------------
+14:28:33 [INFO] functional.conftest: [basalt] Opening app for test: test_editsec_reverse_back_icon[basalt]
+14:28:33 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:28:33 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:28:36 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:28:36 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 48%]
+------------------------------ live log teardown -------------------------------
+14:28:48 [INFO] functional.conftest: [basalt] Quitting app after test: test_editsec_reverse_back_icon[basalt]
+
+test/functional/test_directional_icons.py::TestEditSecModeReverseIcons::test_editsec_reverse_up_icon[basalt] 
+-------------------------------- live log setup --------------------------------
+14:28:50 [INFO] functional.conftest: [basalt] Opening app for test: test_editsec_reverse_up_icon[basalt]
+14:28:50 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:28:50 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:28:52 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:28:52 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 49%]
+------------------------------ live log teardown -------------------------------
+14:29:04 [INFO] functional.conftest: [basalt] Quitting app after test: test_editsec_reverse_up_icon[basalt]
+
+test/functional/test_directional_icons.py::TestEditSecModeReverseIcons::test_editsec_reverse_select_icon[basalt] 
+-------------------------------- live log setup --------------------------------
+14:29:06 [INFO] functional.conftest: [basalt] Opening app for test: test_editsec_reverse_select_icon[basalt]
+14:29:06 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:29:06 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:29:08 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:29:08 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 49%]
+------------------------------ live log teardown -------------------------------
+14:29:20 [INFO] functional.conftest: [basalt] Quitting app after test: test_editsec_reverse_select_icon[basalt]
+
+test/functional/test_directional_icons.py::TestEditSecModeReverseIcons::test_editsec_reverse_down_icon[basalt] 
+-------------------------------- live log setup --------------------------------
+14:29:22 [INFO] functional.conftest: [basalt] Opening app for test: test_editsec_reverse_down_icon[basalt]
+14:29:22 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:29:22 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:29:25 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:29:25 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 49%]
+------------------------------ live log teardown -------------------------------
+14:29:36 [INFO] functional.conftest: [basalt] Quitting app after test: test_editsec_reverse_down_icon[basalt]
+
+test/functional/test_directional_icons.py::TestNewModeForwardIcons::test_new_forward_has_icons[chalk] 
+-------------------------------- live log setup --------------------------------
+14:29:38 [INFO] functional.test_directional_icons: [basalt] Tearing down - killing emulator
+SKIPPED (Skipping test for chalk since --platform=basalt was specified.) [ 49%]
+test/functional/test_directional_icons.py::TestNewModeReverseIcons::test_new_reverse_back_icon[chalk] SKIPPED [ 50%]
+test/functional/test_directional_icons.py::TestNewModeReverseIcons::test_new_reverse_up_icon[chalk] SKIPPED [ 50%]
+test/functional/test_directional_icons.py::TestNewModeReverseIcons::test_new_reverse_select_icon[chalk] SKIPPED [ 50%]
+test/functional/test_directional_icons.py::TestNewModeReverseIcons::test_new_reverse_down_icon[chalk] SKIPPED [ 50%]
+test/functional/test_directional_icons.py::TestEditSecModeForwardIcons::test_editsec_forward_back_icon_plus60[chalk] SKIPPED [ 50%]
+test/functional/test_directional_icons.py::TestEditSecModeForwardIcons::test_editsec_forward_has_icons[chalk] SKIPPED [ 51%]
+test/functional/test_directional_icons.py::TestEditSecModeReverseIcons::test_editsec_reverse_back_icon[chalk] SKIPPED [ 51%]
+test/functional/test_directional_icons.py::TestEditSecModeReverseIcons::test_editsec_reverse_up_icon[chalk] SKIPPED [ 51%]
+test/functional/test_directional_icons.py::TestEditSecModeReverseIcons::test_editsec_reverse_select_icon[chalk] SKIPPED [ 51%]
+test/functional/test_directional_icons.py::TestEditSecModeReverseIcons::test_editsec_reverse_down_icon[chalk] SKIPPED [ 52%]
+test/functional/test_directional_icons.py::TestNewModeForwardIcons::test_new_forward_has_icons[diorite] SKIPPED [ 52%]
+test/functional/test_directional_icons.py::TestNewModeReverseIcons::test_new_reverse_back_icon[diorite] SKIPPED [ 52%]
+test/functional/test_directional_icons.py::TestNewModeReverseIcons::test_new_reverse_up_icon[diorite] SKIPPED [ 52%]
+test/functional/test_directional_icons.py::TestNewModeReverseIcons::test_new_reverse_select_icon[diorite] SKIPPED [ 52%]
+test/functional/test_directional_icons.py::TestNewModeReverseIcons::test_new_reverse_down_icon[diorite] SKIPPED [ 53%]
+test/functional/test_directional_icons.py::TestEditSecModeForwardIcons::test_editsec_forward_back_icon_plus60[diorite] SKIPPED [ 53%]
+test/functional/test_directional_icons.py::TestEditSecModeForwardIcons::test_editsec_forward_has_icons[diorite] SKIPPED [ 53%]
+test/functional/test_directional_icons.py::TestEditSecModeReverseIcons::test_editsec_reverse_back_icon[diorite] SKIPPED [ 53%]
+test/functional/test_directional_icons.py::TestEditSecModeReverseIcons::test_editsec_reverse_up_icon[diorite] SKIPPED [ 54%]
+test/functional/test_directional_icons.py::TestEditSecModeReverseIcons::test_editsec_reverse_select_icon[diorite] SKIPPED [ 54%]
+test/functional/test_directional_icons.py::TestEditSecModeReverseIcons::test_editsec_reverse_down_icon[diorite] SKIPPED [ 54%]
+test/functional/test_edit_mode_reset.py::TestEditModeToggle::test_long_press_select_toggles_new_to_editsec[aplite] SKIPPED [ 54%]
+test/functional/test_edit_mode_reset.py::TestEditModeToggle::test_long_press_select_toggles_editsec_to_new[aplite] SKIPPED [ 55%]
+test/functional/test_edit_mode_reset.py::TestEditModeToggle::test_toggle_new_to_editsec_preserves_reverse_direction[aplite] SKIPPED [ 55%]
+test/functional/test_edit_mode_reset.py::TestEditModeToggle::test_toggle_editsec_to_new_preserves_reverse_direction[aplite] SKIPPED [ 55%]
+test/functional/test_edit_mode_reset.py::TestEditModeToggle::test_long_press_select_no_op_in_edit_repeat[aplite] SKIPPED [ 55%]
+test/functional/test_edit_mode_reset.py::TestEditModeToggle::test_long_press_select_toggles_new_to_editsec[basalt] 
+-------------------------------- live log setup --------------------------------
+14:29:41 [INFO] functional.conftest: [basalt] Starting warm-up cycle to clear stale state
+14:29:45 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:29:53 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:29:53 [INFO] functional.conftest: [basalt] Waiting for emulator to stabilize (2s)
+14:29:55 [INFO] functional.conftest: [basalt] Holding down button to quit app and set persist state
+14:29:56 [INFO] functional.conftest: [basalt] App quit via long press, persist state set
+14:29:57 [INFO] functional.conftest: [basalt] Emulator ready for tests
+14:29:57 [INFO] functional.conftest: [basalt] Opening app for test: test_long_press_select_toggles_new_to_editsec[basalt]
+14:29:57 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:29:57 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:30:00 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:30:00 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:30:07 [INFO] functional.test_edit_mode_reset: After Up press state: {'event': 'button_up', 't': '1:53', 'm': 'New', 'r': '0', 'p': '0', 'v': '0', 'd': '1', 'l': '1', 'c': '0'}
+14:30:09 [INFO] functional.test_edit_mode_reset: After long press Select state: {'event': 'long_press_select', 't': '1:51', 'm': 'EditSec', 'r': '0', 'p': '0', 'v': '0', 'd': '1', 'l': '1', 'c': '0'}
+14:30:09 [INFO] functional.test_edit_mode_reset: After Back press state: {'event': 'button_back', 't': '2:50', 'm': 'EditSec', 'r': '0', 'p': '0', 'v': '0', 'd': '1', 'l': '1', 'c': '0'}
+PASSED                                                                   [ 55%]
+------------------------------ live log teardown -------------------------------
+14:30:09 [INFO] functional.conftest: [basalt] Quitting app after test: test_long_press_select_toggles_new_to_editsec[basalt]
+
+test/functional/test_edit_mode_reset.py::TestEditModeToggle::test_long_press_select_toggles_editsec_to_new[basalt] 
+-------------------------------- live log setup --------------------------------
+14:30:11 [INFO] functional.conftest: [basalt] Opening app for test: test_long_press_select_toggles_editsec_to_new[basalt]
+14:30:11 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:30:11 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:30:14 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:30:14 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:30:23 [INFO] functional.test_edit_mode_reset: After toggle to New: {'event': 'long_press_select', 't': '0:20', 'm': 'New', 'r': '0', 'p': '1', 'v': '0', 'd': '1', 'l': '1', 'c': '0'}
+PASSED                                                                   [ 56%]
+------------------------------ live log teardown -------------------------------
+14:30:23 [INFO] functional.conftest: [basalt] Quitting app after test: test_long_press_select_toggles_editsec_to_new[basalt]
+
+test/functional/test_edit_mode_reset.py::TestEditModeToggle::test_toggle_new_to_editsec_preserves_reverse_direction[basalt] 
+-------------------------------- live log setup --------------------------------
+14:30:25 [INFO] functional.conftest: [basalt] Opening app for test: test_toggle_new_to_editsec_preserves_reverse_direction[basalt]
+14:30:25 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:30:25 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:30:28 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:30:28 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 56%]
+------------------------------ live log teardown -------------------------------
+14:30:38 [INFO] functional.conftest: [basalt] Quitting app after test: test_toggle_new_to_editsec_preserves_reverse_direction[basalt]
+
+test/functional/test_edit_mode_reset.py::TestEditModeToggle::test_toggle_editsec_to_new_preserves_reverse_direction[basalt] 
+-------------------------------- live log setup --------------------------------
+14:30:40 [INFO] functional.conftest: [basalt] Opening app for test: test_toggle_editsec_to_new_preserves_reverse_direction[basalt]
+14:30:40 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:30:40 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:30:43 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:30:43 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 56%]
+------------------------------ live log teardown -------------------------------
+14:30:53 [INFO] functional.conftest: [basalt] Quitting app after test: test_toggle_editsec_to_new_preserves_reverse_direction[basalt]
+
+test/functional/test_edit_mode_reset.py::TestEditModeToggle::test_long_press_select_no_op_in_edit_repeat[basalt] SKIPPED [ 56%]
+test/functional/test_edit_mode_reset.py::TestEditModeToggle::test_long_press_select_toggles_new_to_editsec[chalk] 
+-------------------------------- live log setup --------------------------------
+14:30:55 [INFO] functional.conftest: [basalt] Tearing down - killing emulator
+SKIPPED (Skipping test for chalk since --platform=basalt was specified.) [ 57%]
+test/functional/test_edit_mode_reset.py::TestEditModeToggle::test_long_press_select_toggles_editsec_to_new[chalk] SKIPPED [ 57%]
+test/functional/test_edit_mode_reset.py::TestEditModeToggle::test_toggle_new_to_editsec_preserves_reverse_direction[chalk] SKIPPED [ 57%]
+test/functional/test_edit_mode_reset.py::TestEditModeToggle::test_toggle_editsec_to_new_preserves_reverse_direction[chalk] SKIPPED [ 57%]
+test/functional/test_edit_mode_reset.py::TestEditModeToggle::test_long_press_select_no_op_in_edit_repeat[chalk] SKIPPED [ 57%]
+test/functional/test_edit_mode_reset.py::TestEditModeToggle::test_long_press_select_toggles_new_to_editsec[diorite] SKIPPED [ 58%]
+test/functional/test_edit_mode_reset.py::TestEditModeToggle::test_long_press_select_toggles_editsec_to_new[diorite] SKIPPED [ 58%]
+test/functional/test_edit_mode_reset.py::TestEditModeToggle::test_toggle_new_to_editsec_preserves_reverse_direction[diorite] SKIPPED [ 58%]
+test/functional/test_edit_mode_reset.py::TestEditModeToggle::test_toggle_editsec_to_new_preserves_reverse_direction[diorite] SKIPPED [ 58%]
+test/functional/test_edit_mode_reset.py::TestEditModeToggle::test_long_press_select_no_op_in_edit_repeat[diorite] SKIPPED [ 59%]
+test/functional/test_edit_timer_direction.py::TestZeroCrossingTypeConversion::test_countdown_to_chrono_via_subtraction_new_mode[aplite] SKIPPED [ 59%]
+test/functional/test_edit_timer_direction.py::TestZeroCrossingTypeConversion::test_countdown_to_chrono_via_subtraction_editsec[aplite] SKIPPED [ 59%]
+test/functional/test_edit_timer_direction.py::TestAutoDirectionFlip::test_auto_flip_countdown_to_chrono_new_mode[aplite] SKIPPED [ 59%]
+test/functional/test_edit_timer_direction.py::TestAutoDirectionFlip::test_auto_flip_countdown_to_chrono_editsec[aplite] SKIPPED [ 60%]
+test/functional/test_edit_timer_direction.py::TestAutoDirectionFlip::test_continued_editing_after_auto_flip_new_mode[aplite] SKIPPED [ 60%]
+test/functional/test_edit_timer_direction.py::TestAutoDirectionFlip::test_round_trip_zero_crossing_editsec[aplite] SKIPPED [ 60%]
+test/functional/test_edit_timer_direction.py::TestZeroCrossingTypeConversion::test_countdown_to_chrono_via_subtraction_new_mode[basalt] 
+-------------------------------- live log setup --------------------------------
+14:30:56 [INFO] functional.conftest: [basalt] Starting warm-up cycle to clear stale state
+14:31:00 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:31:08 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:31:08 [INFO] functional.conftest: [basalt] Waiting for emulator to stabilize (2s)
+14:31:10 [INFO] functional.conftest: [basalt] Holding down button to quit app and set persist state
+14:31:12 [INFO] functional.conftest: [basalt] App quit via long press, persist state set
+14:31:12 [INFO] functional.conftest: [basalt] Emulator ready for tests
+14:31:12 [INFO] functional.conftest: [basalt] Opening app for test: test_countdown_to_chrono_via_subtraction_new_mode[basalt]
+14:31:12 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:31:12 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:31:15 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:31:15 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:31:23 [INFO] functional.test_edit_timer_direction: After subtraction state: {'event': 'button_up', 't': '18:08', 'm': 'New', 'r': '0', 'p': '0', 'v': '0', 'd': '1', 'l': '1', 'c': '1'}
+PASSED                                                                   [ 60%]
+------------------------------ live log teardown -------------------------------
+14:31:30 [INFO] functional.conftest: [basalt] Quitting app after test: test_countdown_to_chrono_via_subtraction_new_mode[basalt]
+
+test/functional/test_edit_timer_direction.py::TestZeroCrossingTypeConversion::test_countdown_to_chrono_via_subtraction_editsec[basalt] 
+-------------------------------- live log setup --------------------------------
+14:31:32 [INFO] functional.conftest: [basalt] Opening app for test: test_countdown_to_chrono_via_subtraction_editsec[basalt]
+14:31:32 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:31:32 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:31:34 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:31:34 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:31:46 [INFO] functional.test_edit_timer_direction: After subtraction state: {'event': 'button_back', 't': '0:55', 'm': 'EditSec', 'r': '0', 'p': '1', 'v': '0', 'd': '1', 'l': '1', 'c': '1'}
+PASSED                                                                   [ 60%]
+------------------------------ live log teardown -------------------------------
+14:31:46 [INFO] functional.conftest: [basalt] Quitting app after test: test_countdown_to_chrono_via_subtraction_editsec[basalt]
+
+test/functional/test_edit_timer_direction.py::TestAutoDirectionFlip::test_auto_flip_countdown_to_chrono_new_mode[basalt] 
+-------------------------------- live log setup --------------------------------
+14:31:48 [INFO] functional.conftest: [basalt] Opening app for test: test_auto_flip_countdown_to_chrono_new_mode[basalt]
+14:31:48 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:31:48 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:31:51 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:31:51 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:31:59 [INFO] functional.test_edit_timer_direction: After zero-crossing state: {'event': 'button_up', 't': '18:08', 'm': 'New', 'r': '0', 'p': '0', 'v': '0', 'd': '1', 'l': '1', 'c': '1'}
+PASSED                                                                   [ 61%]
+------------------------------ live log teardown -------------------------------
+14:31:59 [INFO] functional.conftest: [basalt] Quitting app after test: test_auto_flip_countdown_to_chrono_new_mode[basalt]
+
+test/functional/test_edit_timer_direction.py::TestAutoDirectionFlip::test_auto_flip_countdown_to_chrono_editsec[basalt] 
+-------------------------------- live log setup --------------------------------
+14:32:01 [INFO] functional.conftest: [basalt] Opening app for test: test_auto_flip_countdown_to_chrono_editsec[basalt]
+14:32:01 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:32:01 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:32:04 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:32:04 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:32:15 [INFO] functional.test_edit_timer_direction: After zero-crossing state: {'event': 'button_back', 't': '0:55', 'm': 'EditSec', 'r': '0', 'p': '1', 'v': '0', 'd': '1', 'l': '1', 'c': '1'}
+PASSED                                                                   [ 61%]
+------------------------------ live log teardown -------------------------------
+14:32:15 [INFO] functional.conftest: [basalt] Quitting app after test: test_auto_flip_countdown_to_chrono_editsec[basalt]
+
+test/functional/test_edit_timer_direction.py::TestAutoDirectionFlip::test_continued_editing_after_auto_flip_new_mode[basalt] 
+-------------------------------- live log setup --------------------------------
+14:32:17 [INFO] functional.conftest: [basalt] Opening app for test: test_continued_editing_after_auto_flip_new_mode[basalt]
+14:32:17 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:32:17 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:32:20 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:32:20 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:32:28 [INFO] functional.test_edit_timer_direction: After adding 1 minute state: {'event': 'button_down', 't': '1:52', 'm': 'New', 'r': '0', 'p': '0', 'v': '0', 'd': '1', 'l': '1', 'c': '0'}
+PASSED                                                                   [ 61%]
+------------------------------ live log teardown -------------------------------
+14:32:28 [INFO] functional.conftest: [basalt] Quitting app after test: test_continued_editing_after_auto_flip_new_mode[basalt]
+
+test/functional/test_edit_timer_direction.py::TestAutoDirectionFlip::test_round_trip_zero_crossing_editsec[basalt] 
+-------------------------------- live log setup --------------------------------
+14:32:30 [INFO] functional.conftest: [basalt] Opening app for test: test_round_trip_zero_crossing_editsec[basalt]
+14:32:30 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:32:30 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:32:32 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:32:32 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:32:45 [INFO] functional.test_edit_timer_direction: After 2nd zero-crossing state: {'event': 'button_back', 't': '0:05', 'm': 'EditSec', 'r': '0', 'p': '1', 'v': '0', 'd': '1', 'l': '1', 'c': '0'}
+PASSED                                                                   [ 61%]
+------------------------------ live log teardown -------------------------------
+14:32:45 [INFO] functional.conftest: [basalt] Quitting app after test: test_round_trip_zero_crossing_editsec[basalt]
+
+test/functional/test_edit_timer_direction.py::TestZeroCrossingTypeConversion::test_countdown_to_chrono_via_subtraction_new_mode[chalk] 
+-------------------------------- live log setup --------------------------------
+14:32:47 [INFO] functional.conftest: [basalt] Tearing down - killing emulator
+SKIPPED (Skipping test for chalk since --platform=basalt was specified.) [ 62%]
+test/functional/test_edit_timer_direction.py::TestZeroCrossingTypeConversion::test_countdown_to_chrono_via_subtraction_editsec[chalk] SKIPPED [ 62%]
+test/functional/test_edit_timer_direction.py::TestAutoDirectionFlip::test_auto_flip_countdown_to_chrono_new_mode[chalk] SKIPPED [ 62%]
+test/functional/test_edit_timer_direction.py::TestAutoDirectionFlip::test_auto_flip_countdown_to_chrono_editsec[chalk] SKIPPED [ 62%]
+test/functional/test_edit_timer_direction.py::TestAutoDirectionFlip::test_continued_editing_after_auto_flip_new_mode[chalk] SKIPPED [ 62%]
+test/functional/test_edit_timer_direction.py::TestAutoDirectionFlip::test_round_trip_zero_crossing_editsec[chalk] SKIPPED [ 63%]
+test/functional/test_edit_timer_direction.py::TestZeroCrossingTypeConversion::test_countdown_to_chrono_via_subtraction_new_mode[diorite] SKIPPED [ 63%]
+test/functional/test_edit_timer_direction.py::TestZeroCrossingTypeConversion::test_countdown_to_chrono_via_subtraction_editsec[diorite] SKIPPED [ 63%]
+test/functional/test_edit_timer_direction.py::TestAutoDirectionFlip::test_auto_flip_countdown_to_chrono_new_mode[diorite] SKIPPED [ 63%]
+test/functional/test_edit_timer_direction.py::TestAutoDirectionFlip::test_auto_flip_countdown_to_chrono_editsec[diorite] SKIPPED [ 64%]
+test/functional/test_edit_timer_direction.py::TestAutoDirectionFlip::test_continued_editing_after_auto_flip_new_mode[diorite] SKIPPED [ 64%]
+test/functional/test_edit_timer_direction.py::TestAutoDirectionFlip::test_round_trip_zero_crossing_editsec[diorite] SKIPPED [ 64%]
+test/functional/test_hold_select_restart.py::TestRestartRunningCountdown::test_restart_running_countdown_preserves_running[aplite] SKIPPED [ 64%]
+test/functional/test_hold_select_restart.py::TestLongPressPausedCountdownResetsToEditSec::test_long_press_select_paused_countdown_resets_to_editsec[aplite] SKIPPED [ 65%]
+test/functional/test_hold_select_restart.py::TestRestartRunningChrono::test_restart_running_chrono_preserves_running[aplite] SKIPPED [ 65%]
+test/functional/test_hold_select_restart.py::TestLongPressPausedChronoResetsToEditSec::test_long_press_select_paused_chrono_resets_to_editsec[aplite] SKIPPED [ 65%]
+test/functional/test_hold_select_restart.py::TestRestartRepeatingTimerRestoresCount::test_restart_repeating_timer_restores_repeat_count[aplite] SKIPPED [ 65%]
+test/functional/test_hold_select_restart.py::TestRestartDuringAlarm::test_restart_during_alarm[aplite] SKIPPED [ 65%]
+test/functional/test_hold_select_restart.py::TestEditModeToggle::test_toggle_new_editsec_preserves_value[aplite] SKIPPED [ 66%]
+test/functional/test_hold_select_restart.py::TestRestartRunningCountdown::test_restart_running_countdown_preserves_running[basalt] 
+-------------------------------- live log setup --------------------------------
+14:32:51 [INFO] functional.test_hold_select_restart: [basalt] Starting warm-up cycle
+14:32:54 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:33:02 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:33:06 [INFO] functional.test_hold_select_restart: [basalt] Emulator ready for tests
+14:33:06 [INFO] functional.conftest: [basalt] Opening app for test: test_restart_running_countdown_preserves_running[basalt]
+14:33:06 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:33:06 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:33:09 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:33:09 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:33:18 [INFO] functional.test_hold_select_restart: After restart state: {'event': 'long_press_select', 't': '0:58', 'm': 'Counting', 'r': '0', 'p': '0', 'v': '0', 'd': '1', 'l': '0', 'c': '0'}
+PASSED                                                                   [ 66%]
+------------------------------ live log teardown -------------------------------
+14:33:18 [INFO] functional.conftest: [basalt] Quitting app after test: test_restart_running_countdown_preserves_running[basalt]
+
+test/functional/test_hold_select_restart.py::TestLongPressPausedCountdownResetsToEditSec::test_long_press_select_paused_countdown_resets_to_editsec[basalt] 
+-------------------------------- live log setup --------------------------------
+14:33:20 [INFO] functional.conftest: [basalt] Opening app for test: test_long_press_select_paused_countdown_resets_to_editsec[basalt]
+14:33:20 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:33:20 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:33:23 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:33:23 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:33:31 [INFO] functional.test_hold_select_restart: After reset state: {'event': 'long_press_select', 't': '0:00', 'm': 'EditSec', 'r': '0', 'p': '1', 'v': '0', 'd': '1', 'l': '1', 'c': '1'}
+PASSED                                                                   [ 66%]
+------------------------------ live log teardown -------------------------------
+14:33:31 [INFO] functional.conftest: [basalt] Quitting app after test: test_long_press_select_paused_countdown_resets_to_editsec[basalt]
+
+test/functional/test_hold_select_restart.py::TestRestartRunningChrono::test_restart_running_chrono_preserves_running[basalt] 
+-------------------------------- live log setup --------------------------------
+14:33:33 [INFO] functional.conftest: [basalt] Opening app for test: test_restart_running_chrono_preserves_running[basalt]
+14:33:33 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:33:33 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:33:36 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:33:36 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:33:45 [INFO] functional.test_hold_select_restart: After restart state: {'event': 'long_press_select', 't': '0:00', 'm': 'Counting', 'r': '0', 'p': '0', 'v': '0', 'd': '1', 'l': '0', 'c': '1'}
+PASSED                                                                   [ 66%]
+------------------------------ live log teardown -------------------------------
+14:33:45 [INFO] functional.conftest: [basalt] Quitting app after test: test_restart_running_chrono_preserves_running[basalt]
+
+test/functional/test_hold_select_restart.py::TestLongPressPausedChronoResetsToEditSec::test_long_press_select_paused_chrono_resets_to_editsec[basalt] 
+-------------------------------- live log setup --------------------------------
+14:33:47 [INFO] functional.conftest: [basalt] Opening app for test: test_long_press_select_paused_chrono_resets_to_editsec[basalt]
+14:33:47 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:33:47 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:33:50 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:33:50 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:33:59 [INFO] functional.test_hold_select_restart: After reset state: {'event': 'long_press_select', 't': '0:00', 'm': 'EditSec', 'r': '0', 'p': '1', 'v': '0', 'd': '1', 'l': '1', 'c': '1'}
+PASSED                                                                   [ 67%]
+------------------------------ live log teardown -------------------------------
+14:33:59 [INFO] functional.conftest: [basalt] Quitting app after test: test_long_press_select_paused_chrono_resets_to_editsec[basalt]
+
+test/functional/test_hold_select_restart.py::TestRestartRepeatingTimerRestoresCount::test_restart_repeating_timer_restores_repeat_count[basalt] 
+-------------------------------- live log setup --------------------------------
+14:34:01 [INFO] functional.conftest: [basalt] Opening app for test: test_restart_repeating_timer_restores_repeat_count[basalt]
+14:34:01 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:34:01 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:34:04 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:34:04 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:34:06 [INFO] functional.test_timer_workflows: [basalt] Setting up 15s timer: waiting for chrono mode
+14:34:19 [INFO] functional.test_timer_workflows: [basalt] Short timer set to 15s, waiting for expire
+14:34:24 [INFO] functional.test_timer_workflows: [basalt] Short timer started, counting down from 15s
+14:34:40 [INFO] functional.test_hold_select_restart: After restart state: {'event': 'long_press_select', 't': '0:15', 'm': 'Counting', 'r': '3', 'p': '0', 'v': '0', 'd': '1', 'l': '0', 'c': '0'}
+PASSED                                                                   [ 67%]
+------------------------------ live log teardown -------------------------------
+14:34:40 [INFO] functional.conftest: [basalt] Quitting app after test: test_restart_repeating_timer_restores_repeat_count[basalt]
+
+test/functional/test_hold_select_restart.py::TestRestartDuringAlarm::test_restart_during_alarm[basalt] 
+-------------------------------- live log setup --------------------------------
+14:34:41 [INFO] functional.conftest: [basalt] Opening app for test: test_restart_during_alarm[basalt]
+14:34:41 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:34:41 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:34:44 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:34:44 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:34:46 [INFO] functional.test_timer_workflows: [basalt] Setting up 4s timer: waiting for chrono mode
+14:34:53 [INFO] functional.test_timer_workflows: [basalt] Short timer set to 4s, waiting for expire
+14:34:57 [INFO] functional.test_timer_workflows: [basalt] Short timer started, counting down from 4s
+14:35:02 [INFO] functional.test_hold_select_restart: After restart state: {'event': 'long_press_select', 't': '0:04', 'm': 'Counting', 'r': '0', 'p': '0', 'v': '0', 'd': '1', 'l': '0', 'c': '0'}
+PASSED                                                                   [ 67%]
+------------------------------ live log teardown -------------------------------
+14:35:02 [INFO] functional.conftest: [basalt] Quitting app after test: test_restart_during_alarm[basalt]
+
+test/functional/test_hold_select_restart.py::TestEditModeToggle::test_toggle_new_editsec_preserves_value[basalt] 
+-------------------------------- live log setup --------------------------------
+14:35:04 [INFO] functional.conftest: [basalt] Opening app for test: test_toggle_new_editsec_preserves_value[basalt]
+14:35:04 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:35:04 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:35:07 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:35:07 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 67%]
+------------------------------ live log teardown -------------------------------
+14:35:15 [INFO] functional.conftest: [basalt] Quitting app after test: test_toggle_new_editsec_preserves_value[basalt]
+
+test/functional/test_hold_select_restart.py::TestRestartRunningCountdown::test_restart_running_countdown_preserves_running[chalk] SKIPPED [ 67%]
+test/functional/test_hold_select_restart.py::TestLongPressPausedCountdownResetsToEditSec::test_long_press_select_paused_countdown_resets_to_editsec[chalk] SKIPPED [ 68%]
+test/functional/test_hold_select_restart.py::TestRestartRunningChrono::test_restart_running_chrono_preserves_running[chalk] SKIPPED [ 68%]
+test/functional/test_hold_select_restart.py::TestLongPressPausedChronoResetsToEditSec::test_long_press_select_paused_chrono_resets_to_editsec[chalk] SKIPPED [ 68%]
+test/functional/test_hold_select_restart.py::TestRestartRepeatingTimerRestoresCount::test_restart_repeating_timer_restores_repeat_count[chalk] SKIPPED [ 68%]
+test/functional/test_hold_select_restart.py::TestRestartDuringAlarm::test_restart_during_alarm[chalk] SKIPPED [ 69%]
+test/functional/test_hold_select_restart.py::TestEditModeToggle::test_toggle_new_editsec_preserves_value[chalk] SKIPPED [ 69%]
+test/functional/test_hold_select_restart.py::TestRestartRunningCountdown::test_restart_running_countdown_preserves_running[diorite] SKIPPED [ 69%]
+test/functional/test_hold_select_restart.py::TestLongPressPausedCountdownResetsToEditSec::test_long_press_select_paused_countdown_resets_to_editsec[diorite] SKIPPED [ 69%]
+test/functional/test_hold_select_restart.py::TestRestartRunningChrono::test_restart_running_chrono_preserves_running[diorite] SKIPPED [ 70%]
+test/functional/test_hold_select_restart.py::TestLongPressPausedChronoResetsToEditSec::test_long_press_select_paused_chrono_resets_to_editsec[diorite] SKIPPED [ 70%]
+test/functional/test_hold_select_restart.py::TestRestartRepeatingTimerRestoresCount::test_restart_repeating_timer_restores_repeat_count[diorite] SKIPPED [ 70%]
+test/functional/test_hold_select_restart.py::TestRestartDuringAlarm::test_restart_during_alarm[diorite] SKIPPED [ 70%]
+test/functional/test_hold_select_restart.py::TestEditModeToggle::test_toggle_new_editsec_preserves_value[diorite] SKIPPED [ 70%]
+test/functional/test_log_based.py::TestLogBasedAssertions::test_up_button_increments_20_minutes_log_based[aplite] SKIPPED [ 71%]
+test/functional/test_log_based.py::TestLogBasedAssertions::test_init_state_log[aplite] SKIPPED [ 71%]
+test/functional/test_log_based.py::TestLogBasedAssertions::test_multiple_button_presses_log_sequence[aplite] SKIPPED [ 71%]
+test/functional/test_log_based.py::TestLogBasedAssertions::test_mode_transition_via_logs[aplite] SKIPPED [ 71%]
+test/functional/test_log_based.py::TestLogBasedAssertions::test_up_button_increments_20_minutes_log_based[basalt] 
+-------------------------------- live log setup --------------------------------
+14:35:21 [INFO] functional.conftest: [basalt] Starting warm-up cycle to clear stale state
+14:35:25 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:35:33 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:35:33 [INFO] functional.conftest: [basalt] Waiting for emulator to stabilize (2s)
+14:35:35 [INFO] functional.conftest: [basalt] Holding down button to quit app and set persist state
+14:35:36 [INFO] functional.conftest: [basalt] App quit via long press, persist state set
+14:35:37 [INFO] functional.conftest: [basalt] Emulator ready for tests
+14:35:37 [INFO] functional.conftest: [basalt] Opening app for test: test_up_button_increments_20_minutes_log_based[basalt]
+14:35:37 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:35:37 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:35:40 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:35:40 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:35:41 [INFO] functional.test_log_based: All captured logs: ['[14:35:41] utility.c:56> TEST_STATE:button_up,t=19:58,m=New,r=0,p=0,v=0,d=1,l=1,c=0']
+14:35:41 [INFO] functional.test_log_based: Received state: {'event': 'button_up', 't': '19:58', 'm': 'New', 'r': '0', 'p': '0', 'v': '0', 'd': '1', 'l': '1', 'c': '0'}
+PASSED                                                                   [ 72%]
+------------------------------ live log teardown -------------------------------
+14:35:41 [INFO] functional.conftest: [basalt] Quitting app after test: test_up_button_increments_20_minutes_log_based[basalt]
+
+test/functional/test_log_based.py::TestLogBasedAssertions::test_init_state_log[basalt] 
+-------------------------------- live log setup --------------------------------
+14:35:43 [INFO] functional.conftest: [basalt] Opening app for test: test_init_state_log[basalt]
+14:35:43 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:35:43 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:35:46 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:35:46 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:35:47 [INFO] functional.test_log_based: All captured states: []
+14:35:47 [INFO] functional.test_log_based: Init log was likely emitted before capture started (expected)
+PASSED                                                                   [ 72%]
+------------------------------ live log teardown -------------------------------
+14:35:47 [INFO] functional.conftest: [basalt] Quitting app after test: test_init_state_log[basalt]
+
+test/functional/test_log_based.py::TestLogBasedAssertions::test_multiple_button_presses_log_sequence[basalt] 
+-------------------------------- live log setup --------------------------------
+14:35:49 [INFO] functional.conftest: [basalt] Opening app for test: test_multiple_button_presses_log_sequence[basalt]
+14:35:49 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:35:49 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:35:52 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:35:52 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:35:54 [INFO] functional.test_log_based: State after first Down: {'event': 'button_down', 't': '0:58', 'm': 'New', 'r': '0', 'p': '0', 'v': '0', 'd': '1', 'l': '1', 'c': '0'}
+14:35:54 [INFO] functional.test_log_based: State after second Down: {'event': 'button_down', 't': '1:57', 'm': 'New', 'r': '0', 'p': '0', 'v': '0', 'd': '1', 'l': '1', 'c': '0'}
+PASSED                                                                   [ 72%]
+------------------------------ live log teardown -------------------------------
+14:35:54 [INFO] functional.conftest: [basalt] Quitting app after test: test_multiple_button_presses_log_sequence[basalt]
+
+test/functional/test_log_based.py::TestLogBasedAssertions::test_mode_transition_via_logs[basalt] 
+-------------------------------- live log setup --------------------------------
+14:35:56 [INFO] functional.conftest: [basalt] Opening app for test: test_mode_transition_via_logs[basalt]
+14:35:56 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:35:56 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:35:59 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:35:59 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:36:03 [INFO] functional.test_log_based: Mode change state: {'event': 'mode_change', 't': '0:55', 'm': 'Counting', 'r': '0', 'p': '0', 'v': '0', 'd': '1', 'l': '0', 'c': '0'}
+PASSED                                                                   [ 72%]
+------------------------------ live log teardown -------------------------------
+14:36:03 [INFO] functional.conftest: [basalt] Quitting app after test: test_mode_transition_via_logs[basalt]
+
+test/functional/test_log_based.py::TestLogBasedAssertions::test_up_button_increments_20_minutes_log_based[chalk] 
+-------------------------------- live log setup --------------------------------
+14:36:05 [INFO] functional.conftest: [basalt] Tearing down - killing emulator
+SKIPPED (Skipping test for chalk since --platform=basalt was specified.) [ 72%]
+test/functional/test_log_based.py::TestLogBasedAssertions::test_init_state_log[chalk] SKIPPED [ 73%]
+test/functional/test_log_based.py::TestLogBasedAssertions::test_multiple_button_presses_log_sequence[chalk] SKIPPED [ 73%]
+test/functional/test_log_based.py::TestLogBasedAssertions::test_mode_transition_via_logs[chalk] SKIPPED [ 73%]
+test/functional/test_log_based.py::TestLogBasedAssertions::test_up_button_increments_20_minutes_log_based[diorite] SKIPPED [ 73%]
+test/functional/test_log_based.py::TestLogBasedAssertions::test_init_state_log[diorite] SKIPPED [ 74%]
+test/functional/test_log_based.py::TestLogBasedAssertions::test_multiple_button_presses_log_sequence[diorite] SKIPPED [ 74%]
+test/functional/test_log_based.py::TestLogBasedAssertions::test_mode_transition_via_logs[diorite] SKIPPED [ 74%]
+test/functional/test_repeat_counter_visibility.py::TestRepeatCounterVisibility::test_editrepeat_shows_repeat_counter[aplite] SKIPPED [ 74%]
+test/functional/test_repeat_counter_visibility.py::TestRepeatCounterVisibility::test_counting_mode_up_region_with_repeats[aplite] SKIPPED [ 75%]
+test/functional/test_repeat_counter_visibility.py::TestRepeatCounterVisibility::test_new_mode_baseline_has_plus_20_icon[aplite] SKIPPED [ 75%]
+test/functional/test_repeat_counter_visibility.py::TestRepeatCounterVisibility::test_new_mode_with_repeats_hides_plus_20_icon[aplite] SKIPPED [ 75%]
+test/functional/test_repeat_counter_visibility.py::TestRepeatCounterVisibility::test_editsec_mode_with_repeats_hides_plus_20_icon[aplite] SKIPPED [ 75%]
+test/functional/test_repeat_counter_visibility.py::TestRepeatCounterVisibility::test_new_mode_reverse_with_repeats_hides_minus_20_icon[aplite] SKIPPED [ 75%]
+test/functional/test_repeat_counter_visibility.py::TestIconOverlapPrevention::test_editrepeat_up_region_empty_during_flash_off[aplite] SKIPPED [ 76%]
+test/functional/test_repeat_counter_visibility.py::TestRepeatCounterVisibility::test_editrepeat_shows_repeat_counter[basalt] 
+-------------------------------- live log setup --------------------------------
+14:36:06 [INFO] functional.conftest: [basalt] Starting warm-up cycle to clear stale state
+14:36:11 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:36:19 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:36:19 [INFO] functional.conftest: [basalt] Waiting for emulator to stabilize (2s)
+14:36:21 [INFO] functional.conftest: [basalt] Holding down button to quit app and set persist state
+14:36:23 [INFO] functional.conftest: [basalt] App quit via long press, persist state set
+14:36:23 [INFO] functional.conftest: [basalt] Emulator ready for tests
+14:36:23 [INFO] functional.conftest: [basalt] Opening app for test: test_editrepeat_shows_repeat_counter[basalt]
+14:36:23 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:36:23 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:36:26 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:36:26 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:36:36 [INFO] functional.test_repeat_counter_visibility: Screenshot saved: /home/jared/Workspace/pebble-timer-quick/test/functional/screenshots/test_repeat_counter_basalt_editrepeat.png
+FAILED                                                                   [ 76%]
+------------------------------ live log teardown -------------------------------
+14:36:36 [INFO] functional.conftest: [basalt] Quitting app after test: test_editrepeat_shows_repeat_counter[basalt]
+
+test/functional/test_repeat_counter_visibility.py::TestRepeatCounterVisibility::test_counting_mode_up_region_with_repeats[basalt] 
+-------------------------------- live log setup --------------------------------
+14:36:37 [INFO] functional.conftest: [basalt] Opening app for test: test_counting_mode_up_region_with_repeats[basalt]
+14:36:37 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:36:37 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:36:40 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:36:40 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:36:51 [INFO] functional.test_repeat_counter_visibility: Screenshot saved: /home/jared/Workspace/pebble-timer-quick/test/functional/screenshots/test_repeat_counter_basalt_counting_repeats.png
+14:36:51 [INFO] functional.test_repeat_counter_visibility: UP region has content: True
+14:36:51 [WARNING] functional.test_button_icons: Icon mask mismatch for 'counting_up' on basalt: 178 pixels differ (tolerance=10)
+PASSED                                                                   [ 76%]
+------------------------------ live log teardown -------------------------------
+14:36:51 [INFO] functional.conftest: [basalt] Quitting app after test: test_counting_mode_up_region_with_repeats[basalt]
+
+test/functional/test_repeat_counter_visibility.py::TestRepeatCounterVisibility::test_new_mode_baseline_has_plus_20_icon[basalt] 
+-------------------------------- live log setup --------------------------------
+14:36:53 [INFO] functional.conftest: [basalt] Opening app for test: test_new_mode_baseline_has_plus_20_icon[basalt]
+14:36:53 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:36:53 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:36:55 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:36:55 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:36:59 [INFO] functional.test_repeat_counter_visibility: Screenshot saved: /home/jared/Workspace/pebble-timer-quick/test/functional/screenshots/test_repeat_counter_basalt_new_baseline.png
+14:36:59 [INFO] functional.test_repeat_counter_visibility: New mode UP region non-bg pixels: 121
+PASSED                                                                   [ 76%]
+------------------------------ live log teardown -------------------------------
+14:36:59 [INFO] functional.conftest: [basalt] Quitting app after test: test_new_mode_baseline_has_plus_20_icon[basalt]
+
+test/functional/test_repeat_counter_visibility.py::TestRepeatCounterVisibility::test_new_mode_with_repeats_hides_plus_20_icon[basalt] 
+-------------------------------- live log setup --------------------------------
+14:37:00 [INFO] functional.conftest: [basalt] Opening app for test: test_new_mode_with_repeats_hides_plus_20_icon[basalt]
+14:37:00 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:37:00 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:37:03 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:37:03 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:37:15 [INFO] functional.test_repeat_counter_visibility: Screenshot saved: /home/jared/Workspace/pebble-timer-quick/test/functional/screenshots/test_repeat_counter_basalt_new_with_repeats.png
+14:37:15 [INFO] functional.test_repeat_counter_visibility: New mode (with repeats) UP region non-bg pixels: 148
+14:37:15 [WARNING] functional.test_button_icons: Icon mask mismatch for 'new_up' on basalt: 151 pixels differ (tolerance=10)
+PASSED                                                                   [ 77%]
+------------------------------ live log teardown -------------------------------
+14:37:15 [INFO] functional.conftest: [basalt] Quitting app after test: test_new_mode_with_repeats_hides_plus_20_icon[basalt]
+
+test/functional/test_repeat_counter_visibility.py::TestRepeatCounterVisibility::test_editsec_mode_with_repeats_hides_plus_20_icon[basalt] 
+-------------------------------- live log setup --------------------------------
+14:37:16 [INFO] functional.conftest: [basalt] Opening app for test: test_editsec_mode_with_repeats_hides_plus_20_icon[basalt]
+14:37:16 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:37:16 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:37:19 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:37:19 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:37:32 [INFO] functional.test_repeat_counter_visibility: Screenshot saved: /home/jared/Workspace/pebble-timer-quick/test/functional/screenshots/test_repeat_counter_basalt_editsec_with_repeats.png
+14:37:32 [INFO] functional.test_repeat_counter_visibility: EditSec mode (with repeats) UP region non-bg pixels: 148
+14:37:32 [WARNING] functional.test_button_icons: Icon mask mismatch for 'editsec_up' on basalt: 151 pixels differ (tolerance=10)
+PASSED                                                                   [ 77%]
+------------------------------ live log teardown -------------------------------
+14:37:32 [INFO] functional.conftest: [basalt] Quitting app after test: test_editsec_mode_with_repeats_hides_plus_20_icon[basalt]
+
+test/functional/test_repeat_counter_visibility.py::TestRepeatCounterVisibility::test_new_mode_reverse_with_repeats_hides_minus_20_icon[basalt] 
+-------------------------------- live log setup --------------------------------
+14:37:33 [INFO] functional.conftest: [basalt] Opening app for test: test_new_mode_reverse_with_repeats_hides_minus_20_icon[basalt]
+14:37:33 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:37:33 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:37:36 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:37:36 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:37:49 [INFO] functional.test_repeat_counter_visibility: Screenshot saved: /home/jared/Workspace/pebble-timer-quick/test/functional/screenshots/test_repeat_counter_basalt_new_reverse_with_repeats.png
+14:37:49 [INFO] functional.test_repeat_counter_visibility: New mode reverse (with repeats) UP region non-bg pixels: 148
+14:37:49 [WARNING] functional.test_button_icons: Icon mask mismatch for 'new_up_reverse' on basalt: 179 pixels differ (tolerance=10)
+PASSED                                                                   [ 77%]
+------------------------------ live log teardown -------------------------------
+14:37:50 [INFO] functional.conftest: [basalt] Quitting app after test: test_new_mode_reverse_with_repeats_hides_minus_20_icon[basalt]
+
+test/functional/test_repeat_counter_visibility.py::TestIconOverlapPrevention::test_editrepeat_up_region_empty_during_flash_off[basalt] 
+-------------------------------- live log setup --------------------------------
+14:37:51 [INFO] functional.conftest: [basalt] Opening app for test: test_editrepeat_up_region_empty_during_flash_off[basalt]
+14:37:51 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:37:51 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:37:54 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:37:54 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:38:14 [INFO] functional.test_repeat_counter_visibility: UP region pixel counts across 6 screenshots: [121, 34, 34, 138, 141, 34] (min=34, max=141)
+PASSED                                                                   [ 77%]
+------------------------------ live log teardown -------------------------------
+14:38:14 [INFO] functional.conftest: [basalt] Quitting app after test: test_editrepeat_up_region_empty_during_flash_off[basalt]
+
+test/functional/test_repeat_counter_visibility.py::TestRepeatCounterVisibility::test_editrepeat_shows_repeat_counter[chalk] 
+-------------------------------- live log setup --------------------------------
+14:38:16 [INFO] functional.conftest: [basalt] Tearing down - killing emulator
+SKIPPED (Skipping test for chalk since --platform=basalt was specified.) [ 77%]
+test/functional/test_repeat_counter_visibility.py::TestRepeatCounterVisibility::test_counting_mode_up_region_with_repeats[chalk] SKIPPED [ 78%]
+test/functional/test_repeat_counter_visibility.py::TestRepeatCounterVisibility::test_new_mode_baseline_has_plus_20_icon[chalk] SKIPPED [ 78%]
+test/functional/test_repeat_counter_visibility.py::TestRepeatCounterVisibility::test_new_mode_with_repeats_hides_plus_20_icon[chalk] SKIPPED [ 78%]
+test/functional/test_repeat_counter_visibility.py::TestRepeatCounterVisibility::test_editsec_mode_with_repeats_hides_plus_20_icon[chalk] SKIPPED [ 78%]
+test/functional/test_repeat_counter_visibility.py::TestRepeatCounterVisibility::test_new_mode_reverse_with_repeats_hides_minus_20_icon[chalk] SKIPPED [ 79%]
+test/functional/test_repeat_counter_visibility.py::TestIconOverlapPrevention::test_editrepeat_up_region_empty_during_flash_off[chalk] SKIPPED [ 79%]
+test/functional/test_repeat_counter_visibility.py::TestRepeatCounterVisibility::test_editrepeat_shows_repeat_counter[diorite] SKIPPED [ 79%]
+test/functional/test_repeat_counter_visibility.py::TestRepeatCounterVisibility::test_counting_mode_up_region_with_repeats[diorite] SKIPPED [ 79%]
+test/functional/test_repeat_counter_visibility.py::TestRepeatCounterVisibility::test_new_mode_baseline_has_plus_20_icon[diorite] SKIPPED [ 80%]
+test/functional/test_repeat_counter_visibility.py::TestRepeatCounterVisibility::test_new_mode_with_repeats_hides_plus_20_icon[diorite] SKIPPED [ 80%]
+test/functional/test_repeat_counter_visibility.py::TestRepeatCounterVisibility::test_editsec_mode_with_repeats_hides_plus_20_icon[diorite] SKIPPED [ 80%]
+test/functional/test_repeat_counter_visibility.py::TestRepeatCounterVisibility::test_new_mode_reverse_with_repeats_hides_minus_20_icon[diorite] SKIPPED [ 80%]
+test/functional/test_repeat_counter_visibility.py::TestIconOverlapPrevention::test_editrepeat_up_region_empty_during_flash_off[diorite] SKIPPED [ 80%]
+test/functional/test_stopwatch_subtraction.py::TestStopwatchSubtraction::test_chrono_subtraction_converts_to_countdown[aplite] SKIPPED [ 81%]
+test/functional/test_stopwatch_subtraction.py::TestStopwatchSubtraction::test_chrono_subtraction_multiple_minutes[aplite] SKIPPED [ 81%]
+test/functional/test_stopwatch_subtraction.py::TestStopwatchSubtraction::test_chrono_add_then_subtract[aplite] SKIPPED [ 81%]
+test/functional/test_stopwatch_subtraction.py::TestStopwatchSubtraction::test_chrono_subtraction_converts_to_countdown[basalt] 
+-------------------------------- live log setup --------------------------------
+14:38:20 [INFO] functional.conftest: [basalt] Starting warm-up cycle to clear stale state
+14:38:24 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:38:32 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:38:32 [INFO] functional.conftest: [basalt] Waiting for emulator to stabilize (2s)
+14:38:34 [INFO] functional.conftest: [basalt] Holding down button to quit app and set persist state
+14:38:35 [INFO] functional.conftest: [basalt] App quit via long press, persist state set
+14:38:36 [INFO] functional.conftest: [basalt] Emulator ready for tests
+14:38:36 [INFO] functional.conftest: [basalt] Opening app for test: test_chrono_subtraction_converts_to_countdown[basalt]
+14:38:36 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:38:36 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:38:39 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:38:39 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:38:40 [INFO] functional.test_stopwatch_subtraction: Waiting for chrono mode...
+14:38:46 [INFO] functional.test_stopwatch_subtraction: After subtraction state: {'event': 'button_down', 't': '0:54', 'm': 'New', 'r': '0', 'p': '1', 'v': '0', 'd': '1', 'l': '1', 'c': '0'}
+PASSED                                                                   [ 81%]
+------------------------------ live log teardown -------------------------------
+14:38:46 [INFO] functional.conftest: [basalt] Quitting app after test: test_chrono_subtraction_converts_to_countdown[basalt]
+
+test/functional/test_stopwatch_subtraction.py::TestStopwatchSubtraction::test_chrono_subtraction_multiple_minutes[basalt] 
+-------------------------------- live log setup --------------------------------
+14:38:48 [INFO] functional.conftest: [basalt] Opening app for test: test_chrono_subtraction_multiple_minutes[basalt]
+14:38:48 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:38:48 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:38:51 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:38:51 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 82%]
+------------------------------ live log teardown -------------------------------
+14:38:59 [INFO] functional.conftest: [basalt] Quitting app after test: test_chrono_subtraction_multiple_minutes[basalt]
+
+test/functional/test_stopwatch_subtraction.py::TestStopwatchSubtraction::test_chrono_add_then_subtract[basalt] 
+-------------------------------- live log setup --------------------------------
+14:39:01 [INFO] functional.conftest: [basalt] Opening app for test: test_chrono_add_then_subtract[basalt]
+14:39:01 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:39:01 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:39:04 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:39:04 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 82%]
+------------------------------ live log teardown -------------------------------
+14:39:12 [INFO] functional.conftest: [basalt] Quitting app after test: test_chrono_add_then_subtract[basalt]
+
+test/functional/test_stopwatch_subtraction.py::TestStopwatchSubtraction::test_chrono_subtraction_converts_to_countdown[chalk] 
+-------------------------------- live log setup --------------------------------
+14:39:14 [INFO] functional.conftest: [basalt] Tearing down - killing emulator
+SKIPPED (Skipping test for chalk since --platform=basalt was specified.) [ 82%]
+test/functional/test_stopwatch_subtraction.py::TestStopwatchSubtraction::test_chrono_subtraction_multiple_minutes[chalk] SKIPPED [ 82%]
+test/functional/test_stopwatch_subtraction.py::TestStopwatchSubtraction::test_chrono_add_then_subtract[chalk] SKIPPED [ 82%]
+test/functional/test_stopwatch_subtraction.py::TestStopwatchSubtraction::test_chrono_subtraction_converts_to_countdown[diorite] SKIPPED [ 83%]
+test/functional/test_stopwatch_subtraction.py::TestStopwatchSubtraction::test_chrono_subtraction_multiple_minutes[diorite] SKIPPED [ 83%]
+test/functional/test_stopwatch_subtraction.py::TestStopwatchSubtraction::test_chrono_add_then_subtract[diorite] SKIPPED [ 83%]
+test/functional/test_timer_workflows.py::TestEditRunningTimer::test_edit_running_timer[aplite] SKIPPED [ 83%]
+test/functional/test_timer_workflows.py::TestSetShortTimer::test_set_4_second_timer[aplite] SKIPPED [ 84%]
+test/functional/test_timer_workflows.py::TestSnoozeCompletedTimer::test_snooze_completed_timer[aplite] SKIPPED [ 84%]
+test/functional/test_timer_workflows.py::TestRepeatCompletedTimer::test_repeat_completed_timer[aplite] SKIPPED [ 84%]
+test/functional/test_timer_workflows.py::TestQuietAlarmBackButton::test_quiet_alarm_with_back_button[aplite] SKIPPED [ 84%]
+test/functional/test_timer_workflows.py::TestPauseCompletedTimer::test_pause_completed_timer[aplite] SKIPPED [ 85%]
+test/functional/test_timer_workflows.py::TestEditCompletedTimer::test_edit_completed_timer_add_minute[aplite] SKIPPED [ 85%]
+test/functional/test_timer_workflows.py::TestEnableRepeatingTimer::test_enable_repeating_timer[aplite] SKIPPED [ 85%]
+test/functional/test_timer_workflows.py::TestEditModeToggle::test_long_press_select_toggles_new_to_editsec[aplite] SKIPPED [ 85%]
+test/functional/test_timer_workflows.py::TestEditModeToggle::test_long_press_select_toggles_editsec_to_new[aplite] SKIPPED [ 85%]
+test/functional/test_timer_workflows.py::TestEditSecModeToggle::test_long_press_select_in_edit_sec_mode_toggles_to_new[aplite] SKIPPED [ 86%]
+test/functional/test_timer_workflows.py::TestEditRepeatModeNoOp::test_long_press_select_in_edit_repeat_mode_does_nothing[aplite] SKIPPED [ 86%]
+test/functional/test_timer_workflows.py::TestRepeatTimerDuringAlarm::test_hold_up_during_alarm_repeats_timer[aplite] SKIPPED [ 86%]
+test/functional/test_timer_workflows.py::TestRepeatTimerDuringAlarm::test_hold_up_during_longer_alarm_repeats_timer[aplite] SKIPPED [ 86%]
+test/functional/test_timer_workflows.py::TestRepeatTimerDuringAlarm::test_hold_up_during_longer_alarm_repeats_timer_old_method[aplite] SKIPPED [ 87%]
+test/functional/test_timer_workflows.py::TestSubMinuteTimerStaysPaused::test_sub_minute_timer_stays_paused_after_edit_expires[aplite] SKIPPED [ 87%]
+test/functional/test_timer_workflows.py::TestMinuteAndSecondsTimerStaysPaused::test_minute_and_seconds_timer_stays_paused[aplite] SKIPPED [ 87%]
+test/functional/test_timer_workflows.py::TestEditRepeatBackButton::test_back_button_resets_repeat_count_to_zero[aplite] SKIPPED [ 87%]
+test/functional/test_timer_workflows.py::TestEditRunningTimer::test_edit_running_timer[basalt] 
+-------------------------------- live log setup --------------------------------
+14:39:14 [INFO] functional.test_timer_workflows: [basalt] Starting warm-up cycle to clear stale state
+14:39:18 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:39:26 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:39:26 [INFO] functional.test_timer_workflows: [basalt] Waiting for emulator to stabilize (2s)
+14:39:28 [INFO] functional.test_timer_workflows: [basalt] Holding down button to quit app and set persist state
+14:39:30 [INFO] functional.test_timer_workflows: [basalt] App quit via long press, persist state set
+14:39:31 [INFO] functional.test_timer_workflows: [basalt] Emulator ready for tests
+14:39:31 [INFO] functional.conftest: [basalt] Opening app for test: test_edit_running_timer[basalt]
+14:39:31 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:39:31 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:39:34 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:39:34 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:39:41 [INFO] functional.test_timer_workflows: Edit mode state: {'event': 'button_up', 't': '1:52', 'm': 'New', 'r': '0', 'p': '0', 'v': '0', 'd': '1', 'l': '1', 'c': '0'}
+14:39:42 [INFO] functional.test_timer_workflows: After adding time state: {'event': 'button_down', 't': '2:52', 'm': 'New', 'r': '0', 'p': '0', 'v': '0', 'd': '1', 'l': '1', 'c': '0'}
+14:39:44 [INFO] functional.test_timer_workflows: Resumed counting state: {'event': 'mode_change', 't': '2:49', 'm': 'Counting', 'r': '0', 'p': '0', 'v': '0', 'd': '1', 'l': '0', 'c': '0'}
+PASSED                                                                   [ 87%]
+------------------------------ live log teardown -------------------------------
+14:39:44 [INFO] functional.conftest: [basalt] Quitting app after test: test_edit_running_timer[basalt]
+
+test/functional/test_timer_workflows.py::TestSetShortTimer::test_set_4_second_timer[basalt] 
+-------------------------------- live log setup --------------------------------
+14:39:46 [INFO] functional.conftest: [basalt] Opening app for test: test_set_4_second_timer[basalt]
+14:39:46 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:39:46 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:39:49 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:39:49 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:39:49 [INFO] functional.test_timer_workflows: [basalt] Setting up 4s timer: waiting for chrono mode
+14:39:57 [INFO] functional.test_timer_workflows: [basalt] Short timer set to 4s, waiting for expire
+14:40:01 [INFO] functional.test_timer_workflows: [basalt] Short timer started, counting down from 4s
+14:40:04 [INFO] functional.test_timer_workflows: Short timer running text: € e 00;04 pz 1440 Ker M J
+14:40:04 [INFO] functional.test_timer_workflows: Short timer normalized:   00:04  1440   
+PASSED                                                                   [ 88%]
+------------------------------ live log teardown -------------------------------
+14:40:04 [INFO] functional.conftest: [basalt] Quitting app after test: test_set_4_second_timer[basalt]
+
+test/functional/test_timer_workflows.py::TestSnoozeCompletedTimer::test_snooze_completed_timer[basalt] 
+-------------------------------- live log setup --------------------------------
+14:40:06 [INFO] functional.conftest: [basalt] Opening app for test: test_snooze_completed_timer[basalt]
+14:40:06 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:40:06 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:40:08 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:40:08 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:40:10 [INFO] functional.test_timer_workflows: [basalt] Setting up 4s timer: waiting for chrono mode
+14:40:17 [INFO] functional.test_timer_workflows: [basalt] Short timer set to 4s, waiting for expire
+14:40:21 [INFO] functional.test_timer_workflows: [basalt] Short timer started, counting down from 4s
+14:40:21 [INFO] functional.test_timer_workflows: Waiting for alarm to start...
+14:40:25 [INFO] functional.test_timer_workflows: Alarm started: {'event': 'alarm_start', 't': '0:00', 'm': 'Counting', 'r': '0', 'p': '0', 'v': '1', 'd': '1', 'l': '1', 'c': '1'}
+14:40:25 [INFO] functional.test_timer_workflows: After snooze state: {'event': 'button_down', 't': '4:59', 'm': 'Counting', 'r': '0', 'p': '0', 'v': '0', 'd': '1', 'l': '0', 'c': '0'}
+PASSED                                                                   [ 88%]
+------------------------------ live log teardown -------------------------------
+14:40:25 [INFO] functional.conftest: [basalt] Quitting app after test: test_snooze_completed_timer[basalt]
+
+test/functional/test_timer_workflows.py::TestRepeatCompletedTimer::test_repeat_completed_timer[basalt] 
+-------------------------------- live log setup --------------------------------
+14:40:27 [INFO] functional.conftest: [basalt] Opening app for test: test_repeat_completed_timer[basalt]
+14:40:27 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:40:27 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:40:30 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:40:30 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:40:31 [INFO] functional.test_timer_workflows: [basalt] Setting up 4s timer: waiting for chrono mode
+14:40:39 [INFO] functional.test_timer_workflows: [basalt] Short timer set to 4s, waiting for expire
+14:40:43 [INFO] functional.test_timer_workflows: [basalt] Short timer started, counting down from 4s
+14:40:48 [INFO] functional.test_timer_workflows: After repeat state: {'event': 'long_press_up', 't': '0:03', 'm': 'Counting', 'r': '0', 'p': '0', 'v': '0', 'd': '1', 'l': '0', 'c': '0'}
+PASSED                                                                   [ 88%]
+------------------------------ live log teardown -------------------------------
+14:40:48 [INFO] functional.conftest: [basalt] Quitting app after test: test_repeat_completed_timer[basalt]
+
+test/functional/test_timer_workflows.py::TestQuietAlarmBackButton::test_quiet_alarm_with_back_button[basalt] 
+-------------------------------- live log setup --------------------------------
+14:40:50 [INFO] functional.conftest: [basalt] Opening app for test: test_quiet_alarm_with_back_button[basalt]
+14:40:50 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:40:50 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:40:52 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:40:52 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:40:54 [INFO] functional.test_timer_workflows: [basalt] Setting up 4s timer: waiting for chrono mode
+14:41:01 [INFO] functional.test_timer_workflows: [basalt] Short timer set to 4s, waiting for expire
+14:41:05 [INFO] functional.test_timer_workflows: [basalt] Short timer started, counting down from 4s
+14:41:09 [INFO] functional.test_timer_workflows: After silence state: {'event': 'button_back', 't': '0:00', 'm': 'Counting', 'r': '0', 'p': '0', 'v': '0', 'd': '1', 'l': '0', 'c': '1'}
+PASSED                                                                   [ 88%]
+------------------------------ live log teardown -------------------------------
+14:41:09 [INFO] functional.conftest: [basalt] Quitting app after test: test_quiet_alarm_with_back_button[basalt]
+
+test/functional/test_timer_workflows.py::TestPauseCompletedTimer::test_pause_completed_timer[basalt] 
+-------------------------------- live log setup --------------------------------
+14:41:11 [INFO] functional.conftest: [basalt] Opening app for test: test_pause_completed_timer[basalt]
+14:41:11 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:41:11 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:41:14 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:41:14 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:41:15 [INFO] functional.test_timer_workflows: [basalt] Setting up 4s timer: waiting for chrono mode
+14:41:22 [INFO] functional.test_timer_workflows: [basalt] Short timer set to 4s, waiting for expire
+14:41:27 [INFO] functional.test_timer_workflows: [basalt] Short timer started, counting down from 4s
+14:41:31 [INFO] functional.test_timer_workflows: After pause state: {'event': 'button_select', 't': '0:00', 'm': 'Counting', 'r': '0', 'p': '1', 'v': '0', 'd': '1', 'l': '0', 'c': '1'}
+PASSED                                                                   [ 89%]
+------------------------------ live log teardown -------------------------------
+14:41:31 [INFO] functional.conftest: [basalt] Quitting app after test: test_pause_completed_timer[basalt]
+
+test/functional/test_timer_workflows.py::TestEditCompletedTimer::test_edit_completed_timer_add_minute[basalt] 
+-------------------------------- live log setup --------------------------------
+14:41:32 [INFO] functional.conftest: [basalt] Opening app for test: test_edit_completed_timer_add_minute[basalt]
+14:41:32 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:41:32 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:41:35 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:41:35 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:41:37 [INFO] functional.test_timer_workflows: [basalt] Setting up 4s timer: waiting for chrono mode
+14:41:44 [INFO] functional.test_timer_workflows: [basalt] Short timer set to 4s, waiting for expire
+14:41:48 [INFO] functional.test_timer_workflows: [basalt] Short timer started, counting down from 4s
+14:41:52 [INFO] functional.test_timer_workflows: After adding minute state: {'event': 'button_down', 't': '0:59', 'm': 'New', 'r': '0', 'p': '0', 'v': '0', 'd': '1', 'l': '1', 'c': '0'}
+PASSED                                                                   [ 89%]
+------------------------------ live log teardown -------------------------------
+14:41:52 [INFO] functional.conftest: [basalt] Quitting app after test: test_edit_completed_timer_add_minute[basalt]
+
+test/functional/test_timer_workflows.py::TestEnableRepeatingTimer::test_enable_repeating_timer[basalt] 
+-------------------------------- live log setup --------------------------------
+14:41:54 [INFO] functional.conftest: [basalt] Opening app for test: test_enable_repeating_timer[basalt]
+14:41:54 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:41:54 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:41:57 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:41:57 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:41:58 [INFO] functional.test_timer_workflows: [basalt] Setting up 10s timer: waiting for chrono mode
+14:42:09 [INFO] functional.test_timer_workflows: [basalt] Short timer set to 10s, waiting for expire
+14:42:13 [INFO] functional.test_timer_workflows: [basalt] Short timer started, counting down from 10s
+14:42:19 [INFO] functional.test_timer_workflows: Waiting for timer to expire and restart...
+PASSED                                                                   [ 89%]
+------------------------------ live log teardown -------------------------------
+14:42:23 [INFO] functional.conftest: [basalt] Quitting app after test: test_enable_repeating_timer[basalt]
+
+test/functional/test_timer_workflows.py::TestEditModeToggle::test_long_press_select_toggles_new_to_editsec[basalt] 
+-------------------------------- live log setup --------------------------------
+14:42:25 [INFO] functional.conftest: [basalt] Opening app for test: test_long_press_select_toggles_new_to_editsec[basalt]
+14:42:25 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:42:25 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:42:28 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:42:28 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 89%]
+------------------------------ live log teardown -------------------------------
+14:42:35 [INFO] functional.conftest: [basalt] Quitting app after test: test_long_press_select_toggles_new_to_editsec[basalt]
+
+test/functional/test_timer_workflows.py::TestEditModeToggle::test_long_press_select_toggles_editsec_to_new[basalt] 
+-------------------------------- live log setup --------------------------------
+14:42:37 [INFO] functional.conftest: [basalt] Opening app for test: test_long_press_select_toggles_editsec_to_new[basalt]
+14:42:37 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:42:37 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:42:39 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:42:39 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 90%]
+------------------------------ live log teardown -------------------------------
+14:42:49 [INFO] functional.conftest: [basalt] Quitting app after test: test_long_press_select_toggles_editsec_to_new[basalt]
+
+test/functional/test_timer_workflows.py::TestEditSecModeToggle::test_long_press_select_in_edit_sec_mode_toggles_to_new[basalt] 
+-------------------------------- live log setup --------------------------------
+14:42:51 [INFO] functional.conftest: [basalt] Opening app for test: test_long_press_select_in_edit_sec_mode_toggles_to_new[basalt]
+14:42:51 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:42:51 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:42:53 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:42:53 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:42:55 [INFO] functional.test_timer_workflows: Waiting for chrono mode (0:00 counting up)...
+PASSED                                                                   [ 90%]
+------------------------------ live log teardown -------------------------------
+14:43:03 [INFO] functional.conftest: [basalt] Quitting app after test: test_long_press_select_in_edit_sec_mode_toggles_to_new[basalt]
+
+test/functional/test_timer_workflows.py::TestEditRepeatModeNoOp::test_long_press_select_in_edit_repeat_mode_does_nothing[basalt] 
+-------------------------------- live log setup --------------------------------
+14:43:04 [INFO] functional.conftest: [basalt] Opening app for test: test_long_press_select_in_edit_repeat_mode_does_nothing[basalt]
+14:43:04 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:43:04 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:43:07 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:43:07 [INFO] functional.conftest: [basalt] App opened via install
+PASSED                                                                   [ 90%]
+------------------------------ live log teardown -------------------------------
+14:43:15 [INFO] functional.conftest: [basalt] Quitting app after test: test_long_press_select_in_edit_repeat_mode_does_nothing[basalt]
+
+test/functional/test_timer_workflows.py::TestRepeatTimerDuringAlarm::test_hold_up_during_alarm_repeats_timer[basalt] 
+-------------------------------- live log setup --------------------------------
+14:43:17 [INFO] functional.conftest: [basalt] Opening app for test: test_hold_up_during_alarm_repeats_timer[basalt]
+14:43:17 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:43:17 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:43:19 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:43:19 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:43:21 [INFO] functional.test_timer_workflows: Waiting for chrono mode...
+14:43:29 [INFO] functional.test_timer_workflows: Waiting for edit mode to expire...
+14:43:33 [INFO] functional.test_timer_workflows: Pressing Select to start 4-second timer...
+14:43:33 [INFO] functional.test_timer_workflows: Waiting for alarm to start...
+14:43:37 [INFO] functional.test_timer_workflows: Alarm started: {'event': 'alarm_start', 't': '0:00', 'm': 'Counting', 'r': '0', 'p': '0', 'v': '1', 'd': '1', 'l': '1', 'c': '1'}
+14:43:38 [INFO] functional.test_timer_workflows: After repeat state: {'event': 'long_press_up', 't': '0:03', 'm': 'Counting', 'r': '0', 'p': '0', 'v': '0', 'd': '1', 'l': '0', 'c': '0'}
+PASSED                                                                   [ 90%]
+------------------------------ live log teardown -------------------------------
+14:43:38 [INFO] functional.conftest: [basalt] Quitting app after test: test_hold_up_during_alarm_repeats_timer[basalt]
+
+test/functional/test_timer_workflows.py::TestRepeatTimerDuringAlarm::test_hold_up_during_longer_alarm_repeats_timer[basalt] 
+-------------------------------- live log setup --------------------------------
+14:43:40 [INFO] functional.conftest: [basalt] Opening app for test: test_hold_up_during_longer_alarm_repeats_timer[basalt]
+14:43:40 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:43:40 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:43:43 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:43:43 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:43:51 [INFO] functional.test_timer_workflows: Waiting for edit mode to expire...
+14:43:55 [INFO] functional.test_timer_workflows: Pressing Select to start 10-second timer...
+14:43:55 [INFO] functional.test_timer_workflows: Waiting for alarm to start...
+14:44:05 [INFO] functional.test_timer_workflows: Alarm started: {'event': 'alarm_start', 't': '0:00', 'm': 'Counting', 'r': '0', 'p': '0', 'v': '1', 'd': '1', 'l': '1', 'c': '1'}
+14:44:07 [INFO] functional.test_timer_workflows: After repeat state: {'event': 'long_press_up', 't': '0:09', 'm': 'Counting', 'r': '0', 'p': '0', 'v': '0', 'd': '1', 'l': '0', 'c': '0'}
+PASSED                                                                   [ 90%]
+------------------------------ live log teardown -------------------------------
+14:44:07 [INFO] functional.conftest: [basalt] Quitting app after test: test_hold_up_during_longer_alarm_repeats_timer[basalt]
+
+test/functional/test_timer_workflows.py::TestRepeatTimerDuringAlarm::test_hold_up_during_longer_alarm_repeats_timer_old_method[basalt] 
+-------------------------------- live log setup --------------------------------
+14:44:08 [INFO] functional.conftest: [basalt] Opening app for test: test_hold_up_during_longer_alarm_repeats_timer_old_method[basalt]
+14:44:08 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:44:08 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:44:11 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:44:11 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:44:13 [INFO] functional.test_timer_workflows: Waiting for chrono mode...
+14:44:19 [INFO] functional.test_timer_workflows: Waiting for edit mode to expire...
+14:44:23 [INFO] functional.test_timer_workflows: Pressing Select to start 10-second timer...
+14:44:23 [INFO] functional.test_timer_workflows: Waiting for alarm to start...
+14:44:33 [INFO] functional.test_timer_workflows: Alarm started: {'event': 'alarm_start', 't': '0:00', 'm': 'Counting', 'r': '0', 'p': '0', 'v': '1', 'd': '1', 'l': '1', 'c': '1'}
+14:44:35 [INFO] functional.test_timer_workflows: After repeat state: {'event': 'long_press_up', 't': '0:09', 'm': 'Counting', 'r': '0', 'p': '0', 'v': '0', 'd': '1', 'l': '0', 'c': '0'}
+PASSED                                                                   [ 91%]
+------------------------------ live log teardown -------------------------------
+14:44:35 [INFO] functional.conftest: [basalt] Quitting app after test: test_hold_up_during_longer_alarm_repeats_timer_old_method[basalt]
+
+test/functional/test_timer_workflows.py::TestSubMinuteTimerStaysPaused::test_sub_minute_timer_stays_paused_after_edit_expires[basalt] 
+-------------------------------- live log setup --------------------------------
+14:44:36 [INFO] functional.conftest: [basalt] Opening app for test: test_sub_minute_timer_stays_paused_after_edit_expires[basalt]
+14:44:36 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:44:36 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:44:39 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:44:39 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:44:41 [INFO] functional.test_timer_workflows: Waiting for chrono mode...
+14:44:46 [INFO] functional.test_timer_workflows: Entered EditSec mode
+14:44:52 [INFO] functional.test_timer_workflows: Waiting for edit mode to expire...
+14:44:56 [INFO] functional.test_timer_workflows: After edit expired: {'event': 'mode_change', 't': '0:10', 'm': 'Counting', 'r': '0', 'p': '1', 'v': '0', 'd': '1', 'l': '0', 'c': '0'}
+PASSED                                                                   [ 91%]
+------------------------------ live log teardown -------------------------------
+14:44:56 [INFO] functional.conftest: [basalt] Quitting app after test: test_sub_minute_timer_stays_paused_after_edit_expires[basalt]
+
+test/functional/test_timer_workflows.py::TestMinuteAndSecondsTimerStaysPaused::test_minute_and_seconds_timer_stays_paused[basalt] 
+-------------------------------- live log setup --------------------------------
+14:44:57 [INFO] functional.conftest: [basalt] Opening app for test: test_minute_and_seconds_timer_stays_paused[basalt]
+14:44:57 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:44:57 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:45:00 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:45:00 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:45:08 [INFO] functional.test_timer_workflows: Entered EditSec mode at 0:00
+14:45:19 [INFO] functional.test_timer_workflows: Waiting for edit mode to expire...
+14:45:22 [INFO] functional.test_timer_workflows: After edit expired: {'event': 'mode_change', 't': '0:20', 'm': 'Counting', 'r': '0', 'p': '1', 'v': '0', 'd': '1', 'l': '0', 'c': '0'}
+PASSED                                                                   [ 91%]
+------------------------------ live log teardown -------------------------------
+14:45:22 [INFO] functional.conftest: [basalt] Quitting app after test: test_minute_and_seconds_timer_stays_paused[basalt]
+
+test/functional/test_timer_workflows.py::TestEditRepeatBackButton::test_back_button_resets_repeat_count_to_zero[basalt] 
+-------------------------------- live log setup --------------------------------
+14:45:24 [INFO] functional.conftest: [basalt] Opening app for test: test_back_button_resets_repeat_count_to_zero[basalt]
+14:45:24 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:45:24 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:45:27 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:45:27 [INFO] functional.conftest: [basalt] App opened via install
+-------------------------------- live log call ---------------------------------
+14:45:28 [INFO] functional.test_timer_workflows: [basalt] Setting up 10s timer: waiting for chrono mode
+14:45:39 [INFO] functional.test_timer_workflows: [basalt] Short timer set to 10s, waiting for expire
+14:45:43 [INFO] functional.test_timer_workflows: [basalt] Short timer started, counting down from 10s
+PASSED                                                                   [ 91%]
+------------------------------ live log teardown -------------------------------
+14:45:46 [INFO] functional.conftest: [basalt] Quitting app after test: test_back_button_resets_repeat_count_to_zero[basalt]
+
+test/functional/test_timer_workflows.py::TestEditRunningTimer::test_edit_running_timer[chalk] 
+-------------------------------- live log setup --------------------------------
+14:45:48 [INFO] functional.test_timer_workflows: [basalt] Tearing down - killing emulator
+SKIPPED (Skipping test for chalk since --platform=basalt was specified.) [ 92%]
+test/functional/test_timer_workflows.py::TestSetShortTimer::test_set_4_second_timer[chalk] SKIPPED [ 92%]
+test/functional/test_timer_workflows.py::TestSnoozeCompletedTimer::test_snooze_completed_timer[chalk] SKIPPED [ 92%]
+test/functional/test_timer_workflows.py::TestRepeatCompletedTimer::test_repeat_completed_timer[chalk] SKIPPED [ 92%]
+test/functional/test_timer_workflows.py::TestQuietAlarmBackButton::test_quiet_alarm_with_back_button[chalk] SKIPPED [ 92%]
+test/functional/test_timer_workflows.py::TestPauseCompletedTimer::test_pause_completed_timer[chalk] SKIPPED [ 93%]
+test/functional/test_timer_workflows.py::TestEditCompletedTimer::test_edit_completed_timer_add_minute[chalk] SKIPPED [ 93%]
+test/functional/test_timer_workflows.py::TestEnableRepeatingTimer::test_enable_repeating_timer[chalk] SKIPPED [ 93%]
+test/functional/test_timer_workflows.py::TestEditModeToggle::test_long_press_select_toggles_new_to_editsec[chalk] SKIPPED [ 93%]
+test/functional/test_timer_workflows.py::TestEditModeToggle::test_long_press_select_toggles_editsec_to_new[chalk] SKIPPED [ 94%]
+test/functional/test_timer_workflows.py::TestEditSecModeToggle::test_long_press_select_in_edit_sec_mode_toggles_to_new[chalk] SKIPPED [ 94%]
+test/functional/test_timer_workflows.py::TestEditRepeatModeNoOp::test_long_press_select_in_edit_repeat_mode_does_nothing[chalk] SKIPPED [ 94%]
+test/functional/test_timer_workflows.py::TestRepeatTimerDuringAlarm::test_hold_up_during_alarm_repeats_timer[chalk] SKIPPED [ 94%]
+test/functional/test_timer_workflows.py::TestRepeatTimerDuringAlarm::test_hold_up_during_longer_alarm_repeats_timer[chalk] SKIPPED [ 95%]
+test/functional/test_timer_workflows.py::TestRepeatTimerDuringAlarm::test_hold_up_during_longer_alarm_repeats_timer_old_method[chalk] SKIPPED [ 95%]
+test/functional/test_timer_workflows.py::TestSubMinuteTimerStaysPaused::test_sub_minute_timer_stays_paused_after_edit_expires[chalk] SKIPPED [ 95%]
+test/functional/test_timer_workflows.py::TestMinuteAndSecondsTimerStaysPaused::test_minute_and_seconds_timer_stays_paused[chalk] SKIPPED [ 95%]
+test/functional/test_timer_workflows.py::TestEditRepeatBackButton::test_back_button_resets_repeat_count_to_zero[chalk] SKIPPED [ 95%]
+test/functional/test_timer_workflows.py::TestEditRunningTimer::test_edit_running_timer[diorite] SKIPPED [ 96%]
+test/functional/test_timer_workflows.py::TestSetShortTimer::test_set_4_second_timer[diorite] SKIPPED [ 96%]
+test/functional/test_timer_workflows.py::TestSnoozeCompletedTimer::test_snooze_completed_timer[diorite] SKIPPED [ 96%]
+test/functional/test_timer_workflows.py::TestRepeatCompletedTimer::test_repeat_completed_timer[diorite] SKIPPED [ 96%]
+test/functional/test_timer_workflows.py::TestQuietAlarmBackButton::test_quiet_alarm_with_back_button[diorite] SKIPPED [ 97%]
+test/functional/test_timer_workflows.py::TestPauseCompletedTimer::test_pause_completed_timer[diorite] SKIPPED [ 97%]
+test/functional/test_timer_workflows.py::TestEditCompletedTimer::test_edit_completed_timer_add_minute[diorite] SKIPPED [ 97%]
+test/functional/test_timer_workflows.py::TestEnableRepeatingTimer::test_enable_repeating_timer[diorite] SKIPPED [ 97%]
+test/functional/test_timer_workflows.py::TestEditModeToggle::test_long_press_select_toggles_new_to_editsec[diorite] SKIPPED [ 97%]
+test/functional/test_timer_workflows.py::TestEditModeToggle::test_long_press_select_toggles_editsec_to_new[diorite] SKIPPED [ 98%]
+test/functional/test_timer_workflows.py::TestEditSecModeToggle::test_long_press_select_in_edit_sec_mode_toggles_to_new[diorite] SKIPPED [ 98%]
+test/functional/test_timer_workflows.py::TestEditRepeatModeNoOp::test_long_press_select_in_edit_repeat_mode_does_nothing[diorite] SKIPPED [ 98%]
+test/functional/test_timer_workflows.py::TestRepeatTimerDuringAlarm::test_hold_up_during_alarm_repeats_timer[diorite] SKIPPED [ 98%]
+test/functional/test_timer_workflows.py::TestRepeatTimerDuringAlarm::test_hold_up_during_longer_alarm_repeats_timer[diorite] SKIPPED [ 99%]
+test/functional/test_timer_workflows.py::TestRepeatTimerDuringAlarm::test_hold_up_during_longer_alarm_repeats_timer_old_method[diorite] SKIPPED [ 99%]
+test/functional/test_timer_workflows.py::TestSubMinuteTimerStaysPaused::test_sub_minute_timer_stays_paused_after_edit_expires[diorite] SKIPPED [ 99%]
+test/functional/test_timer_workflows.py::TestMinuteAndSecondsTimerStaysPaused::test_minute_and_seconds_timer_stays_paused[diorite] SKIPPED [ 99%]
+test/functional/test_timer_workflows.py::TestEditRepeatBackButton::test_back_button_resets_repeat_count_to_zero[diorite] SKIPPED [100%]
+
+=================================== FAILURES ===================================
+___ TestRepeatCounterVisibility.test_editrepeat_shows_repeat_counter[basalt] ___
+
+self = <functional.test_repeat_counter_visibility.TestRepeatCounterVisibility object at 0x788c3aab33d0>
+persistent_emulator = <functional.conftest.EmulatorHelper object at 0x788c38b69150>
+
+    def test_editrepeat_shows_repeat_counter(self, persistent_emulator):
+        """Verify repeat counter indicator is visible in EditRepeat mode.
+    
+        When in EditRepeat mode, the repeat counter should be visible (flashing).
+        This is a prerequisite for the icon overlap fix.
+        """
+        emulator = persistent_emulator
+        platform = emulator.platform
+    
+        # Set up timer and enter EditRepeat with repeats
+        screenshot = self._setup_repeating_timer(emulator)
+    
+        # Save screenshot for visual inspection
+        screenshot_path = SCREENSHOTS_DIR / f"test_repeat_counter_{platform}_editrepeat.png"
+        screenshot.save(screenshot_path)
+        logger.info(f"Screenshot saved: {screenshot_path}")
+    
+        # In EditRepeat mode with repeat_count > 1, the UP region should show
+        # the +20 repeats icon, NOT the +20 minutes icon
+        region = get_region(platform, "UP")
+    
+        # Verify there's content in the UP region (either +20 repeats or repeat indicator)
+>       assert has_icon_content(screenshot, region), (
+            f"Expected icon content in UP region in EditRepeat mode with repeats"
+        )
+E       AssertionError: Expected icon content in UP region in EditRepeat mode with repeats
+E       assert False
+E        +  where False = has_icon_content(<PIL.PngImagePlugin.PngImageFile image mode=RGBA size=144x168 at 0x788C3ADFF670>, (109, 5, 144, 40))
+
+test/functional/test_repeat_counter_visibility.py:174: AssertionError
+------------------------------ Captured log setup ------------------------------
+14:36:06 [INFO] functional.conftest: [basalt] Starting warm-up cycle to clear stale state
+14:36:11 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:36:19 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:36:19 [INFO] functional.conftest: [basalt] Waiting for emulator to stabilize (2s)
+14:36:21 [INFO] functional.conftest: [basalt] Holding down button to quit app and set persist state
+14:36:23 [INFO] functional.conftest: [basalt] App quit via long press, persist state set
+14:36:23 [INFO] functional.conftest: [basalt] Emulator ready for tests
+14:36:23 [INFO] functional.conftest: [basalt] Opening app for test: test_editrepeat_shows_repeat_counter[basalt]
+14:36:23 [INFO] functional.conftest: [basalt] Opening app via install (preserving state)
+14:36:23 [INFO] functional.conftest: [basalt] Installing app on emulator
+14:36:26 [INFO] functional.conftest: [basalt] App installed and transport connected
+14:36:26 [INFO] functional.conftest: [basalt] App opened via install
+------------------------------ Captured log call -------------------------------
+14:36:36 [INFO] functional.test_repeat_counter_visibility: Screenshot saved: /home/jared/Workspace/pebble-timer-quick/test/functional/screenshots/test_repeat_counter_basalt_editrepeat.png
+---------------------------- Captured log teardown -----------------------------
+14:36:36 [INFO] functional.conftest: [basalt] Quitting app after test: test_editrepeat_shows_repeat_counter[basalt]
+=============================== warnings summary ===============================
+test_create_timer.py::TestCreateTimer::test_initial_state_shows_new[basalt]
+  /home/jared/Workspace/pebble-timer-quick/conda-env/lib/python3.10/site-packages/easyocr/detection.py:81: DeprecationWarning: torch.ao.quantization is deprecated and will be removed in 2.10. 
+  For migrations of users: 
+  1. Eager mode quantization (torch.ao.quantization.quantize, torch.ao.quantization.quantize_dynamic), please migrate to use torchao eager mode quantize_ API instead 
+  2. FX graph mode quantization (torch.ao.quantization.quantize_fx.prepare_fx,torch.ao.quantization.quantize_fx.convert_fx, please migrate to use torchao pt2e quantization API instead (prepare_pt2e, convert_pt2e) 
+  3. pt2e quantization has been migrated to torchao (https://github.com/pytorch/ao/tree/main/torchao/quantization/pt2e) 
+  see https://github.com/pytorch/ao/issues/2259 for more details
+    torch.quantization.quantize_dynamic(net, dtype=torch.qint8, inplace=True)
+
+test_create_timer.py::TestCreateTimer::test_initial_state_shows_new[basalt]
+test_create_timer.py::TestCreateTimer::test_initial_state_shows_new[basalt]
+  /home/jared/Workspace/pebble-timer-quick/conda-env/lib/python3.10/site-packages/torch/ao/quantization/quantize.py:570: DeprecationWarning: torch.ao.quantization is deprecated and will be removed in 2.10. 
+  For migrations of users: 
+  1. Eager mode quantization (torch.ao.quantization.quantize, torch.ao.quantization.quantize_dynamic), please migrate to use torchao eager mode quantize_ API instead 
+  2. FX graph mode quantization (torch.ao.quantization.quantize_fx.prepare_fx,torch.ao.quantization.quantize_fx.convert_fx, please migrate to use torchao pt2e quantization API instead (prepare_pt2e, convert_pt2e) 
+  3. pt2e quantization has been migrated to torchao (https://github.com/pytorch/ao/tree/main/torchao/quantization/pt2e) 
+  see https://github.com/pytorch/ao/issues/2259 for more details
+    convert(model, mapping, inplace=True)
+
+test_create_timer.py::TestCreateTimer::test_initial_state_shows_new[basalt]
+  /home/jared/Workspace/pebble-timer-quick/conda-env/lib/python3.10/site-packages/easyocr/recognition.py:177: DeprecationWarning: torch.ao.quantization is deprecated and will be removed in 2.10. 
+  For migrations of users: 
+  1. Eager mode quantization (torch.ao.quantization.quantize, torch.ao.quantization.quantize_dynamic), please migrate to use torchao eager mode quantize_ API instead 
+  2. FX graph mode quantization (torch.ao.quantization.quantize_fx.prepare_fx,torch.ao.quantization.quantize_fx.convert_fx, please migrate to use torchao pt2e quantization API instead (prepare_pt2e, convert_pt2e) 
+  3. pt2e quantization has been migrated to torchao (https://github.com/pytorch/ao/tree/main/torchao/quantization/pt2e) 
+  see https://github.com/pytorch/ao/issues/2259 for more details
+    torch.quantization.quantize_dynamic(model, dtype=torch.qint8, inplace=True)
+
+test_create_timer.py::TestCreateTimer::test_initial_state_shows_new[basalt]
+test_create_timer.py::TestCreateTimer::test_down_button_increments_minutes[basalt]
+test_create_timer.py::TestButtonPresses::test_select_button_increments_5_minutes[basalt]
+test_create_timer.py::TestTimerCountdown::test_timer_counts_down[basalt]
+test_create_timer.py::TestChronoMode::test_chrono_mode_counts_up[basalt]
+test_create_timer.py::TestLongPressReset::test_long_press_select_resets_timer[basalt]
+test_timer_workflows.py::TestSetShortTimer::test_set_4_second_timer[basalt]
+  /home/jared/Workspace/pebble-timer-quick/conda-env/lib/python3.10/site-packages/torch/utils/data/dataloader.py:775: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
+    super().__init__(loader)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED test/functional/test_repeat_counter_visibility.py::TestRepeatCounterVisibility::test_editrepeat_shows_repeat_counter[basalt]
+===== 1 failed, 105 passed, 334 skipped, 11 warnings in 1800.40s (0:30:00) =====

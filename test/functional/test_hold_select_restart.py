@@ -105,16 +105,16 @@ class TestRestartRunningCountdown:
         assert_time_approximately(state_restart, minutes=1, seconds=0, tolerance=3)
 
 
-class TestRestartPausedCountdown:
-    """Test 2: Restart paused countdown preserves paused state."""
+class TestLongPressPausedCountdownResetsToEditSec:
+    """Test 2: Long press Select on paused countdown resets to 0:00 in EditSec."""
 
-    def test_restart_paused_countdown_preserves_paused(self, persistent_emulator):
+    def test_long_press_select_paused_countdown_resets_to_editsec(self, persistent_emulator):
         """
         Steps:
         1. Create a 1-minute timer, let it start counting
         2. Press Select to pause
         3. Long press Select
-        4. Verify: timer restarts at 1:00, still paused, in Counting mode
+        4. Verify: timer resets to 0:00, paused, in EditSec mode
         """
         emulator = persistent_emulator
 
@@ -141,21 +141,21 @@ class TestRestartPausedCountdown:
         assert state_paused is not None
         assert_paused(state_paused, True)
 
-        # Long press Select to restart
+        # Long press Select to reset to 0:00 and enter EditSec
         emulator.hold_button(Button.SELECT)
         time.sleep(1)
         emulator.release_buttons()
 
-        state_restart = capture.wait_for_state(event="long_press_select", timeout=5.0)
+        state_reset = capture.wait_for_state(event="long_press_select", timeout=5.0)
         capture.stop()
 
-        assert state_restart is not None, "Did not receive long_press_select"
-        logger.info(f"After restart state: {state_restart}")
+        assert state_reset is not None, "Did not receive long_press_select"
+        logger.info(f"After reset state: {state_reset}")
 
-        # Timer should be paused, at ~1:00, in Counting mode
-        assert_mode(state_restart, "Counting")
-        assert_paused(state_restart, True)
-        assert_time_approximately(state_restart, minutes=1, seconds=0, tolerance=3)
+        # Timer should be at 0:00, paused, in EditSec mode
+        assert_mode(state_reset, "EditSec")
+        assert_paused(state_reset, True)
+        assert_time_equals(state_reset, minutes=0, seconds=0)
 
 
 class TestRestartRunningChrono:
@@ -202,16 +202,16 @@ class TestRestartRunningChrono:
         assert_time_approximately(state_restart, minutes=0, seconds=0, tolerance=3)
 
 
-class TestRestartPausedChrono:
-    """Test 4: Restart paused chrono preserves paused state."""
+class TestLongPressPausedChronoResetsToEditSec:
+    """Test 4: Long press Select on paused chrono resets to 0:00 in EditSec."""
 
-    def test_restart_paused_chrono_preserves_paused(self, persistent_emulator):
+    def test_long_press_select_paused_chrono_resets_to_editsec(self, persistent_emulator):
         """
         Steps:
         1. Start app fresh, let it auto-transition to chrono
         2. Wait, then press Select to pause
         3. Long press Select
-        4. Verify: chrono restarts at 0:00, still paused, in Counting mode
+        4. Verify: resets to 0:00, paused, in EditSec mode
         """
         emulator = persistent_emulator
 
@@ -235,21 +235,21 @@ class TestRestartPausedChrono:
         assert state_paused is not None
         assert_paused(state_paused, True)
 
-        # Long press Select to restart chrono
+        # Long press Select to reset to 0:00 and enter EditSec
         emulator.hold_button(Button.SELECT)
         time.sleep(1)
         emulator.release_buttons()
 
-        state_restart = capture.wait_for_state(event="long_press_select", timeout=5.0)
+        state_reset = capture.wait_for_state(event="long_press_select", timeout=5.0)
         capture.stop()
 
-        assert state_restart is not None, "Did not receive long_press_select"
-        logger.info(f"After restart state: {state_restart}")
+        assert state_reset is not None, "Did not receive long_press_select"
+        logger.info(f"After reset state: {state_reset}")
 
-        # Chrono should be paused, at 0:00
-        assert_mode(state_restart, "Counting")
-        assert_paused(state_restart, True)
-        assert_time_equals(state_restart, minutes=0, seconds=0)
+        # Should be at 0:00, paused, in EditSec mode
+        assert_mode(state_reset, "EditSec")
+        assert_paused(state_reset, True)
+        assert_time_equals(state_reset, minutes=0, seconds=0)
 
 
 class TestRestartRepeatingTimerRestoresCount:
@@ -370,15 +370,16 @@ class TestRestartDuringAlarm:
         assert_time_approximately(state_restart, minutes=0, seconds=4, tolerance=2)
 
 
-class TestOtherModesUnchanged:
-    """Test 7: Other modes unchanged."""
+class TestEditModeToggle:
+    """Test 7: Long press Select toggles between New and EditSec."""
 
-    def test_other_modes_unchanged(self, persistent_emulator):
+    def test_toggle_new_editsec_preserves_value(self, persistent_emulator):
         """
         Steps:
         1. Enter ControlModeNew (press Up from Counting)
-        2. Long press Select -> resets to 0:00 in EditSec (unchanged)
-        3. Long press Select again (in EditSec) -> No-op (unchanged)
+        2. Long press Select -> toggles to EditSec (preserving value)
+        3. Add 1 second
+        4. Long press Select again (in EditSec) -> toggles to New (preserving value)
         """
         emulator = persistent_emulator
 
@@ -400,28 +401,28 @@ class TestOtherModesUnchanged:
         assert state_new is not None
         assert_mode(state_new, "New")
 
-        # Long press Select -> should reset to 0:00 in EditSec
+        # Long press Select -> should toggle to EditSec (preserving value)
         emulator.hold_button(Button.SELECT)
         time.sleep(1)
         emulator.release_buttons()
-        state_reset = capture.wait_for_state(event="long_press_select", timeout=5.0)
-        assert state_reset is not None
-        assert_mode(state_reset, "EditSec")
-        assert_time_equals(state_reset, minutes=0, seconds=0)
+        state_toggle1 = capture.wait_for_state(event="long_press_select", timeout=5.0)
+        assert state_toggle1 is not None
+        assert_mode(state_toggle1, "EditSec")
+        # Value should be preserved (~0:57 after some countdown)
+        assert_time_approximately(state_toggle1, minutes=0, seconds=57, tolerance=10)
 
-        # Add some time to verify we're in EditSec
+        # Add 1 second to verify we're in EditSec
         emulator.press_down()
         state_down = capture.wait_for_state(event="button_down", timeout=5.0)
         assert state_down is not None
-        assert_time_equals(state_down, minutes=0, seconds=1)
+        assert_mode(state_down, "EditSec")
 
-        # Long press Select again -> should be no-op
+        # Long press Select again -> should toggle to New (preserving value)
         emulator.hold_button(Button.SELECT)
         time.sleep(1)
         emulator.release_buttons()
-        state_noop = capture.wait_for_state(event="long_press_select", timeout=5.0)
+        state_toggle2 = capture.wait_for_state(event="long_press_select", timeout=5.0)
         capture.stop()
 
-        assert state_noop is not None
-        assert_mode(state_noop, "EditSec")
-        assert_time_equals(state_noop, minutes=0, seconds=1)
+        assert state_toggle2 is not None
+        assert_mode(state_toggle2, "New")

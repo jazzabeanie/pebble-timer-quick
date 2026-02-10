@@ -1,8 +1,8 @@
 """
-Tests for Edit Mode Reset functionality.
+Tests for Edit Mode Toggle functionality.
 
-Verifies that long pressing Select in Edit Mode (ControlModeNew) resets the timer
-to 0:00 and enters Edit Seconds mode, while doing nothing in other edit modes.
+Verifies that long pressing Select toggles between New and EditSec modes
+(preserving timer value), and does nothing in EditRepeat mode.
 """
 
 import logging
@@ -20,6 +20,8 @@ from .conftest import (
     assert_mode,
     assert_paused,
     assert_time_equals,
+    assert_time_approximately,
+    assert_direction,
 )
 from .test_create_timer import extract_text, normalize_time_text, REFERENCES_DIR
 
@@ -81,17 +83,17 @@ def matches_reference(img: Image.Image, name: str, crop_box: tuple = None) -> bo
     
     return diff_ratio < 0.02
 
-class TestEditModeReset:
-    """Tests for long press select reset behavior in edit modes."""
+class TestEditModeToggle:
+    """Tests for long press select toggle behavior between edit modes."""
 
-    def test_long_press_select_resets_in_control_mode_new(self, persistent_emulator):
+    def test_long_press_select_toggles_new_to_editsec(self, persistent_emulator):
         """
-        Test 1: Long press select in ControlModeNew resets to paused 0:00 in edit seconds mode.
+        Test 1: Long press select in ControlModeNew toggles to EditSec preserving value.
 
         Uses log-based assertions for reliable state verification:
-        1. Verifies mode is EditSec after long press
-        2. Verifies timer is 0:00
-        3. Verifies pressing Back adds 60 seconds (confirms EditSec mode)
+        1. Sets a 2-minute timer and enters New mode
+        2. Long press Select toggles to EditSec with value preserved
+        3. Pressing Back adds 60 seconds (confirms EditSec mode)
         """
         emulator = persistent_emulator
         platform = emulator.platform
@@ -117,20 +119,20 @@ class TestEditModeReset:
         logger.info(f"After Up press state: {state_edit}")
         assert_mode(state_edit, "New")
 
-        # Step 3: Long press Select to reset to 0:00 in EditSec mode
+        # Step 3: Long press Select to toggle to EditSec (preserving value)
         emulator.hold_button(Button.SELECT)
         time.sleep(1.5)
         emulator.release_buttons()
 
         # Wait for the long_press_select state log
-        state_reset = capture.wait_for_state(event="long_press_select", timeout=5.0)
+        state_toggle = capture.wait_for_state(event="long_press_select", timeout=5.0)
 
-        # Verify timer is 0:00 and mode is EditSec
-        assert state_reset is not None, "Did not receive long_press_select state log"
-        logger.info(f"After long press Select state: {state_reset}")
-        assert_mode(state_reset, "EditSec")
-        assert_time_equals(state_reset, minutes=0, seconds=0)
-        assert_paused(state_reset, True)
+        # Verify mode is EditSec and timer value is preserved (approximately 2:00)
+        assert state_toggle is not None, "Did not receive long_press_select state log"
+        logger.info(f"After long press Select state: {state_toggle}")
+        assert_mode(state_toggle, "EditSec")
+        # Timer value should be preserved (~1:54 after countdown)
+        assert_time_approximately(state_toggle, minutes=1, seconds=54, tolerance=10)
 
         # Step 4: Press Back to verify Edit Seconds mode (adds 60 seconds)
         emulator.press_back()
@@ -141,46 +143,170 @@ class TestEditModeReset:
         # Verify Back button added 60 seconds (confirms EditSec mode)
         assert state_back is not None, "Did not receive button_back state log"
         logger.info(f"After Back press state: {state_back}")
-        assert_time_equals(state_back, minutes=1, seconds=0)
         assert_mode(state_back, "EditSec")
 
-    @pytest.mark.skip(reason="Visual comparison flaky due to animations/blinking")
-    def test_long_press_select_no_op_in_edit_sec(self, persistent_emulator):
+    def test_long_press_select_toggles_editsec_to_new(self, persistent_emulator):
+        """
+        Test 2: Long press select in EditSec toggles to New mode preserving value.
+
+        Uses log-based assertions:
+        1. Enter EditSec mode and add some seconds
+        2. Long press Select toggles to New with value preserved
+        3. Pressing Down adds 1 minute (confirms New mode)
+        """
         emulator = persistent_emulator
         platform = emulator.platform
-        
-        # Step 1: Ensure 0:00
-        time.sleep(2) 
-        
-        # Step 2: Press Up to enter edit mode
+
+        # Start log capture
+        capture = LogCapture(platform)
+        capture.start()
+        time.sleep(1.0)
+        capture.clear_state_queue()
+
+        # Wait for chrono mode, then pause
+        time.sleep(3.5)
+        emulator.press_select()
+        time.sleep(0.3)
+
+        # Long press Select to reset to 0:00 and enter EditSec (from paused Counting)
+        emulator.hold_button(Button.SELECT)
+        time.sleep(1)
+        emulator.release_buttons()
+        state_editsec = capture.wait_for_state(event="long_press_select", timeout=5.0)
+        assert state_editsec is not None
+        assert_mode(state_editsec, "EditSec")
+
+        # Add 20 seconds (press Up once in EditSec)
         emulator.press_up()
-        time.sleep(1)
-        
-        # Step 3: Press Down to add seconds (0:01)
-        emulator.press_down() 
-        time.sleep(1)
-        
-        # Save reference of 0:01 (ON phase)
-        burst_val = capture_burst(emulator)
-        best_val = get_best_image(burst_val)
-        matches_reference(best_val, f"{platform}_editsec_001")
-        
-        # Step 4: Long press Select
+        state_up = capture.wait_for_state(event="button_up", timeout=5.0)
+        assert state_up is not None
+        assert_time_equals(state_up, minutes=0, seconds=20)
+        assert_mode(state_up, "EditSec")
+
+        # Long press Select to toggle to New mode (preserving value)
         emulator.hold_button(Button.SELECT)
         time.sleep(1.5)
         emulator.release_buttons()
+
+        state_toggle = capture.wait_for_state(event="long_press_select", timeout=5.0)
+
+        assert state_toggle is not None, "Did not receive long_press_select state log"
+        logger.info(f"After toggle to New: {state_toggle}")
+        assert_mode(state_toggle, "New")
+        assert_time_equals(state_toggle, minutes=0, seconds=20)
+
+        # Press Down to verify New mode (adds 1 minute)
+        emulator.press_down()
+        state_down = capture.wait_for_state(event="button_down", timeout=5.0)
+
+        capture.stop()
+
+        assert state_down is not None
+        assert_time_equals(state_down, minutes=1, seconds=20)
+        assert_mode(state_down, "New")
+
+    def test_toggle_new_to_editsec_preserves_reverse_direction(self, persistent_emulator):
+        """
+        Test 3: Toggling from New to EditSec preserves reverse direction.
+
+        Steps:
+        1. Set a 2-minute timer and wait for Counting
+        2. Press Up to enter New mode
+        3. Long press Up to toggle to reverse direction
+        4. Long press Select to toggle to EditSec
+        5. Verify direction is still reverse
+        """
+        emulator = persistent_emulator
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        time.sleep(1.0)
+        capture.clear_state_queue()
+
+        # Step 1: Set a 2-minute timer and wait for Counting mode
+        emulator.press_down()
+        emulator.press_down()
+        time.sleep(4)
+
+        # Step 2: Press Up to enter edit mode
+        emulator.press_up()
+        state_edit = capture.wait_for_state(event="button_up", timeout=5.0)
+        assert state_edit is not None
+        assert_mode(state_edit, "New")
+        assert_direction(state_edit, forward=True)
+
+        # Step 3: Long press Up to toggle to reverse direction
+        emulator.hold_button(Button.UP)
+        time.sleep(1.0)
+        emulator.release_buttons()
+        state_dir = capture.wait_for_state(event="long_press_up", timeout=5.0)
+        assert state_dir is not None
+        assert_direction(state_dir, forward=False)
+
+        # Step 4: Long press Select to toggle to EditSec
+        emulator.hold_button(Button.SELECT)
+        time.sleep(1.5)
+        emulator.release_buttons()
+        state_toggle = capture.wait_for_state(event="long_press_select", timeout=5.0)
+
+        capture.stop()
+
+        # Step 5: Verify direction is preserved (still reverse)
+        assert state_toggle is not None
+        assert_mode(state_toggle, "EditSec")
+        assert_direction(state_toggle, forward=False)
+
+    def test_toggle_editsec_to_new_preserves_reverse_direction(self, persistent_emulator):
+        """
+        Test 4: Toggling from EditSec to New preserves reverse direction.
+
+        Steps:
+        1. Enter EditSec via paused Counting -> long press Select
+        2. Long press Up to toggle to reverse direction
+        3. Long press Select to toggle to New
+        4. Verify direction is still reverse
+        """
+        emulator = persistent_emulator
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        time.sleep(1.0)
+        capture.clear_state_queue()
+
+        # Step 1: Wait for chrono mode, then pause and enter EditSec at 0:00
+        time.sleep(3.5)
+        emulator.press_select()
+        time.sleep(0.3)
+        emulator.hold_button(Button.SELECT)
         time.sleep(1)
-        
-        # Step 5: Verify we still match 0:01 (one of the burst images must match)
-        burst_noop = capture_burst(emulator)
-        
-        match_found = False
-        for img in burst_noop:
-            if matches_reference(img, f"{platform}_editsec_001"):
-                match_found = True
-                break
-                
-        assert match_found, "Timer changed after long press select in EditSec"
+        emulator.release_buttons()
+        state_editsec = capture.wait_for_state(event="long_press_select", timeout=5.0)
+        assert state_editsec is not None
+        assert_mode(state_editsec, "EditSec")
+
+        # Add some time so we have a nonzero value
+        emulator.press_up()
+        state_up = capture.wait_for_state(event="button_up", timeout=5.0)
+        assert state_up is not None
+
+        # Step 2: Long press Up to toggle to reverse direction
+        emulator.hold_button(Button.UP)
+        time.sleep(1.0)
+        emulator.release_buttons()
+        state_dir = capture.wait_for_state(event="long_press_up", timeout=5.0)
+        assert state_dir is not None
+        assert_direction(state_dir, forward=False)
+
+        # Step 3: Long press Select to toggle to New
+        emulator.hold_button(Button.SELECT)
+        time.sleep(1.5)
+        emulator.release_buttons()
+        state_toggle = capture.wait_for_state(event="long_press_select", timeout=5.0)
+
+        capture.stop()
+
+        # Step 4: Verify direction is preserved (still reverse)
+        assert state_toggle is not None
+        assert_mode(state_toggle, "New")
+        assert_direction(state_toggle, forward=False)
 
     @pytest.mark.skip(reason="Visual comparison flaky due to animations/blinking")
     def test_long_press_select_no_op_in_edit_repeat(self, persistent_emulator):

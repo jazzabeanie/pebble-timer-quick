@@ -97,9 +97,9 @@ def setup_short_timer(emulator, seconds=4):
     Flow:
     1. App starts fresh in ControlModeNew at 0:00
     2. Wait 3.5s for auto-transition to ControlModeCounting (chrono at 0:00)
-    3. Press Up to enter ControlModeNew (edit mode)
-    4. Long press Select to enter ControlModeEditSec with clean state
-       (timer_reset + start_ms=0, is_editing_existing_timer=false)
+    3. Press Select to pause the chrono
+    4. Long press Select to reset to 0:00 and enter ControlModeEditSec
+       (paused Counting + long-press Select does reset + EditSec)
     5. Press Down N times to add N seconds (uses timer_increment since
        is_editing_existing_timer=false, so length_ms is incremented)
     6. Wait 3.5s for expire timer to transition to ControlModeCounting
@@ -113,12 +113,12 @@ def setup_short_timer(emulator, seconds=4):
     # Step 2: Wait for transition to chrono mode (0:00 counting up)
     time.sleep(2.5)
 
-    # Step 3: Press Up to enter ControlModeNew (edit mode)
-    emulator.press_up()
+    # Step 3: Press Select to pause the chrono
+    emulator.press_select()
     time.sleep(0.3)
 
-    # Step 4: Long press Select to enter ControlModeEditSec with clean state
-    # In ControlModeNew, long press Select does:
+    # Step 4: Long press Select to reset to 0:00 and enter EditSec
+    # In paused Counting mode, long press Select does:
     # timer_reset() + start_ms=0 + control_mode=ControlModeEditSec
     # With is_editing_existing_timer=false (creating new timer)
     emulator.hold_button(Button.SELECT)
@@ -597,19 +597,19 @@ class TestEnableRepeatingTimer:
         capture.stop()
 
 
-class TestEditModeReset:
-    """Test 9: Edit mode reset via long press select."""
+class TestEditModeToggle:
+    """Test 9: Edit mode toggle via long press select."""
 
-    def test_long_press_select_in_edit_mode_resets_to_edit_seconds(self, persistent_emulator):
+    def test_long_press_select_toggles_new_to_editsec(self, persistent_emulator):
         """
-        Verify that long pressing select while in ControlModeNew (editing an existing
-        timer) resets to 0:00 in edit seconds mode (ControlModeEditSec).
+        Verify that long pressing select while in ControlModeNew toggles to
+        ControlModeEditSec, preserving the timer value.
 
         Steps:
         1. Set a 2-minute timer and wait for Counting mode
         2. Press Up to enter edit mode (ControlModeNew)
-        3. Long press Select -> resets to 0:00, enters edit seconds mode
-        4. Press Back button -> adds 60 seconds (confirms edit seconds mode)
+        3. Long press Select -> toggles to EditSec, value preserved
+        4. Press Back button -> adds 60 seconds (confirms EditSec mode)
         """
         emulator = persistent_emulator
 
@@ -633,33 +633,36 @@ class TestEditModeReset:
         assert state_edit is not None
         assert_mode(state_edit, "New")
 
-        # Step 3: Long press Select to reset to 0:00 in edit seconds mode
+        # Step 3: Long press Select to toggle to EditSec (preserving value)
         emulator.hold_button(Button.SELECT)
         time.sleep(1)
         emulator.release_buttons()
-        
-        state_reset = capture.wait_for_state(event="long_press_select", timeout=5.0)
-        assert state_reset is not None
-        assert_mode(state_reset, "EditSec")
-        assert_time_equals(state_reset, minutes=0, seconds=0)
 
-        # Step 4: Press Back to add 60 seconds (confirms edit seconds mode)
+        state_toggle = capture.wait_for_state(event="long_press_select", timeout=5.0)
+        assert state_toggle is not None
+        assert_mode(state_toggle, "EditSec")
+        # Value should be preserved (~1:54 after some countdown)
+        assert_time_approximately(state_toggle, minutes=1, seconds=54, tolerance=10)
+
+        # Step 4: Press Back to add 60 seconds (confirms EditSec mode)
         emulator.press_back()
         state_back = capture.wait_for_state(event="button_back", timeout=5.0)
 
         capture.stop()
 
         assert state_back is not None
-        assert_time_equals(state_back, minutes=1, seconds=0)
         assert_mode(state_back, "EditSec")
 
-
-class TestEditSecModeNoOp:
-    """Test 10: Long press select in ControlModeEditSec does nothing."""
-
-    def test_long_press_select_in_edit_sec_mode_does_nothing(self, persistent_emulator):
+    def test_long_press_select_toggles_editsec_to_new(self, persistent_emulator):
         """
-        Verify that long pressing select in ControlModeEditSec has no effect.
+        Verify that long pressing select while in ControlModeEditSec toggles to
+        ControlModeNew, preserving the timer value.
+
+        Steps:
+        1. Enter EditSec mode (via paused chrono + long-press Select)
+        2. Add 20 seconds
+        3. Long press Select -> toggles to New, value preserved
+        4. Press Down -> adds 1 minute (confirms New mode)
         """
         emulator = persistent_emulator
 
@@ -669,16 +672,69 @@ class TestEditSecModeNoOp:
         time.sleep(1.0)
         capture.clear_state_queue()
 
-        # Step 1: Wait for auto-chrono mode (0:00 counting up)
+        # Wait for chrono mode, pause it
+        time.sleep(3.5)
+        emulator.press_select()
+        time.sleep(0.3)
+
+        # Long press Select to reset to 0:00 and enter EditSec (from paused Counting)
+        emulator.hold_button(Button.SELECT)
+        time.sleep(1)
+        emulator.release_buttons()
+        state_editsec = capture.wait_for_state(event="long_press_select", timeout=5.0)
+        assert state_editsec is not None
+        assert_mode(state_editsec, "EditSec")
+
+        # Add 20 seconds
+        emulator.press_up()
+        state_up = capture.wait_for_state(event="button_up", timeout=5.0)
+        assert state_up is not None
+        assert_time_equals(state_up, minutes=0, seconds=20)
+
+        # Long press Select to toggle to New mode
+        emulator.hold_button(Button.SELECT)
+        time.sleep(1)
+        emulator.release_buttons()
+
+        state_toggle = capture.wait_for_state(event="long_press_select", timeout=5.0)
+        assert state_toggle is not None
+        assert_mode(state_toggle, "New")
+        assert_time_equals(state_toggle, minutes=0, seconds=20)
+
+        # Press Down to add 1 minute (confirms New mode)
+        emulator.press_down()
+        state_down = capture.wait_for_state(event="button_down", timeout=5.0)
+
+        capture.stop()
+
+        assert state_down is not None
+        assert_time_equals(state_down, minutes=1, seconds=20)
+        assert_mode(state_down, "New")
+
+
+class TestEditSecModeToggle:
+    """Test 10: Long press select in ControlModeEditSec toggles to New mode."""
+
+    def test_long_press_select_in_edit_sec_mode_toggles_to_new(self, persistent_emulator):
+        """
+        Verify that long pressing select in ControlModeEditSec toggles to New mode
+        preserving timer value.
+        """
+        emulator = persistent_emulator
+
+        # Start log capture
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        time.sleep(1.0)
+        capture.clear_state_queue()
+
+        # Step 1: Wait for auto-chrono mode, pause it
         logger.info("Waiting for chrono mode (0:00 counting up)...")
         time.sleep(3.5)
-        capture.wait_for_state(event="mode_change", timeout=5.0)
+        emulator.press_select()
+        time.sleep(0.3)
 
-        # Step 2: Press Up to enter ControlModeNew (edit mode)
-        emulator.press_up()
-        capture.wait_for_state(event="button_up", timeout=5.0)
-
-        # Step 3: Long press Select to reset to 0:00 in EditSec mode
+        # Step 2: Long press Select to reset to 0:00 and enter EditSec (from paused Counting)
         emulator.hold_button(Button.SELECT)
         time.sleep(1)
         emulator.release_buttons()
@@ -686,20 +742,20 @@ class TestEditSecModeNoOp:
         assert state_reset is not None
         assert_mode(state_reset, "EditSec")
 
-        # Step 4: Press Up to add 20 seconds (verify we are in EditSec)
+        # Step 3: Press Up to add 20 seconds (verify we are in EditSec)
         emulator.press_up()
         state_up = capture.wait_for_state(event="button_up", timeout=5.0)
         assert_mode(state_up, "EditSec")
         assert_time_equals(state_up, minutes=0, seconds=20)
 
-        # Step 5: Press Down to add 1 second (total 0:21)
+        # Step 4: Press Down to add 1 second (total 0:21)
         emulator.press_down()
         state_before = capture.wait_for_state(event="button_down", timeout=5.0)
         assert state_before is not None
         assert_time_equals(state_before, minutes=0, seconds=21)
         assert_mode(state_before, "EditSec")
 
-        # Step 6: Long press Select -> should do nothing
+        # Step 5: Long press Select -> should toggle to New mode
         emulator.hold_button(Button.SELECT)
         time.sleep(1)
         emulator.release_buttons()
@@ -708,9 +764,9 @@ class TestEditSecModeNoOp:
         capture.stop()
 
         assert state_after is not None
-        # Should still be 0:21 and EditSec
+        # Should be 0:21 but now in New mode
         assert_time_equals(state_after, minutes=0, seconds=21)
-        assert_mode(state_after, "EditSec")
+        assert_mode(state_after, "New")
 
 
 class TestEditRepeatModeNoOp:
@@ -784,17 +840,16 @@ class TestRepeatTimerDuringAlarm:
         time.sleep(1.0)
         capture.clear_state_queue()
 
-        # Step 1: Set up 4-second timer manually using Select to start
+        # Step 1: Set up 4-second timer manually
         # Wait for app to enter chrono mode (0:00 counting up)
         logger.info("Waiting for chrono mode...")
         time.sleep(3.5)
 
-        # Press Up to enter New mode (from Counting mode)
-        # Note: Long press Select from chrono restarts chrono, doesn't enter EditSec.
-        emulator.press_up()
+        # Press Select to pause the chrono
+        emulator.press_select()
         time.sleep(0.3)
 
-        # Long press Select to enter EditSec mode
+        # Long press Select to reset to 0:00 and enter EditSec (from paused Counting)
         emulator.hold_button(Button.SELECT)
         time.sleep(1)
         emulator.release_buttons()
@@ -874,16 +929,20 @@ class TestRepeatTimerDuringAlarm:
         time.sleep(1.0)
         capture.clear_state_queue()
 
-        # TODO: assert state is edit mode
-        # Long press Select to enter EditSec mode
+        # Wait for chrono/counting mode, then pause
+        time.sleep(3.5)
+        emulator.press_select()
+        time.sleep(0.3)
+
+        # Long press Select to reset to 0:00 and enter EditSec (from paused Counting)
         emulator.hold_button(Button.SELECT)
         time.sleep(1)
         emulator.release_buttons()
         time.sleep(0.3)
 
-        # Add 5 seconds
+        # Add 10 seconds (Select adds +5s in EditSec mode)
         emulator.press_select()
-        time.sleep(1)
+        time.sleep(0.2)
         emulator.press_select()
 
         # Wait for edit mode to expire and transition to Counting mode
@@ -892,7 +951,7 @@ class TestRepeatTimerDuringAlarm:
         time.sleep(3.5)
 
         # Press Select to start the paused timer
-        logger.info("Pressing Select to start 5-second timer...")
+        logger.info("Pressing Select to start 10-second timer...")
         emulator.press_select()
 
         # Consume log events from setup
@@ -955,17 +1014,16 @@ class TestRepeatTimerDuringAlarm:
         time.sleep(1.0)
         capture.clear_state_queue()
 
-        # Step 1: Set up 5-second timer manually using Select to start
+        # Step 1: Set up 10-second timer manually
         # Wait for app to enter chrono mode (0:00 counting up)
         logger.info("Waiting for chrono mode...")
         time.sleep(3.5)
 
-        # Press Up to enter New mode (from Counting mode)
-        # Note: Long press Select from chrono restarts chrono, doesn't enter EditSec.
-        emulator.press_up()
+        # Press Select to pause the chrono
+        emulator.press_select()
         time.sleep(0.3)
 
-        # Long press Select to enter EditSec mode
+        # Long press Select to reset to 0:00 and enter EditSec (from paused Counting)
         emulator.hold_button(Button.SELECT)
         time.sleep(1)
         emulator.release_buttons()
@@ -1059,16 +1117,11 @@ class TestSubMinuteTimerStaysPaused:
         # Consume any mode_change events from startup
         capture.wait_for_state(event="mode_change", timeout=2.0)
 
-        # Step 2: Press Up to enter New mode (from Counting mode)
-        # Note: Long press Select from chrono restarts chrono, doesn't enter EditSec.
-        # We need to go through New mode first.
-        emulator.press_up()
-        state_new = capture.wait_for_state(event="button_up", timeout=5.0)
-        assert state_new is not None
-        assert_mode(state_new, "New")
-        logger.info("Entered New mode")
+        # Step 2: Press Select to pause the chrono
+        emulator.press_select()
+        time.sleep(0.3)
 
-        # Step 3: Long press Select to enter EditSec mode
+        # Step 3: Long press Select to reset to 0:00 and enter EditSec (from paused Counting)
         emulator.hold_button(Button.SELECT)
         time.sleep(1)
         emulator.release_buttons()
@@ -1146,14 +1199,11 @@ class TestMinuteAndSecondsTimerStaysPaused:
         time.sleep(3.5)
         capture.wait_for_state(event="mode_change", timeout=5.0)
 
-        # Step 2: Press Up to enter edit mode (ControlModeNew)
-        emulator.press_up()
-        state_edit = capture.wait_for_state(event="button_up", timeout=5.0)
-        assert state_edit is not None
-        assert_mode(state_edit, "New")
-        logger.info("Entered New (edit) mode")
+        # Step 2: Press Select to pause the countdown
+        emulator.press_select()
+        time.sleep(0.3)
 
-        # Step 3: Long press Select to reset and enter EditSec mode
+        # Step 3: Long press Select to reset to 0:00 and enter EditSec (from paused Counting)
         emulator.hold_button(Button.SELECT)
         time.sleep(1)
         emulator.release_buttons()

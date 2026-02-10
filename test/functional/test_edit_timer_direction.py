@@ -116,16 +116,12 @@ class TestZeroCrossingTypeConversion:
         time.sleep(1.0)
         capture.clear_state_queue()
 
-        # Step 1: Wait for chrono mode
+        # Step 1: Wait for chrono mode, pause it
         time.sleep(3.5)
+        emulator.press_select()
+        time.sleep(0.3)
 
-        # Step 2: Press Up to enter edit mode
-        emulator.press_up()
-        state_edit = capture.wait_for_state(event="button_up", timeout=5.0)
-        assert state_edit is not None
-        assert_mode(state_edit, "New")
-
-        # Step 3: Long press Select to enter EditSec at 0:00
+        # Step 2: Long press Select to reset to 0:00 and enter EditSec (from paused Counting)
         emulator.hold_button(Button.SELECT)
         time.sleep(1.0)
         emulator.release_buttons()
@@ -133,7 +129,7 @@ class TestZeroCrossingTypeConversion:
         assert state_editsec is not None
         assert_mode(state_editsec, "EditSec")
 
-        # Step 4: Press Down 5 times (+5 seconds)
+        # Step 3: Press Down 5 times (+5 seconds)
         for i in range(5):
             emulator.press_down()
             time.sleep(0.2)
@@ -144,7 +140,7 @@ class TestZeroCrossingTypeConversion:
         assert state_down is not None
         assert_time_approximately(state_down, minutes=0, seconds=5, tolerance=1)
 
-        # Step 5: Long press Up to toggle reverse
+        # Step 4: Long press Up to toggle reverse
         emulator.hold_button(Button.UP)
         time.sleep(1.0)
         emulator.release_buttons()
@@ -152,7 +148,7 @@ class TestZeroCrossingTypeConversion:
         assert state_dir is not None
         assert_direction(state_dir, forward=False)
 
-        # Step 6: Press Back (subtract 60 seconds)
+        # Step 5: Press Back (subtract 60 seconds)
         emulator.press_back()
         state_sub = capture.wait_for_state(event="button_back", timeout=5.0)
 
@@ -238,11 +234,10 @@ class TestAutoDirectionFlip:
         time.sleep(1.0)
         capture.clear_state_queue()
 
-        # Step 1: Enter EditSec - need to go through New mode first
-        # Wait for chrono auto-start, then press Up, then long press Select
+        # Step 1: Enter EditSec - pause chrono, then long-press Select
         time.sleep(2.5)
-        emulator.press_up()
-        capture.wait_for_state(event="button_up", timeout=5.0)
+        emulator.press_select()
+        time.sleep(0.3)
 
         emulator.hold_button(Button.SELECT)
         time.sleep(1.0)
@@ -354,10 +349,10 @@ class TestAutoDirectionFlip:
         time.sleep(1.0)
         capture.clear_state_queue()
 
-        # Step 1: Enter EditSec
+        # Step 1: Enter EditSec - pause chrono, then long-press Select
         time.sleep(2.5)
-        emulator.press_up()
-        capture.wait_for_state(event="button_up", timeout=5.0)
+        emulator.press_select()
+        time.sleep(0.3)
 
         emulator.hold_button(Button.SELECT)
         time.sleep(1.0)

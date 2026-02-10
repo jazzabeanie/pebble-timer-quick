@@ -150,11 +150,11 @@ def enter_editsec_mode(emulator):
 
     From a fresh app start:
     1. Wait for chrono mode (2.5s)
-    2. Press Up to enter ControlModeNew (from Counting mode)
-    3. Long press Select to reset to 0 and enter EditSec
+    2. Press Select to pause the chrono
+    3. Long press Select to reset to 0:00 and enter EditSec
     """
     time.sleep(2.5)
-    emulator.press_up()  # Enter ControlModeNew from Counting
+    emulator.press_select()  # Pause chrono
     time.sleep(0.3)
     emulator.hold_button(Button.SELECT)
     time.sleep(2.0)
