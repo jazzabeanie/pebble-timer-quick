@@ -102,12 +102,11 @@ class TestZeroCrossingTypeConversion:
         Test 2: Countdown -> chrono conversion works in ControlModeEditSec.
 
         Steps:
-        1. Wait 3.5s for chrono mode
-        2. Press Up to enter Edit mode
-        3. Long press Select to enter EditSec at 0:00
-        4. Press Down 5 times (+5 seconds)
-        5. Long press Up to toggle reverse
-        6. Press Back (subtract 60 seconds) -> crosses zero -> chrono ~0:55
+        1. Wait 3.5s for chrono mode, pause it
+        2. Long press Select to reset to 0:00 and enter EditSec
+        3. Press Select (+5 seconds)
+        4. Long press Up to toggle reverse
+        5. Press Back (subtract 60 seconds) -> crosses zero -> chrono ~0:55
         """
         emulator = persistent_emulator
 
@@ -129,14 +128,9 @@ class TestZeroCrossingTypeConversion:
         assert state_editsec is not None
         assert_mode(state_editsec, "EditSec")
 
-        # Step 3: Press Down 5 times (+5 seconds)
-        for i in range(5):
-            emulator.press_down()
-            time.sleep(0.2)
-        # Consume all button_down events
-        state_down = None
-        for i in range(5):
-            state_down = capture.wait_for_state(event="button_down", timeout=5.0)
+        # Step 3: Press Select (+5 seconds)
+        emulator.press_select()
+        state_down = capture.wait_for_state(event="button_select", timeout=5.0)
         assert state_down is not None
         assert_time_approximately(state_down, minutes=0, seconds=5, tolerance=1)
 
@@ -222,8 +216,8 @@ class TestAutoDirectionFlip:
         Test 4: Auto-direction-flip works in ControlModeEditSec.
 
         Steps:
-        1. Long press Select to enter EditSec at 0:00
-        2. Press Down 5 times (+5 seconds)
+        1. Wait 2.5s, pause chrono, long press Select -> EditSec at 0:00
+        2. Press Select (+5 seconds)
         3. Long press Up to toggle reverse
         4. Press Back (subtract 60 seconds) -> chrono ~0:55, direction forward
         """
@@ -246,13 +240,9 @@ class TestAutoDirectionFlip:
         assert state_editsec is not None
         assert_mode(state_editsec, "EditSec")
 
-        # Step 2: Press Down 5 times (+5 seconds)
-        for i in range(5):
-            emulator.press_down()
-            time.sleep(0.2)
-        state_down = None
-        for i in range(5):
-            state_down = capture.wait_for_state(event="button_down", timeout=5.0)
+        # Step 2: Press Select (+5 seconds)
+        emulator.press_select()
+        state_down = capture.wait_for_state(event="button_select", timeout=5.0)
         assert state_down is not None
 
         # Step 3: Long press Up to toggle reverse
@@ -334,9 +324,13 @@ class TestAutoDirectionFlip:
         """
         Test 6: Two consecutive zero-crossings both trigger auto-direction-flip.
 
+        Each zero-crossing represents the user "changing their mind" about
+        timer type. Chrono elapsed time from a crossing should not carry
+        over into the next countdown value.
+
         Steps:
-        1. Wait 2.5s, press Up, long press Select -> EditSec at 0:00
-        2. Press Down 5 times (+5 seconds)
+        1. Wait 2.5s, pause chrono, long press Select -> EditSec at 0:00
+        2. Press Select (+5 seconds)
         3. Long press Up to toggle reverse
         4. Press Back (subtract 60s) -> chrono ~0:55, direction forward (1st flip)
         5. Long press Up to toggle reverse
@@ -361,13 +355,9 @@ class TestAutoDirectionFlip:
         assert state_editsec is not None
         assert_mode(state_editsec, "EditSec")
 
-        # Step 2: Press Down 5 times (+5 seconds)
-        for i in range(5):
-            emulator.press_down()
-            time.sleep(0.2)
-        state_down = None
-        for i in range(5):
-            state_down = capture.wait_for_state(event="button_down", timeout=5.0)
+        # Step 2: Press Select (+5 seconds)
+        emulator.press_select()
+        state_down = capture.wait_for_state(event="button_select", timeout=5.0)
         assert state_down is not None
 
         # Step 3: Long press Up to toggle reverse

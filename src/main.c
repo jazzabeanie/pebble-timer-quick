@@ -118,7 +118,7 @@ static void prv_update_timer(int64_t increment) {
 }
 
 // Check for zero-crossing and auto-flip direction to forward
-static void prv_check_zero_crossing_direction_flip(bool was_chrono) {
+static void prv_check_zero_crossing_direction_flip(bool was_chrono, int64_t increment) {
   if (was_chrono != timer_is_chrono()) {
     main_data.is_reverse_direction = false;
     // Normalize the timer's internal state to match the new type.
@@ -143,18 +143,25 @@ static void prv_check_zero_crossing_direction_flip(bool was_chrono) {
       timer_data.base_length_ms = 0;
       main_data.is_editing_existing_timer = true;
     } else {
-      // Countdown: normalize length_ms and reset elapsed to 0.
-      // When editing an existing timer (e.g. subtracting from a chrono),
-      // use display_value to account for the chrono's elapsed time.
-      // When setting up a new timer, keep length_ms as-is so the user
-      // gets exactly the value they entered (no elapsed editing time lost).
+      // Countdown: normalize length_ms for header/base, and adjust start_ms
+      // so the display value accounts for elapsed time.
+      // length_ms = increment gives the correct header (e.g. 20:00).
+      // start_ms is set so that length_ms - elapsed = display_value,
+      // preserving the correct countdown display (e.g. 19:52 if 8s elapsed).
       if (main_data.is_editing_existing_timer) {
-        timer_data.length_ms = display_value;
-      }
-      if (!timer_data.is_paused) {
-        timer_data.start_ms = epoch();
+        timer_data.length_ms = increment;
+        if (!timer_data.is_paused) {
+          timer_data.start_ms = epoch() - (increment - display_value);
+        } else {
+          timer_data.start_ms = increment - display_value;
+        }
       } else {
-        timer_data.start_ms = 0;
+        // New timer: reset elapsed so user sees the full entered value.
+        if (!timer_data.is_paused) {
+          timer_data.start_ms = epoch();
+        } else {
+          timer_data.start_ms = 0;
+        }
       }
       timer_data.can_vibrate = true;
       timer_data.base_length_ms = timer_data.length_ms;
@@ -302,13 +309,13 @@ static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     // increment timer by 1 hour
     bool was_chrono = timer_is_chrono();
     prv_update_timer(BACK_BUTTON_INCREMENT_MS);
-    prv_check_zero_crossing_direction_flip(was_chrono);
+    prv_check_zero_crossing_direction_flip(was_chrono, BACK_BUTTON_INCREMENT_MS);
     main_data.timer_length_modified_in_edit_mode = true;
   } else if (main_data.control_mode == ControlModeEditSec) {
     // increment timer by 60 seconds
     bool was_chrono = timer_is_chrono();
     prv_update_timer(BACK_BUTTON_INCREMENT_SEC_MS);
-    prv_check_zero_crossing_direction_flip(was_chrono);
+    prv_check_zero_crossing_direction_flip(was_chrono, BACK_BUTTON_INCREMENT_SEC_MS);
     main_data.timer_length_modified_in_edit_mode = true;
   } else if (main_data.control_mode == ControlModeEditRepeat) {
     timer_data.repeat_count = 0;
@@ -370,7 +377,7 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   // increment timer
   bool was_chrono = timer_is_chrono();
   prv_update_timer(increment);
-  prv_check_zero_crossing_direction_flip(was_chrono);
+  prv_check_zero_crossing_direction_flip(was_chrono, increment);
   main_data.timer_length_modified_in_edit_mode = true;
   drawing_update();
   layer_mark_dirty(main_data.layer);
@@ -463,7 +470,7 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     case ControlModeEditSec: {
       bool was_chrono = timer_is_chrono();
       prv_update_timer(SELECT_BUTTON_INCREMENT_SEC_MS);
-      prv_check_zero_crossing_direction_flip(was_chrono);
+      prv_check_zero_crossing_direction_flip(was_chrono, SELECT_BUTTON_INCREMENT_SEC_MS);
       main_data.timer_length_modified_in_edit_mode = true;
       break;
     }
@@ -477,7 +484,7 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     case ControlModeNew: {
       bool was_chrono = timer_is_chrono();
       prv_update_timer(increment);
-      prv_check_zero_crossing_direction_flip(was_chrono);
+      prv_check_zero_crossing_direction_flip(was_chrono, increment);
       main_data.timer_length_modified_in_edit_mode = true;
       break;
     }
@@ -634,7 +641,7 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     int64_t increment = DOWN_BUTTON_INCREMENT_MS;
     bool was_chrono = timer_is_chrono();
     prv_update_timer(increment);
-    prv_check_zero_crossing_direction_flip(was_chrono);
+    prv_check_zero_crossing_direction_flip(was_chrono, increment);
     main_data.timer_length_modified_in_edit_mode = true;
     drawing_update();
     layer_mark_dirty(main_data.layer);
@@ -644,7 +651,7 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     int64_t increment = DOWN_BUTTON_INCREMENT_SEC_MS;
     bool was_chrono = timer_is_chrono();
     prv_update_timer(increment);
-    prv_check_zero_crossing_direction_flip(was_chrono);
+    prv_check_zero_crossing_direction_flip(was_chrono, increment);
     main_data.timer_length_modified_in_edit_mode = true;
     drawing_update();
     layer_mark_dirty(main_data.layer);

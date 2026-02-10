@@ -160,7 +160,7 @@ Chrono mode is a variant of Counting mode where the timer counts up from 0:00 in
 
 ## Zero-Crossing (Auto Direction Flip)
 
-When editing crosses from positive to negative (or vice versa), the timer type automatically converts between countdown and chrono, and the editing direction resets to forward.
+When editing crosses from positive to negative (or vice versa), the timer type automatically converts between countdown and chrono, and the editing direction resets to forward. The countdown value after a chrono-to-countdown zero-crossing equals the button increment amount (chrono elapsed time is not subtracted).
 
 | Test | Description |
 |------|-------------|
@@ -169,7 +169,8 @@ When editing crosses from positive to negative (or vice versa), the timer type a
 | `test_edit_timer_direction.py::TestAutoDirectionFlip::test_auto_flip_countdown_to_chrono_new_mode` | Direction auto-flips after zero-crossing in New mode |
 | `test_edit_timer_direction.py::TestAutoDirectionFlip::test_auto_flip_countdown_to_chrono_editsec` | Direction auto-flips in EditSec mode |
 | `test_edit_timer_direction.py::TestAutoDirectionFlip::test_continued_editing_after_auto_flip_new_mode` | Subsequent presses work in forward direction after auto-flip |
-| `test_edit_timer_direction.py::TestAutoDirectionFlip::test_round_trip_zero_crossing_editsec` | Two consecutive zero-crossings both trigger auto-flip |
+| `test_edit_timer_direction.py::TestAutoDirectionFlip::test_round_trip_zero_crossing_editsec` | Two consecutive zero-crossings both trigger auto-flip; countdown equals button increment |
+| `test_base_length.py::TestBaseLength::test_chrono_edit_then_countdown_ignores_chrono_elapsed` | Chrono elapsed time does not reduce countdown value on zero-crossing |
 
 ---
 
