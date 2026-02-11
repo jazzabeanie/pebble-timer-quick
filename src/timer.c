@@ -133,7 +133,7 @@ void timer_increment(int64_t increment) {
     timer_reset();
   }
   // enable vibration
-  if (timer_data.length_ms) {
+  if (timer_data.length_ms > 0) {
     timer_data.can_vibrate = true;
   }
   timer_data.elapsed = false;

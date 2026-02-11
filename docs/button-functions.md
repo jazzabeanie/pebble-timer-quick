@@ -141,6 +141,7 @@ Timers with only seconds (no minutes) stay paused after edit mode expires, rathe
 |------|-------------|
 | `test_timer_workflows.py::TestSubMinuteTimerStaysPaused::test_sub_minute_timer_stays_paused_after_edit_expires` | Sub-minute timer stays paused when edit expires |
 | `test_timer_workflows.py::TestMinuteAndSecondsTimerStaysPaused::test_minute_and_seconds_timer_stays_paused` | Timer with both minutes and seconds stays paused |
+| `test_reverse_chrono_and_edit_pause.py::TestPausedTimerStaysPausedAfterEdit::test_paused_timer_stays_paused_after_edit_expires` | Paused timer remains paused after editing and letting edit mode expire |
 
 ---
 
@@ -155,6 +156,7 @@ Chrono mode is a variant of Counting mode where the timer counts up from 0:00 in
 | `test_stopwatch_subtraction.py::test_chrono_subtraction_converts_to_countdown` | Subtracting from chrono converts to countdown |
 | `test_stopwatch_subtraction.py::test_chrono_subtraction_multiple_minutes` | Subtracting 3 minutes from chrono |
 | `test_stopwatch_subtraction.py::test_chrono_add_then_subtract` | Add time then toggle direction and subtract |
+| `test_reverse_chrono_and_edit_pause.py::TestReverseChrono::test_reverse_direction_creates_chrono` | Reverse direction chrono runs without spurious vibration |
 
 ---
 

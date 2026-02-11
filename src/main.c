@@ -208,7 +208,7 @@ static void prv_new_expire_callback(void *data) {
 
     main_data.control_mode = ControlModeCounting;
     // Sub-minute timers (from EditSec mode) should stay paused and require manual start
-    if (timer_is_paused() && !was_edit_sec_mode) {
+    if (timer_is_paused() && !was_edit_sec_mode && !main_data.is_editing_existing_timer) {
       timer_toggle_play_pause();
     }
     prv_update_backlight();
