@@ -1,6 +1,6 @@
 import time
 import pytest
-from conftest import (LogCapture, Button, assert_mode, assert_is_chrono,
+from .conftest import (LogCapture, Button, assert_mode, assert_is_chrono,
                       parse_time)
 
 
@@ -9,9 +9,9 @@ class TestEditElapsedTime:
 
     def test_chrono_edit_elapsed_time_deducted(self, persistent_emulator):
         """
-        Open app, immediately enter EditSec (before auto-start), wait 4s, add 20s.
-        The timer should become a countdown and display less than 16s
-        (since 4s elapsed since app start should be deducted).
+        This test makes sure that any time spent setting the timer is included
+        in the time elapsed. The timer should have been considered started the
+        moment the app was opened in new timer mode.
 
         Workflow:
         1. App opens in New mode (0:00)
