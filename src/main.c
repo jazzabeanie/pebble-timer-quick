@@ -119,7 +119,7 @@ static void prv_update_timer(int64_t increment) {
 
 // Check for zero-crossing and auto-flip direction to forward
 static void prv_check_zero_crossing_direction_flip(bool was_chrono, int64_t increment) {
-  if (was_chrono != timer_is_chrono()) {
+  if (was_chrono != timer_is_chrono()) {  // TODO: make this more clear. Does this mean if change crossed zero? if so, perhaps use a variable change_crossed_zero
     main_data.is_reverse_direction = false;
     // Normalize the timer's internal state to match the new type.
     // After timer_increment crosses zero, length_ms and start_ms may not
@@ -150,18 +150,14 @@ static void prv_check_zero_crossing_direction_flip(bool was_chrono, int64_t incr
       // preserving the correct countdown display (e.g. 19:52 if 8s elapsed).
       if (main_data.is_editing_existing_timer) {
         timer_data.length_ms = increment;
-        if (!timer_data.is_paused) {
-          timer_data.start_ms = epoch() - (increment - display_value);
-        } else {
+        if (timer_data.is_paused) {
           timer_data.start_ms = increment - display_value;
+        } else {
+          timer_data.start_ms = epoch() - (increment - display_value);
         }
       } else {
-        // New timer: reset elapsed so user sees the full entered value.
-        if (!timer_data.is_paused) {
-          timer_data.start_ms = epoch();
-        } else {
-          timer_data.start_ms = 0;
-        }
+        // New timer: keep start_ms as-is so elapsed time from app start
+        // is deducted from the countdown value.
       }
       timer_data.can_vibrate = true;
       timer_data.base_length_ms = timer_data.length_ms;
