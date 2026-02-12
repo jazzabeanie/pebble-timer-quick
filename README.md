@@ -1,8 +1,73 @@
-# pebble-timer-plus
-Timer+ is a beautiful, simple timer for the Pebble Smartwatch. It will run in the background, using the WakeUp api, 
-so there is no need to keep the app open. Once the timer has gone off, or even while it is running, long pressing
-the select button will reset the timer. Additionally, starting a timer from 0:00 will cause Timer+ to go into 
-stopwatch mode.
+# pebble-timer-quick
+
+QuickTimer is a timer app for the Pebble Smartwatch, intended to be the fastest
+way to start a timer or stopwatch. If you think that needing 5 seconds to set a
+countdown timer is far too long, then QuickTimer is for you. With QuickTimer,
+rest assured that you are not wasting precious moments of your life.
+
+QuickTimer starts counting as soon as you open the app. As soon as you know
+that you need a countdown timer, open the app and then think how long that
+timer needs to be. If you want a timer for 1 minute and it takes you 6 seconds
+to start the timer, then your timer will be off by 10%, and that can be life or
+death. If you like your soft boiled eggs cooked for exactly 6 minutes and 20 seconds,
+QuickTimer will help you get the gooey texture you desire.
+
+QuickTimer works by pressing buttons to increment the countdown timer by set
+amounts (1, 5, 20, 60). Once you get used to this, you can set a timer without
+even looking at your watch. Here's how it works:
+
+- Open the app
+- You enter new timer mode where each button press adds a given amount of minutes
+  to the total countdown time
+- After 3 seconds of inactivity your timer is set
+- If you don't press anything, QuickTimer goes into stopwatch mode instead
+- Once you are in counting mode, you can edit your timer, restart your timer,
+  or you can enable repeat timers
+- Timers that are in alarm can be repeated, snoozed for 5 minutes, or silenced
+  to become post timer stopwatches.
+
+The table below compares the number of button presses required to set timers in
+QuickTimer versus in the default Pebble timer.
+
+```
+| Timer Amount | QuickTimer | Default Pebble Timer |
+|--------------|------------|----------------------|
+| 1 min        | 2          |  5                   |
+| 2 min        | 3          |  6                   |
+| 3 min        | 4          |  7                   |
+| 4 min        | 4          |  8                   |
+| 5 min        | 2          |  5+                  |
+| 6 min        | 3          |  5+                  |
+| 7 min        | 4          |  5+                  |
+| 8 min        | 5          |  5+                  |
+| 9 min        | 5          |  5+                  |
+| 10 min       | 3          |  5+                  |
+| 11 min       | 4          |  5+                  |
+| 12 min       | 5          |  5+                  |
+| 13 min       | 6          |  5+                  |
+| 14 min       | 5          |  5+                  |
+| 15 min       | 4          |  5+                  |
+| 16 min       | 5          |  5+                  |
+| 17 min       | 6          |  5+                  |
+| 18 min       | 5          |  5+                  |
+| 19 min       | 4          |  5+                  |
+| 20 min       | 2          |  5+                  |
+| 25 min       | 3          |  5+                  |
+| 30 min       | 4          |  5+                  |
+| 35 min       | 5          |  5+                  |
+| 40 min       | 3          |  5+                  |
+| 45 min       | 4          |  5+                  |
+| 50 min       | 5          |  5+                  |
+| 55 min       | 4          |  5+                  |
+| 59 min       | 4          |  5                   |
+| 60 min       | 2          |  5                   |
+| stopwatch    | 1          |  x                   |
+```
+
+Based on [YclepticStudios/pebble-timer-plus](https://github.com/YclepticStudios/pebble-timer-plus).
+
+The following screenshots are actually from the original pebble-timer-plus, but
+QuickTimer looks a lot like that.
 
 ![Timer+ Pebble](https://github.com/YclepticStudios/pebble-timer-plus/blob/master/assets/screenshots/chalk-animated.gif)
 ![Timer+ Pebble](https://github.com/YclepticStudios/pebble-timer-plus/blob/master/assets/screenshots/basalt-animated.gif)
@@ -24,7 +89,7 @@ Once it's set up, just run:
 
 - `conda activate conda-env`
 - `pebble build`
-- `pebble install --emulator basalt`
+- `pebble install --emulator basalt`,
 
 If installing to the emulator fails:
 
@@ -133,7 +198,7 @@ LLMs run tests like so:
 cd test/functional && ../../conda-env/bin/python -m pytest test_repeat_counter_visibility.py -v --platform=basalt 2>&1
 ```
 
-## Building instructions for LLMs
+## Instructions for Agents
 
 After making code changes, do not active the conda environment. Just run build with
 `/home/jared/Workspace/pebble-timer-quick/conda-env/bin/pebble build`, then do
