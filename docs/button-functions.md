@@ -30,12 +30,12 @@ When reverse direction is active (toggled via long-press Up), all increments bec
 | Button | Press | Action | Tests |
 |--------|-------|--------|-------|
 | Up | Short | Add 20 minutes to timer | `test_create_timer.py::TestButtonPresses::test_up_button_increments_20_minutes`, `test_log_based.py::test_up_button_increments_20_minutes_log_based` |
-| Up | Long | Toggle reverse direction (increment becomes decrement) | `test_directional_icons.py::TestNewModeReverseIcons::test_new_reverse_up_icon`, `test_stopwatch_subtraction.py::test_chrono_add_then_subtract` |
-| Select | Short | Add 5 minutes to timer | `test_create_timer.py::TestButtonPresses::test_select_button_increments_5_minutes` |
-| Select | Long | Switch to EditSec mode (preserving current timer value and direction) | `test_edit_mode_reset.py::test_long_press_select_toggles_new_to_editsec`, `test_timer_workflows.py::TestEditModeToggle::test_long_press_select_toggles_new_to_editsec`, `test_edit_mode_reset.py::test_toggle_new_to_editsec_preserves_reverse_direction` |
-| Down | Short | Add 1 minute to timer | `test_create_timer.py::TestCreateTimer::test_down_button_increments_minutes`, `test_create_timer.py::TestCreateTimer::test_create_2_minute_timer`, `test_log_based.py::test_multiple_button_presses_log_sequence` |
+| Up | Long | Toggle reverse direction (increment becomes decrement) | `test_directional_icons.py::TestNewModeReverseIcons::test_new_reverse_up_icon`, `test_stopwatch_subtraction.py::test_chrono_add_then_subtract`, `test_reverse_chrono_and_edit_pause.py::TestReverseChrono::test_reverse_direction_creates_chrono` |
+| Select | Short | Add 5 minutes to timer | `test_create_timer.py::TestButtonPresses::test_select_button_increments_5_minutes`, `test_log_based.py::test_multiple_button_presses_log_sequence` |
+| Select | Long | Switch to EditSec mode (preserving current timer value and direction) | `test_edit_mode_reset.py::test_long_press_select_toggles_new_to_editsec`, `test_timer_workflows.py::TestEditModeToggle::test_long_press_select_toggles_new_to_editsec`, `test_edit_mode_reset.py::test_toggle_new_to_editsec_preserves_reverse_direction`, `test_hold_select_restart.py::TestEditModeToggle::test_toggle_new_editsec_preserves_value` |
+| Down | Short | Add 1 minute to timer | `test_create_timer.py::TestCreateTimer::test_down_button_increments_minutes`, `test_create_timer.py::TestCreateTimer::test_create_2_minute_timer`, `test_log_based.py::test_multiple_button_presses_log_sequence`, `test_create_timer.py::TestTimerStartsImmediately::test_timer_counts_down_during_setup`, `test_stopwatch_subtraction.py::TestStopwatchSubtraction::test_chrono_subtraction_multiple_minutes` |
 | Down | Long | Quit app (sets reset flag and closes) | `test_button_icons.py::TestNewModeIcons::test_new_long_down_icon` (icon only) |
-| Back | Short | Add 60 minutes (1 hour) to timer | `test_edit_mode_reset.py::test_long_press_select_resets_in_control_mode_new` (used after reset) |
+| Back | Short | Add 60 minutes (1 hour) to timer | *(no dedicated test)* |
 
 **Mode transitions:**
 - After 3 seconds of inactivity: auto-transitions to Counting mode (`test_create_timer.py::TestTimerCountdown::test_timer_transitions_to_counting_mode`, `test_log_based.py::test_mode_transition_via_logs`)
@@ -59,7 +59,7 @@ When reverse direction is active (toggled via long-press Up), all increments bec
 | Up | Short | Add 20 seconds to timer | `test_timer_workflows.py::TestSetShortTimer::test_set_4_second_timer` (used to build timer) |
 | Up | Long | Toggle reverse direction | `test_directional_icons.py::TestEditSecModeReverseIcons::test_editsec_reverse_up_icon` |
 | Select | Short | Add 5 seconds to timer | `test_timer_workflows.py::TestSetShortTimer::test_set_4_second_timer` (used to build timer) |
-| Select | Long | Switch to New mode (preserving current timer value and direction) | `test_edit_mode_reset.py::test_long_press_select_toggles_editsec_to_new`, `test_timer_workflows.py::TestEditModeToggle::test_long_press_select_toggles_editsec_to_new`, `test_edit_mode_reset.py::test_toggle_editsec_to_new_preserves_reverse_direction` |
+| Select | Long | Switch to New mode (preserving current timer value and direction) | `test_edit_mode_reset.py::test_long_press_select_toggles_editsec_to_new`, `test_timer_workflows.py::TestEditModeToggle::test_long_press_select_toggles_editsec_to_new`, `test_edit_mode_reset.py::test_toggle_editsec_to_new_preserves_reverse_direction`, `test_hold_select_restart.py::TestEditModeToggle::test_toggle_new_editsec_preserves_value` |
 | Down | Short | Add 1 second to timer | `test_timer_workflows.py::TestSetShortTimer::test_set_4_second_timer` (used to build timer) |
 | Down | Long | Quit app | *(no dedicated test)* |
 | Back | Short | Add 60 seconds (1 minute) to timer | `test_directional_icons.py::TestEditSecModeForwardIcons::test_editsec_forward_back_icon_plus60` |
@@ -91,7 +91,7 @@ When reverse direction is active (toggled via long-press Up), all increments bec
 | Up | Long | Toggle reverse direction | *(no dedicated test)* |
 | Select | Short | Add 5 to repeat count | *(no dedicated test)* |
 | Select | Long | No-op (stays in EditRepeat) | `test_edit_mode_reset.py::test_long_press_select_no_op_in_edit_repeat` (skipped), `test_timer_workflows.py::TestEditRepeatModeNoOp::test_long_press_select_in_edit_repeat_mode_does_nothing` |
-| Down | Short | Add 1 to repeat count | `test_timer_workflows.py::TestEnableRepeatingTimer::test_enable_repeating_timer`, `test_repeat_counter_visibility.py::TestRepeatCounterVisibility::test_editrepeat_shows_repeat_counter` |
+| Down | Short | Add 1 to repeat count | `test_timer_workflows.py::TestEnableRepeatingTimer::test_enable_repeating_timer`, `test_repeat_counter_visibility.py::TestRepeatCounterVisibility::test_editrepeat_shows_repeat_counter`, `test_hold_select_restart.py::TestRestartRepeatingTimerRestoresCount::test_restart_repeating_timer_restores_repeat_count` |
 | Down | Long | Quit app | *(no dedicated test)* |
 | Back | Short | Reset repeat count to 0 | `test_timer_workflows.py::TestEditRepeatBackButton::test_back_button_resets_repeat_count_to_zero` |
 
@@ -125,7 +125,7 @@ When reverse direction is active (toggled via long-press Up), all increments bec
 |--------|-------|--------|-------|
 | Up | Short | Silence alarm and enter edit mode | `test_backlight.py::test_backlight_stays_on_when_silencing_to_edit_mode` |
 | Up | Long | Repeat timer (add base_length_ms and restart; countdown only) | `test_timer_workflows.py::TestRepeatCompletedTimer::test_repeat_completed_timer`, `test_timer_workflows.py::TestRepeatTimerDuringAlarm::test_hold_up_during_alarm_repeats_timer`, `test_timer_workflows.py::TestRepeatTimerDuringAlarm::test_hold_up_during_longer_alarm_repeats_timer`, `test_timer_workflows.py::TestRepeatTimerDuringAlarm::test_hold_up_during_longer_alarm_repeats_timer_old_method` |
-| Select | Short | Silence alarm and toggle play/pause | `test_backlight.py::test_backlight_on_during_alarm` |
+| Select | Short | Silence alarm and toggle play/pause | `test_backlight.py::test_backlight_on_during_alarm`, `test_timer_workflows.py::TestPauseCompletedTimer::test_pause_completed_timer` |
 | Select | Long | Restart timer from base_length_ms (running) | `test_hold_select_restart.py::test_restart_during_alarm` |
 | Down | Short | Snooze: if repeating with count > 1, advance repeat; otherwise add 5 minutes | `test_timer_workflows.py::TestSnoozeCompletedTimer::test_snooze_completed_timer` |
 | Down | Long | Quit app | *(no dedicated test)* |
