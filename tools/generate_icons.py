@@ -67,20 +67,53 @@ def create_x_icon(filename, size=25):
 
 
 def create_direction_icon(filename, size=25):
-    """Create a direction toggle icon (<> arrows)."""
+    """Create a direction toggle icon (Uno reverse style circular arrows)."""
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
-    mid_y = size // 2
-    # Left arrow
-    draw.line([(4, mid_y), (9, mid_y - 5)], fill=(255, 255, 255, 255), width=2)
-    draw.line([(4, mid_y), (9, mid_y + 5)], fill=(255, 255, 255, 255), width=2)
-    # Right arrow
-    draw.line(
-        [(size - 5, mid_y), (size - 10, mid_y - 5)], fill=(255, 255, 255, 255), width=2
+
+    margin = 4 if size > 20 else 2
+
+    # Bounding box for the main arcs
+    bbox = [margin, margin, size - margin - 1, size - margin - 1]
+
+    # Center y coordinate for arrow heads
+    cy = (bbox[1] + bbox[3]) / 2
+
+    color = (255, 255, 255, 255)
+    width = 2
+
+    # Draw arcs
+    # Top arc from ~left (but higher) to right
+    draw.arc(bbox, start=200, end=360, fill=color, width=width)
+
+    # Bottom arc from ~right (but lower) to left
+    draw.arc(bbox, start=20, end=180, fill=color, width=width)
+
+    # Arrow heads
+    # Right side: tip pointing down from the end of the top arc
+    head_size = 4 if size > 20 else 2
+    right_x = bbox[2]
+    # Arc ends exactly at y = cy
+    draw.polygon(
+        [
+            (right_x - head_size, cy),
+            (right_x + head_size, cy),
+            (right_x, cy + head_size + 1),
+        ],
+        fill=color,
     )
-    draw.line(
-        [(size - 5, mid_y), (size - 10, mid_y + 5)], fill=(255, 255, 255, 255), width=2
+
+    # Left side: tip pointing up from the end of the bottom arc
+    left_x = bbox[0]
+    draw.polygon(
+        [
+            (left_x - head_size, cy),
+            (left_x + head_size, cy),
+            (left_x, cy - head_size - 1),
+        ],
+        fill=color,
     )
+
     filepath = os.path.join(RESOURCES_DIR, filename)
     img.save(filepath)
     print(f"  Created {filepath} ({size}x{size})")
@@ -117,13 +150,13 @@ def main():
     create_text_icon("icon_plus_1hr.png", "+1h")
     create_text_icon("icon_plus_20min.png", "+20")
     # Small icons need black background to be visible on white center circle
-    create_text_icon("icon_plus_5min.png", "+5m", size=15, bg_color=(0, 0, 0, 255))
+    create_text_icon("icon_plus_5min.png", "+5", size=15, bg_color=(0, 0, 0, 255))
     create_text_icon("icon_plus_1min.png", "+1m")
 
     # ControlModeNew minus icons (25x25 unless specified)
     create_text_icon("icon_minus_1hr.png", "-1h")
     create_text_icon("icon_minus_20min.png", "-20")
-    create_text_icon("icon_minus_5min.png", "-5m", size=15, bg_color=(0, 0, 0, 255))
+    create_text_icon("icon_minus_5min.png", "-5", size=15, bg_color=(0, 0, 0, 255))
     create_text_icon("icon_minus_1min.png", "-1m")
 
     # ControlModeEditSec icons (25x25)

@@ -91,6 +91,10 @@ Once it's set up, just run:
 - `pebble build`
 - `pebble install --emulator basalt`,
 
+If you need to regenerate the placeholder button icon assets, run the generator script manually (it is not part of the standard build):
+
+- `python tools/generate_icons.py`
+
 If installing to the emulator fails:
 
 - build and install the pebble-demo, or some other project taht you know works
