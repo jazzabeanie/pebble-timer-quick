@@ -107,26 +107,25 @@ def main():
     create_text_icon("icon_minus_1min.png", "-1m")
 
     # ControlModeEditSec icons (25x25)
+    create_text_icon("icon_plus_60sec.png", "+60")
     create_text_icon("icon_plus_30sec.png", "+30")
     create_text_icon("icon_plus_20sec.png", "+20")
     create_text_icon("icon_plus_5sec.png", "+5", size=15, bg_color=(0, 0, 0, 255))
     create_text_icon("icon_plus_1sec.png", "+1s")
 
     # ControlModeEditSec minus icons (25x25 unless specified)
+    create_text_icon("icon_minus_60sec.png", "-60")
     create_text_icon("icon_minus_30sec.png", "-30")
     create_text_icon("icon_minus_20sec.png", "-20")
     create_text_icon("icon_minus_5sec.png", "-5", size=15, bg_color=(0, 0, 0, 255))
     create_text_icon("icon_minus_1sec.png", "-1s")
 
     # Counting mode icons (25x25)
-    create_text_icon("icon_edit.png", "Edt")
-    create_bg_icon("icon_bg.png")
-    create_dots_icon("icon_details.png")
+    # create_text_icon("icon_edit.png", "e")  #TODO: this could be used, but would need font size increase
 
     # Long press icons (15x15)
-    create_text_icon("icon_rep_en.png", "Rep", size=15)
-    create_text_icon("icon_reset.png", "Rst", size=15)
-    create_x_icon("icon_quit.png", size=15)
+    # create_text_icon("icon_rep_en.png", "Rep", size=15)
+    # create_text_icon("icon_reset.png", "Rst", size=15)
 
     # EditRepeat icons (25x25)
     create_text_icon("icon_plus_20_rep.png", "+20")
@@ -138,9 +137,6 @@ def main():
     create_text_icon("icon_minus_20_rep.png", "-20")
     create_text_icon("icon_minus_5_rep.png", "-5")
     create_text_icon("icon_minus_1_rep.png", "-1")
-
-    # Direction toggle icon (15x15)
-    create_direction_icon("icon_direction.png", size=15)
 
     print("\nDone! All icons generated.")
 
