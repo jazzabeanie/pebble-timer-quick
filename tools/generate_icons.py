@@ -14,17 +14,21 @@ import os
 RESOURCES_DIR = os.path.join(os.path.dirname(__file__), "..", "resources", "images")
 
 
-def create_text_icon(filename, text, size=25):
-    """Create an icon with white text on transparent background."""
-    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+def create_text_icon(filename, text, size=25, bg_color=(0, 0, 0, 0)):
+    """Create an icon with white text on specified background."""
+    img = Image.new("RGBA", (size, size), bg_color)
     draw = ImageDraw.Draw(img)
 
     # Use a simple built-in font. Pebble icons are tiny so we use small text.
     try:
         if size <= 15:
-            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 9)
+            font = ImageFont.truetype(
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 9
+            )
         else:
-            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 11)
+            font = ImageFont.truetype(
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 11
+            )
     except (OSError, IOError):
         font = ImageFont.load_default()
 
@@ -47,10 +51,16 @@ def create_x_icon(filename, size=25):
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
     margin = 5 if size == 25 else 3
-    draw.line([(margin, margin), (size - margin - 1, size - margin - 1)],
-              fill=(255, 255, 255, 255), width=2)
-    draw.line([(size - margin - 1, margin), (margin, size - margin - 1)],
-              fill=(255, 255, 255, 255), width=2)
+    draw.line(
+        [(margin, margin), (size - margin - 1, size - margin - 1)],
+        fill=(255, 255, 255, 255),
+        width=2,
+    )
+    draw.line(
+        [(size - margin - 1, margin), (margin, size - margin - 1)],
+        fill=(255, 255, 255, 255),
+        width=2,
+    )
     filepath = os.path.join(RESOURCES_DIR, filename)
     img.save(filepath)
     print(f"  Created {filepath} ({size}x{size})")
@@ -65,8 +75,12 @@ def create_direction_icon(filename, size=25):
     draw.line([(4, mid_y), (9, mid_y - 5)], fill=(255, 255, 255, 255), width=2)
     draw.line([(4, mid_y), (9, mid_y + 5)], fill=(255, 255, 255, 255), width=2)
     # Right arrow
-    draw.line([(size - 5, mid_y), (size - 10, mid_y - 5)], fill=(255, 255, 255, 255), width=2)
-    draw.line([(size - 5, mid_y), (size - 10, mid_y + 5)], fill=(255, 255, 255, 255), width=2)
+    draw.line(
+        [(size - 5, mid_y), (size - 10, mid_y - 5)], fill=(255, 255, 255, 255), width=2
+    )
+    draw.line(
+        [(size - 5, mid_y), (size - 10, mid_y + 5)], fill=(255, 255, 255, 255), width=2
+    )
     filepath = os.path.join(RESOURCES_DIR, filename)
     img.save(filepath)
     print(f"  Created {filepath} ({size}x{size})")
@@ -80,8 +94,10 @@ def create_dots_icon(filename, size=25):
     dot_r = 2
     for x_off in [-6, 0, 6]:
         cx = size // 2 + x_off
-        draw.ellipse([(cx - dot_r, mid_y - dot_r), (cx + dot_r, mid_y + dot_r)],
-                     fill=(255, 255, 255, 255))
+        draw.ellipse(
+            [(cx - dot_r, mid_y - dot_r), (cx + dot_r, mid_y + dot_r)],
+            fill=(255, 255, 255, 255),
+        )
     filepath = os.path.join(RESOURCES_DIR, filename)
     img.save(filepath)
     print(f"  Created {filepath} ({size}x{size})")
@@ -100,14 +116,27 @@ def main():
     # ControlModeNew icons (25x25)
     create_text_icon("icon_plus_1hr.png", "+1h")
     create_text_icon("icon_plus_20min.png", "+20")
-    create_text_icon("icon_plus_5min.png", "+5m")
+    # Small icons need black background to be visible on white center circle
+    create_text_icon("icon_plus_5min.png", "+5m", size=15, bg_color=(0, 0, 0, 255))
     create_text_icon("icon_plus_1min.png", "+1m")
+
+    # ControlModeNew minus icons (25x25 unless specified)
+    create_text_icon("icon_minus_1hr.png", "-1h")
+    create_text_icon("icon_minus_20min.png", "-20")
+    create_text_icon("icon_minus_5min.png", "-5m", size=15, bg_color=(0, 0, 0, 255))
+    create_text_icon("icon_minus_1min.png", "-1m")
 
     # ControlModeEditSec icons (25x25)
     create_text_icon("icon_plus_30sec.png", "+30")
     create_text_icon("icon_plus_20sec.png", "+20")
-    create_text_icon("icon_plus_5sec.png", "+5")
-    create_text_icon("icon_plus_1sec.png", "+1")
+    create_text_icon("icon_plus_5sec.png", "+5", size=15, bg_color=(0, 0, 0, 255))
+    create_text_icon("icon_plus_1sec.png", "+1s")
+
+    # ControlModeEditSec minus icons (25x25 unless specified)
+    create_text_icon("icon_minus_30sec.png", "-30")
+    create_text_icon("icon_minus_20sec.png", "-20")
+    create_text_icon("icon_minus_5sec.png", "-5", size=15, bg_color=(0, 0, 0, 255))
+    create_text_icon("icon_minus_1sec.png", "-1s")
 
     # Counting mode icons (25x25)
     create_text_icon("icon_edit.png", "Edt")
@@ -124,6 +153,11 @@ def main():
     create_text_icon("icon_plus_5_rep.png", "+5")
     create_text_icon("icon_plus_1_rep.png", "+1")
     create_text_icon("icon_rst_cnt.png", "0")
+
+    # EditRepeat minus icons (25x25)
+    create_text_icon("icon_minus_20_rep.png", "-20")
+    create_text_icon("icon_minus_5_rep.png", "-5")
+    create_text_icon("icon_minus_1_rep.png", "-1")
 
     # Direction toggle icon (15x15)
     create_direction_icon("icon_direction.png", size=15)
