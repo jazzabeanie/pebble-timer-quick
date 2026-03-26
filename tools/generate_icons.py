@@ -129,7 +129,7 @@ def main():
 
     # EditRepeat icons (25x25)
     create_text_icon("icon_plus_20_rep.png", "+20")
-    create_text_icon("icon_plus_5_rep.png", "+5")
+    create_text_icon("icon_plus_5_rep.png", "+5", size=15, bg_color=(0, 0, 0, 255))
     create_text_icon("icon_plus_1_rep.png", "+1")
     create_text_icon("icon_rst_cnt.png", "0")
 
