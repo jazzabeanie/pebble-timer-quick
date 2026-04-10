@@ -727,7 +727,7 @@ void drawing_initialize(Layer *layer) {
   drawing_data.fore_color = GColorBlack;
   drawing_data.mid_color = PBL_IF_COLOR_ELSE(GColorMintGreen, GColorWhite);
   drawing_data.ring_color = PBL_IF_COLOR_ELSE(GColorGreen, GColorWhite);
-  drawing_data.back_color = PBL_IF_COLOR_ELSE(GColorDarkGray, GColorBlack);
+  drawing_data.back_color = PBL_IF_COLOR_ELSE(GColorLightGray, GColorBlack);
   // load alarm icons
   drawing_data.reset_icon = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_REPEAT_ICON);
   drawing_data.pause_icon = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_PAUSE_ICON);
