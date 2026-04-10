@@ -391,24 +391,44 @@ static void prv_update_draw_state(Layer *layer) {
 // Button Action Icons
 //
 
-// Icon position constants (basalt 144x168)
-#define ICON_BACK_X 5
-#define ICON_BACK_Y 10
-#define ICON_UP_X 114
-#define ICON_UP_Y 10
-#define ICON_SELECT_X 127
-#define ICON_SELECT_Y 76
-#define ICON_DOWN_X 114
-#define ICON_DOWN_Y 133
+// Icon position constants
 #define ICON_STANDARD_SIZE 25
 #define ICON_SMALL_SIZE 15
-// Long press sub-icon positions (top and bottom of screen)
-#define LONG_UP_X 97
-#define LONG_UP_Y 10
-#define LONG_SELECT_X 110
-#define LONG_SELECT_Y 76
-#define LONG_DOWN_X 97
-#define LONG_DOWN_Y 145
+#ifdef PBL_ROUND
+  // Chalk (180x180 round) - icons along circle edge at clock positions
+  // Back at 9 o'clock, Select at 3 o'clock
+  // Up single at 2, Up long at 1, Down single at 4, Down long at 5
+  #define ICON_BACK_X 3
+  #define ICON_BACK_Y 78
+  #define ICON_UP_X 143
+  #define ICON_UP_Y 36
+  #define ICON_SELECT_X 163
+  #define ICON_SELECT_Y 83
+  #define ICON_DOWN_X 143
+  #define ICON_DOWN_Y 119
+  #define LONG_UP_X 118
+  #define LONG_UP_Y 14
+  #define LONG_SELECT_X 146
+  #define LONG_SELECT_Y 83
+  #define LONG_DOWN_X 118
+  #define LONG_DOWN_Y 151
+#else
+  // Basalt/rectangular (144x168)
+  #define ICON_BACK_X 5
+  #define ICON_BACK_Y 10
+  #define ICON_UP_X 114
+  #define ICON_UP_Y 10
+  #define ICON_SELECT_X 127
+  #define ICON_SELECT_Y 76
+  #define ICON_DOWN_X 114
+  #define ICON_DOWN_Y 133
+  #define LONG_UP_X 97
+  #define LONG_UP_Y 10
+  #define LONG_SELECT_X 110
+  #define LONG_SELECT_Y 76
+  #define LONG_DOWN_X 97
+  #define LONG_DOWN_Y 145
+#endif
 
 // Draw a bitmap icon at a given position
 static void prv_draw_icon(GContext *ctx, GBitmap *icon, int16_t x, int16_t y, int16_t w, int16_t h) {
@@ -431,23 +451,23 @@ static void prv_draw_action_icons(GContext *ctx, GRect bounds) {
     return;
   }
 
-  // Calculate relative positions
-  const int16_t icon_back_x = 5;
-  const int16_t icon_back_y = 10;
-  const int16_t icon_up_x = bounds.size.w - ICON_STANDARD_SIZE - 5;
-  const int16_t icon_up_y = 10;
-  const int16_t icon_select_x = bounds.size.w - ICON_SMALL_SIZE - 2;
-  const int16_t icon_select_y = (bounds.size.h - ICON_SMALL_SIZE) / 2;
-  const int16_t icon_down_x = bounds.size.w - ICON_STANDARD_SIZE - 5;
-  const int16_t icon_down_y = bounds.size.h - ICON_STANDARD_SIZE - 10;
+  // Calculate relative positions using platform-specific constants
+  const int16_t icon_back_x = ICON_BACK_X;
+  const int16_t icon_back_y = ICON_BACK_Y;
+  const int16_t icon_up_x = ICON_UP_X;
+  const int16_t icon_up_y = ICON_UP_Y;
+  const int16_t icon_select_x = ICON_SELECT_X;
+  const int16_t icon_select_y = ICON_SELECT_Y;
+  const int16_t icon_down_x = ICON_DOWN_X;
+  const int16_t icon_down_y = ICON_DOWN_Y;
 
-  // Long press sub-icon positions (beside standard icons, toward screen center)
-  const int16_t long_up_x = icon_up_x - ICON_SMALL_SIZE - 2;
-  const int16_t long_up_y = icon_up_y;
-  const int16_t long_select_x = icon_select_x - ICON_SMALL_SIZE - 2;
-  const int16_t long_select_y = icon_select_y;
-  const int16_t long_down_x = icon_down_x - ICON_SMALL_SIZE - 2;
-  const int16_t long_down_y = icon_down_y + 12;
+  // Long press sub-icon positions
+  const int16_t long_up_x = LONG_UP_X;
+  const int16_t long_up_y = LONG_UP_Y;
+  const int16_t long_select_x = LONG_SELECT_X;
+  const int16_t long_select_y = LONG_SELECT_Y;
+  const int16_t long_down_x = LONG_DOWN_X;
+  const int16_t long_down_y = LONG_DOWN_Y;
 
   // Determine if repeat counter is visible
   bool repeat_counter_visible = false;
@@ -632,7 +652,11 @@ void drawing_render(Layer *layer, GContext *ctx) {
       } else {
         snprintf(s_repeat_buffer, sizeof(s_repeat_buffer), "%dx", timer_data.repeat_count);
       }
+#ifdef PBL_ROUND
+      GRect repeat_bounds = GRect(bounds.size.w - 65, 15, 50, 30);
+#else
       GRect repeat_bounds = GRect(bounds.size.w - 50, 0, 50, 30);
+#endif
       graphics_context_set_text_color(ctx, GColorWhite);
       graphics_draw_text(ctx, s_repeat_buffer, fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD),
         repeat_bounds, GTextOverflowModeFill, GTextAlignmentRight, NULL);
@@ -645,15 +669,6 @@ void drawing_render(Layer *layer, GContext *ctx) {
     // This assumes your icon resource is a PNG with a transparent background.
     graphics_context_set_compositing_mode(ctx, GCompOpSet);
 
-    // Calculate platform-agnostic icon positions
-    const GSize icon_size = GSize(25, 25);
-    const int16_t icon_padding_right = 5;
-    const int16_t icon_padding_top = 10;
-    const int16_t icon_x_right = bounds.size.w - icon_size.w - icon_padding_right;
-    const GSize middle_icon_size = GSize(15, 15);
-    const int16_t middle_icon_padding_right = 2;
-    const int16_t middle_icon_x_right = bounds.size.w - middle_icon_size.w - middle_icon_padding_right;
-
     // Draw the edit icon (top right, Up button standard press)
     prv_draw_icon(ctx, drawing_data.icon_edit, ICON_UP_X, ICON_UP_Y,
                   ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
@@ -662,20 +677,16 @@ void drawing_render(Layer *layer, GContext *ctx) {
                   ICON_SMALL_SIZE, ICON_SMALL_SIZE);
 
     // Draw the pause icon (middle right)
-    // This calculates the Y coordinate to be perfectly centered vertically
-    const int16_t pause_icon_y = (bounds.size.h - middle_icon_size.h) / 2;
-    GRect pause_rect = GRect(middle_icon_x_right, pause_icon_y, middle_icon_size.w, middle_icon_size.h);
-    graphics_draw_bitmap_in_rect(ctx, drawing_data.pause_icon, pause_rect);
+    prv_draw_icon(ctx, drawing_data.pause_icon, ICON_SELECT_X, ICON_SELECT_Y,
+                  ICON_SMALL_SIZE, ICON_SMALL_SIZE);
 
-    // Draw the silence icon (top left)
-    GRect silence_rect = GRect(icon_padding_right, icon_padding_top, icon_size.w, icon_size.h);
-    graphics_draw_bitmap_in_rect(ctx, drawing_data.silence_icon, silence_rect);
+    // Draw the silence icon (top left, Back button)
+    prv_draw_icon(ctx, drawing_data.silence_icon, ICON_BACK_X, ICON_BACK_Y,
+                  ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
 
-    // Draw the snooze icon (bottom right)
-    const int16_t icon_padding_bottom = 10;
-    const int16_t snooze_icon_y = bounds.size.h - icon_size.h - icon_padding_bottom;
-    GRect snooze_rect = GRect(icon_x_right, snooze_icon_y, icon_size.w, icon_size.h);
-    graphics_draw_bitmap_in_rect(ctx, drawing_data.snooze_icon, snooze_rect);
+    // Draw the snooze icon (bottom right, Down button)
+    prv_draw_icon(ctx, drawing_data.snooze_icon, ICON_DOWN_X, ICON_DOWN_Y,
+                  ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
 
     // Set the mode back to default (Set) so it doesn't
     // affect other drawing operations.
