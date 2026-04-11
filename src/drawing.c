@@ -424,28 +424,30 @@ static IconPositions prv_compute_icon_positions(GRect bounds) {
   const int16_t h = bounds.size.h;
 #ifdef PBL_ROUND
   // Round displays: icons sit near the edge of the screen at clock
-  // positions. Reference layout is chalk (180x180); scale offsets from the
-  // screen center so gabbro (260x260) gets the same visual arrangement.
+  // positions. Reference layout is chalk (180x180). For larger round
+  // displays, push each icon outward along its radial direction from
+  // center by (screen_radius - 90) so the visual margin from the round
+  // screen edge matches chalk.
   const int16_t cx = w / 2;
   const int16_t cy = h / 2;
-  #define SCALE_X(v) ((int16_t)(((int32_t)(v) * w) / 180))
-  #define SCALE_Y(v) ((int16_t)(((int32_t)(v) * h) / 180))
-  p.back_x        = cx + SCALE_X(-87);
-  p.back_y        = cy + SCALE_Y(-12);
-  p.up_x          = cx + SCALE_X( 53);
-  p.up_y          = cy + SCALE_Y(-54);
-  p.select_x      = cx + SCALE_X( 73);
-  p.select_y      = cy + SCALE_Y( -7);
-  p.down_x        = cx + SCALE_X( 53);
-  p.down_y        = cy + SCALE_Y( 29);
-  p.long_up_x     = cx + SCALE_X( 28);
-  p.long_up_y     = cy + SCALE_Y(-76);
-  p.long_select_x = cx + SCALE_X( 56);
-  p.long_select_y = cy + SCALE_Y( -7);
-  p.long_down_x   = cx + SCALE_X( 28);
-  p.long_down_y   = cy + SCALE_Y( 61);
-  #undef SCALE_X
-  #undef SCALE_Y
+  #if PBL_DISPLAY_WIDTH >= 260
+  // Gabbro (260x260): chalk offsets extended radially by +40 px.
+  p.back_x        = cx + -127; p.back_y        = cy + -17;
+  p.up_x          = cx +   80; p.up_y          = cy + -83;
+  p.select_x      = cx +  110; p.select_y      = cy + -11;
+  p.down_x        = cx +   86; p.down_y        = cy +  48;
+  p.long_up_x     = cx +   42; p.long_up_y     = cy + -114;
+  p.long_select_x = cx +   96; p.long_select_y = cy + -12;
+  p.long_down_x   = cx +   45; p.long_down_y   = cy +  97;
+  #else
+  p.back_x        = cx + -87; p.back_y        = cy + -12;
+  p.up_x          = cx +  53; p.up_y          = cy + -54;
+  p.select_x      = cx +  73; p.select_y      = cy +  -7;
+  p.down_x        = cx +  53; p.down_y        = cy +  29;
+  p.long_up_x     = cx +  28; p.long_up_y     = cy + -76;
+  p.long_select_x = cx +  56; p.long_select_y = cy +  -7;
+  p.long_down_x   = cx +  28; p.long_down_y   = cy +  61;
+  #endif
 #else
   // Rectangular displays: anchor icons to the edges. Offsets reproduce the
   // original basalt (144x168) layout and extend naturally to emery (200x228).
