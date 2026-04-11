@@ -66,12 +66,14 @@ QuickTimer versus in the default Pebble timer.
 
 Based on [YclepticStudios/pebble-timer-plus](https://github.com/YclepticStudios/pebble-timer-plus).
 
-The following screenshots are actually from the original pebble-timer-plus, but
-QuickTimer looks a lot like that.
-
 ![Timer+ Pebble](https://github.com/YclepticStudios/pebble-timer-plus/blob/master/assets/screenshots/chalk-animated.gif)
 ![Timer+ Pebble](https://github.com/YclepticStudios/pebble-timer-plus/blob/master/assets/screenshots/basalt-animated.gif)
 ![Timer+ Pebble](https://github.com/YclepticStudios/pebble-timer-plus/blob/master/assets/screenshots/aplite-animated.gif)
+
+## Hidden features
+
+- Hold the select button while in countdown mode to restart the current timer.
+- Hold the select button while paused to reset and enter edit mode seconds mode.
 
 ## Building
 
