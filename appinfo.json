@@ -5,7 +5,7 @@
   "companyName": "Caveman Escapades",
   "versionLabel": "0.1",
   "sdkVersion": "3",
-  "targetPlatforms": ["aplite", "basalt", "chalk", "diorite"],
+  "targetPlatforms": ["aplite", "basalt", "chalk", "diorite", "emery", "gabbro"],
   "watchapp": {
     "watchface": false
   },

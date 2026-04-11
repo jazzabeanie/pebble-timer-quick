@@ -16,7 +16,17 @@
 
 // Drawing constants
 // Progress ring
-#define CIRCLE_RADIUS 63
+// Scale the center circle so the horizontal margin from the screen edge
+// matches basalt (9 px) on rectangular devices and chalk (27 px) on round
+// devices. Keeping this a compile-time constant lets MAIN_TEXT_BOUNDS and
+// the header/footer geometry stay compile-time too.
+#if defined(PBL_ROUND) && PBL_DISPLAY_WIDTH > 180
+  #define CIRCLE_RADIUS (PBL_DISPLAY_WIDTH / 2 - 27)
+#elif !defined(PBL_ROUND) && PBL_DISPLAY_WIDTH > 144
+  #define CIRCLE_RADIUS (PBL_DISPLAY_WIDTH / 2 - 9)
+#else
+  #define CIRCLE_RADIUS 63
+#endif
 #define ANGLE_CHANGE_ANI_THRESHOLD 348
 #define PROGRESS_ANI_DURATION 250
 #define MAIN_TEXT_CIRCLE_RADIUS (CIRCLE_RADIUS - 7)
@@ -394,41 +404,68 @@ static void prv_update_draw_state(Layer *layer) {
 // Icon position constants
 #define ICON_STANDARD_SIZE 25
 #define ICON_SMALL_SIZE 15
+
+// Icon positions, computed from layer bounds so the layout adapts to any
+// supported screen size (basalt 144x168, emery 200x228, chalk 180x180,
+// gabbro 260x260, etc.) without hard-coding per-platform coordinates.
+typedef struct {
+  int16_t back_x, back_y;
+  int16_t up_x, up_y;
+  int16_t select_x, select_y;
+  int16_t down_x, down_y;
+  int16_t long_up_x, long_up_y;
+  int16_t long_select_x, long_select_y;
+  int16_t long_down_x, long_down_y;
+} IconPositions;
+
+static IconPositions prv_compute_icon_positions(GRect bounds) {
+  IconPositions p;
+  const int16_t w = bounds.size.w;
+  const int16_t h = bounds.size.h;
 #ifdef PBL_ROUND
-  // Chalk (180x180 round) - icons along circle edge at clock positions
-  // Back at 9 o'clock, Select at 3 o'clock
-  // Up single at 2, Up long at 1, Down single at 4, Down long at 5
-  #define ICON_BACK_X 3
-  #define ICON_BACK_Y 78
-  #define ICON_UP_X 143
-  #define ICON_UP_Y 36
-  #define ICON_SELECT_X 163
-  #define ICON_SELECT_Y 83
-  #define ICON_DOWN_X 143
-  #define ICON_DOWN_Y 119
-  #define LONG_UP_X 118
-  #define LONG_UP_Y 14
-  #define LONG_SELECT_X 146
-  #define LONG_SELECT_Y 83
-  #define LONG_DOWN_X 118
-  #define LONG_DOWN_Y 151
+  // Round displays: icons sit near the edge of the screen at clock
+  // positions. Reference layout is chalk (180x180); scale offsets from the
+  // screen center so gabbro (260x260) gets the same visual arrangement.
+  const int16_t cx = w / 2;
+  const int16_t cy = h / 2;
+  #define SCALE_X(v) ((int16_t)(((int32_t)(v) * w) / 180))
+  #define SCALE_Y(v) ((int16_t)(((int32_t)(v) * h) / 180))
+  p.back_x        = cx + SCALE_X(-87);
+  p.back_y        = cy + SCALE_Y(-12);
+  p.up_x          = cx + SCALE_X( 53);
+  p.up_y          = cy + SCALE_Y(-54);
+  p.select_x      = cx + SCALE_X( 73);
+  p.select_y      = cy + SCALE_Y( -7);
+  p.down_x        = cx + SCALE_X( 53);
+  p.down_y        = cy + SCALE_Y( 29);
+  p.long_up_x     = cx + SCALE_X( 28);
+  p.long_up_y     = cy + SCALE_Y(-76);
+  p.long_select_x = cx + SCALE_X( 56);
+  p.long_select_y = cy + SCALE_Y( -7);
+  p.long_down_x   = cx + SCALE_X( 28);
+  p.long_down_y   = cy + SCALE_Y( 61);
+  #undef SCALE_X
+  #undef SCALE_Y
 #else
-  // Basalt/rectangular (144x168)
-  #define ICON_BACK_X 5
-  #define ICON_BACK_Y 10
-  #define ICON_UP_X 114
-  #define ICON_UP_Y 10
-  #define ICON_SELECT_X 127
-  #define ICON_SELECT_Y 76
-  #define ICON_DOWN_X 114
-  #define ICON_DOWN_Y 133
-  #define LONG_UP_X 97
-  #define LONG_UP_Y 10
-  #define LONG_SELECT_X 110
-  #define LONG_SELECT_Y 76
-  #define LONG_DOWN_X 97
-  #define LONG_DOWN_Y 145
+  // Rectangular displays: anchor icons to the edges. Offsets reproduce the
+  // original basalt (144x168) layout and extend naturally to emery (200x228).
+  p.back_x        = 5;
+  p.back_y        = 10;
+  p.up_x          = w - 30;
+  p.up_y          = 10;
+  p.select_x      = w - 17;
+  p.select_y      = (h - 16) / 2;
+  p.down_x        = w - 30;
+  p.down_y        = h - 35;
+  p.long_up_x     = p.up_x - 17;
+  p.long_up_y     = p.up_y;
+  p.long_select_x = p.select_x - 17;
+  p.long_select_y = p.select_y;
+  p.long_down_x   = p.down_x - 17;
+  p.long_down_y   = p.down_y + 12;
 #endif
+  return p;
+}
 
 // Draw a bitmap icon at a given position
 static void prv_draw_icon(GContext *ctx, GBitmap *icon, int16_t x, int16_t y, int16_t w, int16_t h) {
@@ -451,23 +488,24 @@ static void prv_draw_action_icons(GContext *ctx, GRect bounds) {
     return;
   }
 
-  // Calculate relative positions using platform-specific constants
-  const int16_t icon_back_x = ICON_BACK_X;
-  const int16_t icon_back_y = ICON_BACK_Y;
-  const int16_t icon_up_x = ICON_UP_X;
-  const int16_t icon_up_y = ICON_UP_Y;
-  const int16_t icon_select_x = ICON_SELECT_X;
-  const int16_t icon_select_y = ICON_SELECT_Y;
-  const int16_t icon_down_x = ICON_DOWN_X;
-  const int16_t icon_down_y = ICON_DOWN_Y;
+  // Calculate positions relative to the current layer bounds.
+  const IconPositions pos = prv_compute_icon_positions(bounds);
+  const int16_t icon_back_x = pos.back_x;
+  const int16_t icon_back_y = pos.back_y;
+  const int16_t icon_up_x = pos.up_x;
+  const int16_t icon_up_y = pos.up_y;
+  const int16_t icon_select_x = pos.select_x;
+  const int16_t icon_select_y = pos.select_y;
+  const int16_t icon_down_x = pos.down_x;
+  const int16_t icon_down_y = pos.down_y;
 
   // Long press sub-icon positions
-  const int16_t long_up_x = LONG_UP_X;
-  const int16_t long_up_y = LONG_UP_Y;
-  const int16_t long_select_x = LONG_SELECT_X;
-  const int16_t long_select_y = LONG_SELECT_Y;
-  const int16_t long_down_x = LONG_DOWN_X;
-  const int16_t long_down_y = LONG_DOWN_Y;
+  const int16_t long_up_x = pos.long_up_x;
+  const int16_t long_up_y = pos.long_up_y;
+  const int16_t long_select_x = pos.long_select_x;
+  const int16_t long_select_y = pos.long_select_y;
+  const int16_t long_down_x = pos.long_down_x;
+  const int16_t long_down_y = pos.long_down_y;
 
   // Determine if repeat counter is visible
   bool repeat_counter_visible = false;
@@ -669,23 +707,25 @@ void drawing_render(Layer *layer, GContext *ctx) {
     // This assumes your icon resource is a PNG with a transparent background.
     graphics_context_set_compositing_mode(ctx, GCompOpSet);
 
+    const IconPositions pos = prv_compute_icon_positions(bounds);
+
     // Draw the edit icon (top right, Up button standard press)
-    prv_draw_icon(ctx, drawing_data.icon_edit, ICON_UP_X, ICON_UP_Y,
+    prv_draw_icon(ctx, drawing_data.icon_edit, pos.up_x, pos.up_y,
                   ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
     // Draw the hold icon beside the reset icon (toward screen center)
-    prv_draw_icon(ctx, drawing_data.icon_reset, LONG_UP_X, LONG_UP_Y,
+    prv_draw_icon(ctx, drawing_data.icon_reset, pos.long_up_x, pos.long_up_y,
                   ICON_SMALL_SIZE, ICON_SMALL_SIZE);
 
     // Draw the pause icon (middle right)
-    prv_draw_icon(ctx, drawing_data.pause_icon, ICON_SELECT_X, ICON_SELECT_Y,
+    prv_draw_icon(ctx, drawing_data.pause_icon, pos.select_x, pos.select_y,
                   ICON_SMALL_SIZE, ICON_SMALL_SIZE);
 
     // Draw the silence icon (top left, Back button)
-    prv_draw_icon(ctx, drawing_data.silence_icon, ICON_BACK_X, ICON_BACK_Y,
+    prv_draw_icon(ctx, drawing_data.silence_icon, pos.back_x, pos.back_y,
                   ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
 
     // Draw the snooze icon (bottom right, Down button)
-    prv_draw_icon(ctx, drawing_data.snooze_icon, ICON_DOWN_X, ICON_DOWN_Y,
+    prv_draw_icon(ctx, drawing_data.snooze_icon, pos.down_x, pos.down_y,
                   ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
 
     // Set the mode back to default (Set) so it doesn't

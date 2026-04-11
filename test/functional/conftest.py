@@ -27,7 +27,7 @@ PYTHON_CMD = CONDA_ENV / "bin" / "python"
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 # Emulator platforms
-PLATFORMS = ["aplite", "basalt", "chalk", "diorite"]
+PLATFORMS = ["aplite", "basalt", "chalk", "diorite", "emery", "gabbro"]
 
 # Button constants (from libpebble2)
 class Button:
