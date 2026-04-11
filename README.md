@@ -66,7 +66,7 @@ QuickTimer versus in the default Pebble timer.
 
 Based on [YclepticStudios/pebble-timer-plus](https://github.com/YclepticStudios/pebble-timer-plus).
 
-![Timer+ Pebble](https://github.com/YclepticStudios/pebble-timer-plus/blob/master/assets/screenshots/chalk-animated.gif)
+![New Timer instructions](https://github.com/jazzabeanie/pebble-timer-quick/blob/master/instructions_new_timer.png?raw=true)
 ![Timer+ Pebble](https://github.com/YclepticStudios/pebble-timer-plus/blob/master/assets/screenshots/basalt-animated.gif)
 ![Timer+ Pebble](https://github.com/YclepticStudios/pebble-timer-plus/blob/master/assets/screenshots/aplite-animated.gif)
 
