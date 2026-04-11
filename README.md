@@ -3,7 +3,7 @@
 QuickTimer is a timer app for the Pebble Smartwatch, intended to be the fastest
 way to start a timer or stopwatch. Made for people that think needing 5 seconds
 to set a countdown timer or stopwatch is far too long. With QuickTimer, rest
-assured that you are fiddling away precious moments of your life.
+assured that you are not fiddling away precious moments of your life.
 
 QuickTimer starts counting as soon as you open the app. First press the button,
 then think how long the timer needs to be. If you want a timer for 1 minute
