@@ -3,7 +3,7 @@
   "shortName": "QuickTimer",
   "longName": "QuickTimer",
   "companyName": "Caveman Escapades",
-  "versionLabel": "0.1",
+  "versionLabel": "1.0",
   "sdkVersion": "3",
   "targetPlatforms": ["aplite", "basalt", "chalk", "diorite", "emery", "gabbro"],
   "watchapp": {
