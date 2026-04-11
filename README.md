@@ -97,19 +97,11 @@ If you need to regenerate the placeholder button icon assets, run the generator 
 
 If installing to the emulator fails:
 
-- build and install the pebble-demo, or some other project taht you know works
+- build and install the pebble-demo, or some other project that you know works
 - `pebble clean`
 - `uv pip install --upgrade --reinstall pebble-tool`
 - `rm -rf ~/.pebble-sdk`
 - `pebble sdk install latest`
-
-Other resources that might be helpful if the above fails:
-
-- https://www.reddit.com/r/pebble/comments/1ih3umk/current_pebble_development_options/
-- [Rebble hackathon VM](https://rebble.io/hackathon-002/vm/)
-- I can't seem to find the option to enable the developer connection mode in the app on iOS
-- https://github.com/richinfante/rebbletool
-- https://developer.repebble.com/sdk/cloud
 
 ## Tests
 
@@ -196,14 +188,8 @@ To save screenshots for debugging:
 python -m pytest test_create_timer.py -v --save-screenshots
 ```
 
-LLMs run tests like so: 
+AI Agents run tests like so: 
 
 ```
 cd test/functional && ../../conda-env/bin/python -m pytest test_repeat_counter_visibility.py -v --platform=basalt 2>&1
 ```
-
-## Instructions for Agents
-
-After making code changes, do not active the conda environment. Just run build with
-`/home/jared/Workspace/pebble-timer-quick/conda-env/bin/pebble build`, then do
-nothing. Don't commit to git either
