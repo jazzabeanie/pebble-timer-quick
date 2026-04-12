@@ -836,8 +836,10 @@ static void prv_initialize(void) {
     main_data.control_mode = ControlModeCounting;
     main_data.is_editing_existing_timer = false;
     main_data.timer_length_modified_in_edit_mode = false;
-  } else if (timer_is_chrono()) {
+  } else if (timer_is_chrono() && (!timer_data.is_paused || timer_data.start_ms > 0)) {
     // Chrono mode was active (counting up), so resume in counting mode
+    // Exclude freshly-reset state (is_paused=true, start_ms=0) which also
+    // satisfies timer_is_chrono() since 0-0<=0, but is not an active chrono
     main_data.control_mode = ControlModeCounting;
     main_data.is_editing_existing_timer = false;
     main_data.timer_length_modified_in_edit_mode = false;

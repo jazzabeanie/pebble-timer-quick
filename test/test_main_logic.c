@@ -75,6 +75,12 @@ void assert(void *ptr, const char *file, int line) {
 // App event loop mock
 void app_event_loop(void) {}
 
+// Backlight mock
+void light_enable(bool enable) {}
+
+// Test logging mock
+void test_log_state(const char *event) {}
+
 // --- Include main.c logic ---
 // We redefine main to avoid conflict, and to allow us to test static functions
 #define main app_main
@@ -111,9 +117,28 @@ static void test_seconds_timer_bug(void **state) {
     assert_int_equal(timer_data.length_ms, 20000);
 }
 
+// Test that first launch (no persisted data) starts in New mode, not chrono
+static void test_first_launch_starts_in_new_mode(void **state) {
+    // Simulate fresh install: timer_reset() sets length_ms=0, start_ms=0, is_paused=true
+    // This is what timer_persist_read() does when no data exists (persist_exists returns false)
+    memset(&timer_data, 0, sizeof(Timer));
+    timer_reset();
+    timer_data.reset_on_init = false;
+
+    // Clear main_data to simulate fresh state
+    memset(&main_data, 0, sizeof(main_data));
+
+    // Run initialization
+    prv_initialize();
+
+    // Should start in ControlModeNew, NOT ControlModeCounting (chrono)
+    assert_int_equal(main_data.control_mode, ControlModeNew);
+}
+
 int main(void) {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_seconds_timer_bug),
+        cmocka_unit_test(test_first_launch_starts_in_new_mode),
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
