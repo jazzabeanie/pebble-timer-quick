@@ -26,6 +26,70 @@ even looking at your watch. Here's how it works:
 - Timers that are in alarm can be repeated, snoozed for 5 minutes, or silenced
   to become post timer stopwatches.
 
+Based on [YclepticStudios/pebble-timer-plus](https://github.com/YclepticStudios/pebble-timer-plus).
+
+![New Timer instructions](https://github.com/jazzabeanie/pebble-timer-quick/blob/master/instructions_new_timer.png?raw=true)
+![Counting Timer instructions](https://github.com/jazzabeanie/pebble-timer-quick/blob/master/instructions_counting_timer.png?raw=true)
+
+## Buttons
+
+### New timer mode
+
+- Back: Add 1 hour
+- Up: Add 20 mins
+- Select: Add 5 mins
+- Down: Add 1 min
+- Hold Up: Toggle reverse direction (increments become decrements)
+- Hold Select: Switch to EditSec mode (seconds granularity)
+- Hold Down: Quit app and delete timer
+
+After 3 seconds of inactivity, the timer is set and transitions to counting mode.
+
+### EditSec mode (seconds granularity)
+
+- Back: Add 60 seconds
+- Up: Add 20 seconds
+- Select: Add 5 seconds
+- Down: Add 1 second
+- Hold Up: Toggle reverse direction
+- Hold Select: Switch back to New mode (minutes granularity)
+- Hold Down: Quit app and delete timer
+
+### EditRepeat mode
+
+Entered by holding Up while in counting mode (countdown timers only).
+
+- Back: Reset repeat count to 0
+- Up: Add 20 repeats
+- Select: Add 5 repeats
+- Down: Add 1 repeat
+- Hold Down: Quit app and delete timer
+
+### Counting mode
+
+- Up: Enter edit mode
+- Select: Toggle play/pause
+- Down: Extend high-refresh display rate
+- Back: Quit app
+- Hold Up: Toggle repeat mode on/off (countdown only)
+- Hold Select (running): Restart timer to original length
+- Hold Select (paused): Reset to 0:00 and enter EditSec mode
+- Hold Down: Quit app and delete timer
+
+### Alarm mode
+
+When a countdown timer expires, it enters alarm mode (vibrating).
+
+- Up: Silence alarm and enter edit mode
+- Select: Silence alarm and toggle play/pause
+- Down: Snooze (add 5 minutes)
+- Back: Silence alarm (timer continues as stopwatch)
+- Hold Up: Repeat timer (restart with original length)
+- Hold Select: Restart timer from original length (running)
+- Hold Down: Quit app and delete timer
+
+## Quickness
+
 The table below compares the number of button presses required to set timers in
 QuickTimer versus in the default Pebble timer.
 
@@ -63,16 +127,6 @@ QuickTimer versus in the default Pebble timer.
 | 60 min       | 2          |  5                   |
 | stopwatch    | 1          |  x                   |
 ```
-
-Based on [YclepticStudios/pebble-timer-plus](https://github.com/YclepticStudios/pebble-timer-plus).
-
-![New Timer instructions](https://github.com/jazzabeanie/pebble-timer-quick/blob/master/instructions_new_timer.png?raw=true)
-![Counting Timer instructions](https://github.com/jazzabeanie/pebble-timer-quick/blob/master/instructions_counting_timer.png?raw=true)
-
-## Hidden features
-
-- Hold the select button while in countdown mode to restart the current timer.
-- Hold the select button while paused to reset and enter edit mode seconds mode.
 
 ## Building
 
