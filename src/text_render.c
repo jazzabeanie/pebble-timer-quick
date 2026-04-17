@@ -147,8 +147,12 @@ GRect text_render_get_content_bounds(char *buff, uint16_t font_size) {
 // Gets the maximum font size of a certain text string within a certain bounds
 uint16_t text_render_get_max_font_size(char *buff, GRect bounds) {
   // APP_LOG(APP_LOG_LEVEL_DEBUG, "buff: %s (text_render_get_max_font_size)", buff);
+  // Empty strings produce unscaled_bounds.size.w == 0, causing division by zero below.
+  // On ARM Cortex-M with DIV_0_TRP set (real hardware), this is a hard fault.
+  if (!buff || buff[0] == '\0') return 0;
   // get the unscaled size of the rendered string
   GRect unscaled_bounds = text_render_get_content_bounds(buff, CHARACTER_DEFINITION_HEIGHT);
+  if (unscaled_bounds.size.w == 0) return 0;
   // calculate the maximum font size which stays within this rectangle
   uint16_t font_size_w = CHARACTER_DEFINITION_HEIGHT * bounds.size.w / unscaled_bounds.size.w;
   uint16_t font_size_h = CHARACTER_DEFINITION_HEIGHT * bounds.size.h / unscaled_bounds.size.h;
@@ -163,8 +167,12 @@ void text_render_draw_text(GContext *ctx, char *buff, uint16_t font_size, GPoint
 
 // Renders the LECO font at the largest possible size that will fit within a certain size rectangle
 void text_render_draw_scalable_text(GContext *ctx, char *buff, GRect bounds) {
+  // Empty strings produce unscaled_bounds.size.w == 0, causing division by zero below.
+  // On ARM Cortex-M with DIV_0_TRP set (real hardware), this is a hard fault.
+  if (!buff || buff[0] == '\0') return;
   // get the unscaled size of the rendered string
   GRect unscaled_bounds = text_render_get_content_bounds(buff, CHARACTER_DEFINITION_HEIGHT);
+  if (unscaled_bounds.size.w == 0) return;
   // calculate the maximum font size which stays within this rectangle
   uint16_t font_size_w = CHARACTER_DEFINITION_HEIGHT * bounds.size.w / unscaled_bounds.size.w;
   uint16_t font_size_h = CHARACTER_DEFINITION_HEIGHT * bounds.size.h / unscaled_bounds.size.h;
