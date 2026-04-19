@@ -514,9 +514,106 @@ import queue
 from typing import Optional
 
 
+class _PlatformReader:
+    """Persistent pebble logs subprocess for one emulator platform.
+
+    One instance per platform, shared across all LogCapture instances for that
+    platform.  The subprocess is NEVER killed between tests — killing it
+    permanently breaks the emulator's log socket for the session.  Instead,
+    each LogCapture instance attaches/detaches as the active sink; while no
+    capture is active, lines are silently discarded.
+    """
+
+    _instances: dict = {}
+    _class_lock = threading.Lock()
+
+    @classmethod
+    def get(cls, platform: str) -> '_PlatformReader':
+        with cls._class_lock:
+            if platform not in cls._instances:
+                reader = cls(platform)
+                reader._start()
+                cls._instances[platform] = reader
+            return cls._instances[platform]
+
+    def __init__(self, platform: str):
+        self.platform = platform
+        self._process: Optional[subprocess.Popen] = None
+        self._thread: Optional[threading.Thread] = None
+        self._active: Optional['LogCapture'] = None  # current sink
+        self._sink_lock = threading.Lock()
+        self._running = False
+
+    def _spawn(self):
+        if self._process is not None:
+            try:
+                self._process.terminate()
+                self._process.wait(timeout=1)
+            except Exception:
+                pass
+        env = os.environ.copy()
+        env["PEBBLE_EMULATOR"] = self.platform
+        self._process = subprocess.Popen(
+            [str(PEBBLE_CMD), "logs", f"--emulator={self.platform}"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            cwd=str(PROJECT_ROOT),
+            env=env,
+        )
+
+    def _start(self):
+        self._running = True
+        self._spawn()
+        self._thread = threading.Thread(target=self._read, daemon=True)
+        self._thread.start()
+        logger.debug(f"[{self.platform}] Platform log reader started")
+
+    def _read(self):
+        while self._running:
+            if self._process is None or self._process.poll() is not None:
+                if not self._running:
+                    break
+                # Back off longer when no active capture (emulator may be between tests)
+                with self._sink_lock:
+                    has_sink = self._active is not None
+                time.sleep(0.3 if has_sink else 2.0)
+                try:
+                    self._spawn()
+                    logger.debug(f"[{self.platform}] Platform log reader restarted")
+                except Exception as e:
+                    logger.warning(f"[{self.platform}] Failed to restart log reader: {e}")
+                    time.sleep(1.0)
+                continue
+            try:
+                line = self._process.stdout.readline()
+                if not line:
+                    time.sleep(0.05)
+                    continue
+                line = line.strip()
+                with self._sink_lock:
+                    sink = self._active
+                if sink is not None:
+                    sink._on_line(line)
+            except Exception:
+                time.sleep(0.05)
+
+    def attach(self, capture: 'LogCapture'):
+        with self._sink_lock:
+            self._active = capture
+
+    def detach(self, capture: 'LogCapture'):
+        with self._sink_lock:
+            if self._active is capture:
+                self._active = None
+
+
 class LogCapture:
     """
     Captures pebble logs in background and provides parsing for TEST_STATE lines.
+
+    Uses a shared persistent subprocess per platform so that stopping one
+    LogCapture instance does not break subsequent instances.
 
     Usage:
         capture = LogCapture(platform="basalt")
@@ -527,105 +624,63 @@ class LogCapture:
         capture.stop()
     """
 
-    # Regex to parse TEST_STATE log lines
-    # Format: TEST_STATE:<event>,time=M:SS,mode=<mode>,repeat=<n>,paused=<0|1>,vibrating=<0|1>,direction=<1|-1>
     STATE_PATTERN = re.compile(r'TEST_STATE:(\w+),(.+)')
 
     def __init__(self, platform: str):
         self.platform = platform
-        self._process: Optional[subprocess.Popen] = None
-        self._thread: Optional[threading.Thread] = None
+        self._reader: Optional[_PlatformReader] = None
         self._state_queue: queue.Queue = queue.Queue()
         self._all_logs: list[str] = []
         self._running = False
 
     def start(self):
-        """Start capturing logs in background."""
+        """Attach to the shared platform reader and start capturing."""
         if self._running:
             return
-
-        env = os.environ.copy()
-        env["PEBBLE_EMULATOR"] = self.platform
-
-        self._process = subprocess.Popen(
-            [str(PEBBLE_CMD), "logs", f"--emulator={self.platform}"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            cwd=str(PROJECT_ROOT),
-            env=env,
-        )
-
+        self._reader = _PlatformReader.get(self.platform)
+        self._reader.attach(self)
         self._running = True
-        self._thread = threading.Thread(target=self._read_logs, daemon=True)
-        self._thread.start()
         logger.debug(f"[{self.platform}] Log capture started")
 
-    def _read_logs(self):
-        """Background thread that reads log lines and queues state logs."""
-        while self._running and self._process and self._process.poll() is None:
-            try:
-                line = self._process.stdout.readline()
-                if not line:
-                    continue
-
-                line = line.strip()
-                self._all_logs.append(line)
-
-                # Check for TEST_STATE lines
-                if 'TEST_STATE:' in line:
-                    state = self._parse_state_line(line)
-                    if state:
-                        self._state_queue.put(state)
-                        logger.debug(f"[{self.platform}] Captured state: {state}")
-            except Exception as e:
-                logger.warning(f"[{self.platform}] Error reading log: {e}")
-                break
+    def _on_line(self, line: str):
+        """Called by the platform reader thread for every log line."""
+        self._all_logs.append(line)
+        if 'TEST_STATE:' in line:
+            state = self._parse_state_line(line)
+            if state:
+                self._state_queue.put(state)
+                logger.debug(f"[{self.platform}] Captured state: {state}")
 
     def _parse_state_line(self, line: str) -> Optional[dict]:
-        """Parse a TEST_STATE log line into a dictionary."""
-        # Find the TEST_STATE part in the log line
         idx = line.find('TEST_STATE:')
         if idx == -1:
             return None
-
         state_part = line[idx:]
         match = self.STATE_PATTERN.match(state_part)
         if not match:
             logger.warning(f"[{self.platform}] Could not parse state line: {state_part}")
             return None
-
         event = match.group(1)
         fields_str = match.group(2)
-
         state = {'event': event}
         for field in fields_str.split(','):
             if '=' in field:
                 key, value = field.split('=', 1)
                 state[key] = value
-
         return state
 
     def stop(self):
-        """Stop capturing logs."""
+        """Detach from the platform reader (subprocess stays alive)."""
+        if not self._running:
+            return
         self._running = False
-        if self._process:
-            try:
-                self._process.terminate()
-                self._process.wait(timeout=2)
-            except Exception:
-                try:
-                    self._process.kill()
-                except Exception:
-                    pass
-            self._process = None
-        if self._thread:
-            self._thread.join(timeout=2)
-            self._thread = None
-        logger.debug(f"[{self.platform}] Log capture stopped")
+        if self._reader:
+            self._reader.detach(self)
+            self._reader = None
+        logger.debug(f"[{self.platform}] Log capture stopped (subprocess alive)")
 
     def get_all_logs(self) -> list[str]:
-        """Return all captured log lines."""
+        """Return all log lines captured during this instance's active period."""
         return self._all_logs.copy()
 
     def get_state_logs(self) -> list[dict]:
@@ -636,7 +691,6 @@ class LogCapture:
                 states.append(self._state_queue.get_nowait())
             except queue.Empty:
                 break
-        # Put them back for other consumers
         for state in states:
             self._state_queue.put(state)
         return states
@@ -661,7 +715,6 @@ class LogCapture:
                 state = self._state_queue.get(timeout=min(0.1, remaining))
                 if event is None or state.get('event') == event:
                     return state
-                # Not the event we want, keep waiting
             except queue.Empty:
                 continue
         return None
