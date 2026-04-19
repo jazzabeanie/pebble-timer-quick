@@ -35,25 +35,34 @@ Pebble.addEventListener('ready', function() {
   }
 });
 
-// Watch sends its settings on startup — only use them to seed localStorage on first install.
+// Watch sends its settings on every startup — respond with phone's authoritative settings.
+// If phone has nothing yet (first install), seed from the watch's defaults instead.
 Pebble.addEventListener('appmessage', function(e) {
-  if (localStorage.getItem('config')) { return; }
-  var p = e.payload;
-  config = {
-    show_increment_icons:    p.hasOwnProperty('0')  ? p['0']  === 1 : true,
-    show_direction_icon:     p.hasOwnProperty('1')  ? p['1']  === 1 : true,
-    show_quit_icon:          p.hasOwnProperty('2')  ? p['2']  === 1 : true,
-    show_to_bg_icon:         p.hasOwnProperty('3')  ? p['3']  === 1 : true,
-    show_edit_icon:          p.hasOwnProperty('4')  ? p['4']  === 1 : true,
-    show_play_pause_icon:    p.hasOwnProperty('5')  ? p['5']  === 1 : true,
-    show_details_icon:       p.hasOwnProperty('6')  ? p['6']  === 1 : true,
-    show_repeat_enable_icon: p.hasOwnProperty('7')  ? p['7']  === 1 : true,
-    show_alarm_reset_icon:   p.hasOwnProperty('8')  ? p['8']  === 1 : true,
-    show_silence_icon:       p.hasOwnProperty('9')  ? p['9']  === 1 : true,
-    show_snooze_icon:        p.hasOwnProperty('10') ? p['10'] === 1 : true
-  };
-  localStorage.setItem('config', JSON.stringify(config));
-  console.log('QuickTimer: initialized settings from watch');
+  var stored = localStorage.getItem('config');
+  if (stored) {
+    try {
+      config = JSON.parse(stored);
+      sendSettingsToWatch(config);
+      console.log('QuickTimer: pushed stored settings to watch on startup');
+    } catch (ex) { console.log('QuickTimer: bad localStorage ' + ex); }
+  } else {
+    var p = e.payload;
+    config = {
+      show_increment_icons:    p.hasOwnProperty('0')  ? p['0']  === 1 : true,
+      show_direction_icon:     p.hasOwnProperty('1')  ? p['1']  === 1 : true,
+      show_quit_icon:          p.hasOwnProperty('2')  ? p['2']  === 1 : true,
+      show_to_bg_icon:         p.hasOwnProperty('3')  ? p['3']  === 1 : true,
+      show_edit_icon:          p.hasOwnProperty('4')  ? p['4']  === 1 : true,
+      show_play_pause_icon:    p.hasOwnProperty('5')  ? p['5']  === 1 : true,
+      show_details_icon:       p.hasOwnProperty('6')  ? p['6']  === 1 : true,
+      show_repeat_enable_icon: p.hasOwnProperty('7')  ? p['7']  === 1 : true,
+      show_alarm_reset_icon:   p.hasOwnProperty('8')  ? p['8']  === 1 : true,
+      show_silence_icon:       p.hasOwnProperty('9')  ? p['9']  === 1 : true,
+      show_snooze_icon:        p.hasOwnProperty('10') ? p['10'] === 1 : true
+    };
+    localStorage.setItem('config', JSON.stringify(config));
+    console.log('QuickTimer: initialized settings from watch defaults');
+  }
 });
 
 Pebble.addEventListener('showConfiguration', function() {
