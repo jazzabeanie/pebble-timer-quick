@@ -557,6 +557,7 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
     } else {
       // Running: restart as before
       timer_restart();
+      vibes_short_pulse();
       main_data.timer_length_modified_in_edit_mode = false;
     }
   } else {
