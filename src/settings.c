@@ -14,6 +14,14 @@ typedef struct {
 static AppSettings s_settings;
 static SettingsChangeCallback s_change_callback;
 
+static void prv_send_to_phone(void) {
+  DictionaryIterator *iter;
+  if (app_message_outbox_begin(&iter) != APP_MSG_OK) { return; }
+  dict_write_int8(iter, APPMSG_KEY_SHOW_INCREMENT_ICONS,
+                  s_settings.show_increment_icons ? 1 : 0);
+  app_message_outbox_send();
+}
+
 static void prv_inbox_received(DictionaryIterator *iterator, void *context) {
   Tuple *t = dict_find(iterator, APPMSG_KEY_SHOW_INCREMENT_ICONS);
   if (t) {
@@ -42,5 +50,6 @@ void settings_init(SettingsChangeCallback on_change) {
     persist_read_data(PERSIST_SETTINGS_KEY, &s_settings, sizeof(s_settings));
   }
   app_message_register_inbox_received(prv_inbox_received);
-  app_message_open(64, 8);
+  app_message_open(64, 32);
+  prv_send_to_phone();
 }

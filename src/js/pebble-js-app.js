@@ -7,6 +7,13 @@ Pebble.addEventListener('ready', function() {
   }
 });
 
+Pebble.addEventListener('appmessage', function(e) {
+  if (e.payload.hasOwnProperty('0')) {
+    config.show_increment_icons = e.payload['0'] === 1;
+    localStorage.setItem('config', JSON.stringify(config));
+  }
+});
+
 Pebble.addEventListener('showConfiguration', function() {
   var showIcons = config.show_increment_icons !== false;
 
