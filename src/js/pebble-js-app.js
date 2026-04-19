@@ -94,7 +94,7 @@ Pebble.addEventListener('showConfiguration', function() {
     '<h1>QuickTimer Settings</h1>',
 
     section('Edit Mode', [
-      row('Increment Icons (+1, +5, +20…)', 'show_increment_icons'),
+      row('Increment Icons (+1, +5, +20, etc)', 'show_increment_icons'),
       row('Direction Toggle Icon',          'show_direction_icon'),
     ].join('')),
 
