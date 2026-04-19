@@ -88,6 +88,53 @@ def create_bg_icon(filename, size=25):
     create_text_icon(filename, "BG", size)
 
 
+def create_ms_icon(filename, active_char, size=25):
+    """Create an m/s mode-indicator icon.
+
+    The active character (active_char = 'm' or 's') is uppercase; the
+    inactive character is lowercase. Both are white so the icon looks the
+    same on all watch types — size alone indicates the active mode.
+    """
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+
+    try:
+        font = ImageFont.truetype(
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 9
+        )
+    except (OSError, IOError):
+        font = ImageFont.load_default()
+
+    white = (255, 255, 255, 255)
+
+    m_char = "M" if active_char == "m" else "m"
+    s_char = "S" if active_char == "s" else "s"
+
+    def char_w(ch):
+        bb = draw.textbbox((0, 0), ch, font=font)
+        return bb[2] - bb[0], bb[0]
+
+    m_w, m_ox = char_w(m_char)
+    sl_w, sl_ox = char_w("/")
+    s_w, s_ox = char_w(s_char)
+    total_w = m_w + sl_w + s_w
+
+    bb = draw.textbbox((0, 0), m_char, font=font)
+    text_h = bb[3] - bb[1]
+    y = (size - text_h) // 2 - bb[1]
+
+    x = (size - total_w) // 2
+    draw.text((x - m_ox, y), m_char, fill=white, font=font)
+    x += m_w
+    draw.text((x - sl_ox, y), "/", fill=white, font=font)
+    x += sl_w
+    draw.text((x - s_ox, y), s_char, fill=white, font=font)
+
+    filepath = os.path.join(RESOURCES_DIR, filename)
+    img.save(filepath)
+    print(f"  Created {filepath} ({size}x{size})")
+
+
 def main():
     os.makedirs(RESOURCES_DIR, exist_ok=True)
 
@@ -137,6 +184,10 @@ def main():
     create_text_icon("icon_minus_20_rep.png", "-20")
     create_text_icon("icon_minus_5_rep.png", "-5")
     create_text_icon("icon_minus_1_rep.png", "-1")
+
+    # Mode-indicator icons for swap-back-select feature
+    create_ms_icon("icon_edit_min.png", "m")
+    create_ms_icon("icon_edit_sec.png", "s")
 
     print("\nDone! All icons generated.")
 

@@ -18,7 +18,8 @@ function sendSettingsToWatch(attempt) {
       '7':  getOr('show_repeat_enable_icon', true) ? 1 : 0,
       '8':  getOr('show_alarm_reset_icon',   true) ? 1 : 0,
       '9':  getOr('show_silence_icon',       true) ? 1 : 0,
-      '10': getOr('show_snooze_icon',        true) ? 1 : 0
+      '10': getOr('show_snooze_icon',        true)  ? 1 : 0,
+      '12': getOr('swap_back_and_select_long', false) ? 1 : 0
     },
     function() { console.log('QuickTimer: settings sent to watch'); },
     function(err) {
@@ -62,6 +63,9 @@ Pebble.addEventListener('showConfiguration', function() {
   function row(label, id) {
     return '<div class="row"><span>' + label + '</span>' + toggle(id, getOr(id, true)) + '</div>';
   }
+  function rowOff(label, id) {
+    return '<div class="row"><span>' + label + '</span>' + toggle(id, getOr(id, false)) + '</div>';
+  }
   function section(title, rows) {
     return '<div class="section"><div class="section-title">' + title + '</div>' + rows + '</div>';
   }
@@ -94,14 +98,15 @@ Pebble.addEventListener('showConfiguration', function() {
     '<h1>QuickTimer Settings</h1>',
 
     section('Edit Mode', [
-      row('Increment Icons (+1, +5, +20…)', 'show_increment_icons'),
+      row('Increment Icons (+1, +5, +20, etc)', 'show_increment_icons'),
       row('Direction Toggle Icon',          'show_direction_icon'),
+      rowOff('Swap Back / Select-Hold Buttons', 'swap_back_and_select_long'),
     ].join('')),
 
     section('Timer', [
       row('Edit Icon',          'show_edit_icon'),
       row('Play / Pause Icon',  'show_play_pause_icon'),
-      row('Exit to Background', 'show_to_bg_icon'),
+      row('Exit to Background Icon', 'show_to_bg_icon'),
       row('Details Icon',       'show_details_icon'),
       row('Repeat Toggle Icon', 'show_repeat_enable_icon'),
       row('Quit Icon',          'show_quit_icon'),
@@ -128,7 +133,8 @@ Pebble.addEventListener('showConfiguration', function() {
     '    show_repeat_enable_icon:val("show_repeat_enable_icon"),',
     '    show_alarm_reset_icon:  val("show_alarm_reset_icon"),',
     '    show_silence_icon:      val("show_silence_icon"),',
-    '    show_snooze_icon:       val("show_snooze_icon")',
+    '    show_snooze_icon:       val("show_snooze_icon"),',
+    '    swap_back_and_select_long: val("swap_back_and_select_long")',
     '  };',
     '  location.href="pebblejs://close#"+encodeURIComponent(JSON.stringify(r));',
     '}',

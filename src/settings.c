@@ -1,7 +1,7 @@
 #include <pebble.h>
 #include "settings.h"
 
-#define PERSIST_SETTINGS_VERSION 2
+#define PERSIST_SETTINGS_VERSION 3
 #define PERSIST_SETTINGS_VERSION_KEY 4342897
 #define PERSIST_SETTINGS_KEY 58737
 
@@ -19,6 +19,7 @@
 #define APPMSG_KEY_SHOW_SILENCE_ICON       9
 #define APPMSG_KEY_SHOW_SNOOZE_ICON        10
 #define APPMSG_KEY_REQUEST_SETTINGS        11
+#define APPMSG_KEY_SWAP_BACK_AND_SELECT_LONG 12
 
 typedef struct {
   bool show_increment_icons;
@@ -32,6 +33,7 @@ typedef struct {
   bool show_alarm_reset_icon;
   bool show_silence_icon;
   bool show_snooze_icon;
+  bool swap_back_and_select_long;
 } AppSettings;
 
 static AppSettings s_settings;
@@ -77,6 +79,7 @@ static void prv_inbox_received(DictionaryIterator *iterator, void *context) {
   HANDLE(APPMSG_KEY_SHOW_ALARM_RESET_ICON,   show_alarm_reset_icon)
   HANDLE(APPMSG_KEY_SHOW_SILENCE_ICON,       show_silence_icon)
   HANDLE(APPMSG_KEY_SHOW_SNOOZE_ICON,        show_snooze_icon)
+  HANDLE(APPMSG_KEY_SWAP_BACK_AND_SELECT_LONG, swap_back_and_select_long)
 
   #undef HANDLE
 
@@ -97,6 +100,7 @@ bool settings_get_show_repeat_enable_icon(void) { return s_settings.show_repeat_
 bool settings_get_show_alarm_reset_icon(void)   { return s_settings.show_alarm_reset_icon; }
 bool settings_get_show_silence_icon(void)       { return s_settings.show_silence_icon; }
 bool settings_get_show_snooze_icon(void)        { return s_settings.show_snooze_icon; }
+bool settings_get_swap_back_and_select_long(void) { return s_settings.swap_back_and_select_long; }
 
 void settings_save(void) {
   persist_write_int(PERSIST_SETTINGS_VERSION_KEY, PERSIST_SETTINGS_VERSION);
@@ -117,6 +121,7 @@ void settings_init(SettingsChangeCallback on_change) {
     .show_alarm_reset_icon   = true,
     .show_silence_icon       = true,
     .show_snooze_icon        = true,
+    .swap_back_and_select_long = false,
   };
   if (persist_read_int(PERSIST_SETTINGS_VERSION_KEY) == PERSIST_SETTINGS_VERSION &&
       persist_exists(PERSIST_SETTINGS_KEY)) {

@@ -81,6 +81,24 @@ void light_enable(bool enable) {}
 // Test logging mock
 void test_log_state(const char *event) {}
 
+// --- Settings stubs ---
+#include "../src/settings.h"
+static bool s_mock_swap_back_and_select_long = false;
+void settings_init(SettingsChangeCallback on_change) {}
+void settings_save(void) {}
+bool settings_get_show_increment_icons(void)    { return true; }
+bool settings_get_show_direction_icon(void)     { return true; }
+bool settings_get_show_quit_icon(void)          { return true; }
+bool settings_get_show_to_bg_icon(void)         { return true; }
+bool settings_get_show_edit_icon(void)          { return true; }
+bool settings_get_show_play_pause_icon(void)    { return true; }
+bool settings_get_show_details_icon(void)       { return true; }
+bool settings_get_show_repeat_enable_icon(void) { return true; }
+bool settings_get_show_alarm_reset_icon(void)   { return true; }
+bool settings_get_show_silence_icon(void)       { return true; }
+bool settings_get_show_snooze_icon(void)        { return true; }
+bool settings_get_swap_back_and_select_long(void) { return s_mock_swap_back_and_select_long; }
+
 // --- Include main.c logic ---
 // We redefine main to avoid conflict, and to allow us to test static functions
 #define main app_main
@@ -135,10 +153,44 @@ static void test_first_launch_starts_in_new_mode(void **state) {
     assert_int_equal(main_data.control_mode, ControlModeNew);
 }
 
+// When swap setting is on, Back in New mode should toggle to EditSec (not add time)
+static void test_swap_back_toggles_to_editsec_from_new(void **state) {
+    memset(&timer_data, 0, sizeof(Timer));
+    timer_reset();
+    memset(&main_data, 0, sizeof(main_data));
+    main_data.control_mode = ControlModeNew;
+    s_mock_swap_back_and_select_long = true;
+
+    prv_back_click_handler(NULL, NULL);
+
+    assert_int_equal(main_data.control_mode, ControlModeEditSec);
+    assert_int_equal(timer_data.length_ms, 0); // no time added
+
+    s_mock_swap_back_and_select_long = false;
+}
+
+// When swap setting is on, Select long in New mode should add 60 min (not switch to EditSec)
+static void test_swap_select_long_adds_time_in_new(void **state) {
+    memset(&timer_data, 0, sizeof(Timer));
+    timer_reset();
+    memset(&main_data, 0, sizeof(main_data));
+    main_data.control_mode = ControlModeNew;
+    s_mock_swap_back_and_select_long = true;
+
+    prv_select_long_click_handler(NULL, NULL);
+
+    assert_int_equal(main_data.control_mode, ControlModeNew); // stays in New
+    assert_int_equal(timer_data.length_ms, 3600000); // 60 min added
+
+    s_mock_swap_back_and_select_long = false;
+}
+
 int main(void) {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_seconds_timer_bug),
         cmocka_unit_test(test_first_launch_starts_in_new_mode),
+        cmocka_unit_test(test_swap_back_toggles_to_editsec_from_new),
+        cmocka_unit_test(test_swap_select_long_adds_time_in_new),
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }

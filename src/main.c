@@ -303,17 +303,23 @@ static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
   if (main_data.control_mode == ControlModeNew) {
-    // increment timer by 1 hour
-    bool was_chrono = timer_is_chrono();
-    prv_update_timer(BACK_BUTTON_INCREMENT_MS);
-    prv_check_zero_crossing_direction_flip(was_chrono, BACK_BUTTON_INCREMENT_MS);
-    main_data.timer_length_modified_in_edit_mode = true;
+    if (settings_get_swap_back_and_select_long()) {
+      main_data.control_mode = ControlModeEditSec;
+    } else {
+      bool was_chrono = timer_is_chrono();
+      prv_update_timer(BACK_BUTTON_INCREMENT_MS);
+      prv_check_zero_crossing_direction_flip(was_chrono, BACK_BUTTON_INCREMENT_MS);
+      main_data.timer_length_modified_in_edit_mode = true;
+    }
   } else if (main_data.control_mode == ControlModeEditSec) {
-    // increment timer by 60 seconds
-    bool was_chrono = timer_is_chrono();
-    prv_update_timer(BACK_BUTTON_INCREMENT_SEC_MS);
-    prv_check_zero_crossing_direction_flip(was_chrono, BACK_BUTTON_INCREMENT_SEC_MS);
-    main_data.timer_length_modified_in_edit_mode = true;
+    if (settings_get_swap_back_and_select_long()) {
+      main_data.control_mode = ControlModeNew;
+    } else {
+      bool was_chrono = timer_is_chrono();
+      prv_update_timer(BACK_BUTTON_INCREMENT_SEC_MS);
+      prv_check_zero_crossing_direction_flip(was_chrono, BACK_BUTTON_INCREMENT_SEC_MS);
+      main_data.timer_length_modified_in_edit_mode = true;
+    }
   } else if (main_data.control_mode == ControlModeEditRepeat) {
     timer_data.repeat_count = 0;
     prv_reset_new_expire_timer();
@@ -513,9 +519,16 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
 
-  // EditSec: toggle to New mode, preserving timer value and direction
+  // EditSec: toggle to New mode (or add time if swap is on)
   if (main_data.control_mode == ControlModeEditSec) {
-    main_data.control_mode = ControlModeNew;
+    if (settings_get_swap_back_and_select_long()) {
+      bool was_chrono = timer_is_chrono();
+      prv_update_timer(BACK_BUTTON_INCREMENT_SEC_MS);
+      prv_check_zero_crossing_direction_flip(was_chrono, BACK_BUTTON_INCREMENT_SEC_MS);
+      main_data.timer_length_modified_in_edit_mode = true;
+    } else {
+      main_data.control_mode = ControlModeNew;
+    }
     drawing_update();
     layer_mark_dirty(main_data.layer);
     prv_update_backlight();
@@ -533,9 +546,16 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
     return;
   }
 
-  // New: toggle to EditSec mode, preserving timer value and direction
+  // New: toggle to EditSec mode (or add time if swap is on)
   if (main_get_control_mode() == ControlModeNew) {
-    main_data.control_mode = ControlModeEditSec;
+    if (settings_get_swap_back_and_select_long()) {
+      bool was_chrono = timer_is_chrono();
+      prv_update_timer(BACK_BUTTON_INCREMENT_MS);
+      prv_check_zero_crossing_direction_flip(was_chrono, BACK_BUTTON_INCREMENT_MS);
+      main_data.timer_length_modified_in_edit_mode = true;
+    } else {
+      main_data.control_mode = ControlModeEditSec;
+    }
     drawing_update();
     layer_mark_dirty(main_data.layer);
     prv_update_backlight();
