@@ -88,6 +88,58 @@ def create_bg_icon(filename, size=25):
     create_text_icon(filename, "BG", size)
 
 
+def create_ms_icon(filename, bold_char, size=25):
+    """Create an m/s mode-indicator icon.
+
+    The active character (bold_char = 'm' or 's') is drawn in white; the
+    inactive character and slash are drawn in a dim grey so both are readable
+    but one reads as selected.
+    """
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+
+    font_size = 9
+    try:
+        font = ImageFont.truetype(
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size
+        )
+    except (OSError, IOError):
+        font = ImageFont.load_default()
+
+    active_color = (255, 255, 255, 255)
+    inactive_color = (160, 160, 160, 255)
+
+    m_color = active_color if bold_char == "m" else inactive_color
+    s_color = active_color if bold_char == "s" else inactive_color
+    slash_color = inactive_color
+
+    # Measure each character to lay them out side-by-side
+    def char_w(ch):
+        bb = draw.textbbox((0, 0), ch, font=font)
+        return bb[2] - bb[0], bb[0]
+
+    m_w, m_ox = char_w("m")
+    sl_w, sl_ox = char_w("/")
+    s_w, s_ox = char_w("s")
+    total_w = m_w + sl_w + s_w
+
+    # Vertical centre using 'm' as reference height
+    bb = draw.textbbox((0, 0), "m", font=font)
+    text_h = bb[3] - bb[1]
+    y = (size - text_h) // 2 - bb[1]
+
+    x = (size - total_w) // 2
+    draw.text((x - m_ox, y), "m", fill=m_color, font=font)
+    x += m_w
+    draw.text((x - sl_ox, y), "/", fill=slash_color, font=font)
+    x += sl_w
+    draw.text((x - s_ox, y), "s", fill=s_color, font=font)
+
+    filepath = os.path.join(RESOURCES_DIR, filename)
+    img.save(filepath)
+    print(f"  Created {filepath} ({size}x{size})")
+
+
 def main():
     os.makedirs(RESOURCES_DIR, exist_ok=True)
 
@@ -137,6 +189,10 @@ def main():
     create_text_icon("icon_minus_20_rep.png", "-20")
     create_text_icon("icon_minus_5_rep.png", "-5")
     create_text_icon("icon_minus_1_rep.png", "-1")
+
+    # Mode-indicator icons for swap-back-select feature
+    create_ms_icon("icon_edit_min.png", "m")
+    create_ms_icon("icon_edit_sec.png", "s")
 
     print("\nDone! All icons generated.")
 

@@ -182,6 +182,16 @@
         "file": "images/icon_minus_1sec.png",
         "type": "png",
         "name": "IMAGE_ICON_MINUS_1SEC"
+      },
+      {
+        "file": "images/icon_edit_min.png",
+        "type": "png",
+        "name": "IMAGE_ICON_EDIT_MIN"
+      },
+      {
+        "file": "images/icon_edit_sec.png",
+        "type": "png",
+        "name": "IMAGE_ICON_EDIT_SEC"
       }
     ]
   }

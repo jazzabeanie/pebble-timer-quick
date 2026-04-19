@@ -264,7 +264,7 @@ Settings are configured via the Pebble mobile app (tap the gear icon next to the
 | Setting | Default | Description |
 |---------|---------|-------------|
 | Increment Icons | On | Shows/hides the +1, +5, +20 button indicator icons in edit modes |
-| Swap Back / Select-Hold Buttons | Off | When on, swaps the functions of Back (short press) and Select (long press) in New and EditSec modes only. Back becomes the New↔EditSec mode toggle; Select long press becomes the +1hr / +1min time increment. |
+| Swap Back / Select-Hold Buttons | Off | When on, swaps the functions of Back (short press) and Select (long press) in New and EditSec modes only. Back becomes the New↔EditSec mode toggle; Select long press becomes the +1hr / +1min time increment. The back button icon is replaced with an **m/s** indicator: **m** bold in New mode, **s** bold in EditSec mode. |
 
 ---
 

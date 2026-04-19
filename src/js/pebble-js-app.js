@@ -106,7 +106,7 @@ Pebble.addEventListener('showConfiguration', function() {
     section('Timer', [
       row('Edit Icon',          'show_edit_icon'),
       row('Play / Pause Icon',  'show_play_pause_icon'),
-      row('Exit to Background', 'show_to_bg_icon'),
+      row('Exit to Background Icon', 'show_to_bg_icon'),
       row('Details Icon',       'show_details_icon'),
       row('Repeat Toggle Icon', 'show_repeat_enable_icon'),
       row('Quit Icon',          'show_quit_icon'),
