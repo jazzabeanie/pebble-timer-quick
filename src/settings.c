@@ -57,7 +57,7 @@ static void prv_inbox_received(DictionaryIterator *iterator, void *context) {
 
   #define HANDLE(key, field) \
     t = dict_find(iterator, key); \
-    if (t) { s_settings.field = (bool)t->value->int32; changed = true; }
+    if (t) { s_settings.field = t->value->data[0] != 0; changed = true; }
 
   HANDLE(APPMSG_KEY_SHOW_INCREMENT_ICONS,    show_increment_icons)
   HANDLE(APPMSG_KEY_SHOW_DIRECTION_ICON,     show_direction_icon)
@@ -115,7 +115,7 @@ void settings_init(SettingsChangeCallback on_change) {
       persist_exists(PERSIST_SETTINGS_KEY)) {
     persist_read_data(PERSIST_SETTINGS_KEY, &s_settings, sizeof(s_settings));
   }
+  app_message_open(app_message_inbox_size_maximum(), 128);
   app_message_register_inbox_received(prv_inbox_received);
-  app_message_open(128, 128);
   prv_send_to_phone();
 }
