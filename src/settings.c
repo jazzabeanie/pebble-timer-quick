@@ -33,6 +33,20 @@ typedef struct {
 
 static AppSettings s_settings;
 static SettingsChangeCallback s_change_callback;
+static AppTimer *s_retry_timer = NULL;
+
+static void prv_send_to_phone(void);
+
+static void prv_retry_send(void *data) {
+  s_retry_timer = NULL;
+  prv_send_to_phone();
+}
+
+static void prv_outbox_failed(DictionaryIterator *iterator, AppMessageResult reason, void *context) {
+  if (!s_retry_timer) {
+    s_retry_timer = app_timer_register(1000, prv_retry_send, NULL);
+  }
+}
 
 static void prv_send_to_phone(void) {
   DictionaryIterator *iter;
@@ -115,7 +129,9 @@ void settings_init(SettingsChangeCallback on_change) {
       persist_exists(PERSIST_SETTINGS_KEY)) {
     persist_read_data(PERSIST_SETTINGS_KEY, &s_settings, sizeof(s_settings));
   }
+  settings_save();
   app_message_open(app_message_inbox_size_maximum(), 128);
   app_message_register_inbox_received(prv_inbox_received);
+  app_message_register_outbox_failed(prv_outbox_failed);
   prv_send_to_phone();
 }
