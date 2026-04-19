@@ -580,41 +580,47 @@ static void prv_draw_action_icons(GContext *ctx, GRect bounds) {
       }
     }
     // Long press icons for New/EditSec
-    prv_draw_icon(ctx, drawing_data.icon_direction, long_up_x, long_up_y,
-                  ICON_SMALL_SIZE, ICON_SMALL_SIZE);
-    // TODO: overlaps the display and a new solution is needed
-    // prv_draw_icon(ctx, drawing_data.icon_reset, long_select_x, long_select_y,
-    //               ICON_SMALL_SIZE, ICON_SMALL_SIZE);
-    prv_draw_icon(ctx, drawing_data.icon_quit, long_down_x, long_down_y,
-                  ICON_SMALL_SIZE, ICON_SMALL_SIZE);
+    if (settings_get_show_direction_icon()) {
+      prv_draw_icon(ctx, drawing_data.icon_direction, long_up_x, long_up_y,
+                    ICON_SMALL_SIZE, ICON_SMALL_SIZE);
+    }
+    if (settings_get_show_quit_icon()) {
+      prv_draw_icon(ctx, drawing_data.icon_quit, long_down_x, long_down_y,
+                    ICON_SMALL_SIZE, ICON_SMALL_SIZE);
+    }
   } else if (mode == ControlModeCounting) {
     // Counting mode icons
-    prv_draw_icon(ctx, drawing_data.icon_to_bg, icon_back_x, icon_back_y,
-                  ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+    if (settings_get_show_to_bg_icon()) {
+      prv_draw_icon(ctx, drawing_data.icon_to_bg, icon_back_x, icon_back_y,
+                    ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+    }
     // Hide Edit icon when repeat counter is visible to prevent overlap
-    if (!repeat_counter_visible) {
+    if (!repeat_counter_visible && settings_get_show_edit_icon()) {
       prv_draw_icon(ctx, drawing_data.icon_edit, icon_up_x, icon_up_y,
                     ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
     }
-    if (is_paused) {
-      prv_draw_icon(ctx, drawing_data.play_icon, icon_select_x, icon_select_y,
-                    ICON_SMALL_SIZE, ICON_SMALL_SIZE);
-    } else {
-      prv_draw_icon(ctx, drawing_data.pause_icon, icon_select_x, icon_select_y,
-                    ICON_SMALL_SIZE, ICON_SMALL_SIZE);
+    if (settings_get_show_play_pause_icon()) {
+      if (is_paused) {
+        prv_draw_icon(ctx, drawing_data.play_icon, icon_select_x, icon_select_y,
+                      ICON_SMALL_SIZE, ICON_SMALL_SIZE);
+      } else {
+        prv_draw_icon(ctx, drawing_data.pause_icon, icon_select_x, icon_select_y,
+                      ICON_SMALL_SIZE, ICON_SMALL_SIZE);
+      }
     }
-    prv_draw_icon(ctx, drawing_data.icon_details, icon_down_x, icon_down_y,
-                  ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+    if (settings_get_show_details_icon()) {
+      prv_draw_icon(ctx, drawing_data.icon_details, icon_down_x, icon_down_y,
+                    ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+    }
     // Long press icons
-    if (!is_chrono) {
+    if (!is_chrono && settings_get_show_repeat_enable_icon()) {
       prv_draw_icon(ctx, drawing_data.icon_repeat_enable, long_up_x, long_up_y,
                     ICON_SMALL_SIZE, ICON_SMALL_SIZE);
     }
-    // TODO: overlaps the display and a new solution is needed
-    // prv_draw_icon(ctx, drawing_data.icon_reset, long_select_x, long_select_y,
-    //               ICON_SMALL_SIZE, ICON_SMALL_SIZE);
-    prv_draw_icon(ctx, drawing_data.icon_quit, long_down_x, long_down_y,
-                  ICON_SMALL_SIZE, ICON_SMALL_SIZE);
+    if (settings_get_show_quit_icon()) {
+      prv_draw_icon(ctx, drawing_data.icon_quit, long_down_x, long_down_y,
+                    ICON_SMALL_SIZE, ICON_SMALL_SIZE);
+    }
   } else if (mode == ControlModeEditRepeat) {
     // EditRepeat mode icons
     if (settings_get_show_increment_icons()) {
@@ -716,24 +722,26 @@ void drawing_render(Layer *layer, GContext *ctx) {
 
     const IconPositions pos = prv_compute_icon_positions(bounds);
 
-    // Draw the edit icon (top right, Up button standard press)
-    prv_draw_icon(ctx, drawing_data.icon_edit, pos.up_x, pos.up_y,
-                  ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
-    // Draw the hold icon beside the reset icon (toward screen center)
-    prv_draw_icon(ctx, drawing_data.icon_reset, pos.long_up_x, pos.long_up_y,
-                  ICON_SMALL_SIZE, ICON_SMALL_SIZE);
-
-    // Draw the pause icon (middle right)
-    prv_draw_icon(ctx, drawing_data.pause_icon, pos.select_x, pos.select_y,
-                  ICON_SMALL_SIZE, ICON_SMALL_SIZE);
-
-    // Draw the silence icon (top left, Back button)
-    prv_draw_icon(ctx, drawing_data.silence_icon, pos.back_x, pos.back_y,
-                  ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
-
-    // Draw the snooze icon (bottom right, Down button)
-    prv_draw_icon(ctx, drawing_data.snooze_icon, pos.down_x, pos.down_y,
-                  ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+    if (settings_get_show_edit_icon()) {
+      prv_draw_icon(ctx, drawing_data.icon_edit, pos.up_x, pos.up_y,
+                    ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+    }
+    if (settings_get_show_alarm_reset_icon()) {
+      prv_draw_icon(ctx, drawing_data.icon_reset, pos.long_up_x, pos.long_up_y,
+                    ICON_SMALL_SIZE, ICON_SMALL_SIZE);
+    }
+    if (settings_get_show_play_pause_icon()) {
+      prv_draw_icon(ctx, drawing_data.pause_icon, pos.select_x, pos.select_y,
+                    ICON_SMALL_SIZE, ICON_SMALL_SIZE);
+    }
+    if (settings_get_show_silence_icon()) {
+      prv_draw_icon(ctx, drawing_data.silence_icon, pos.back_x, pos.back_y,
+                    ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+    }
+    if (settings_get_show_snooze_icon()) {
+      prv_draw_icon(ctx, drawing_data.snooze_icon, pos.down_x, pos.down_y,
+                    ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+    }
 
     // Set the mode back to default (Set) so it doesn't
     // affect other drawing operations.
