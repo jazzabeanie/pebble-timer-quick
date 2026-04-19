@@ -5,6 +5,8 @@
 #define PERSIST_SETTINGS_VERSION_KEY 4342897
 #define PERSIST_SETTINGS_KEY 58737
 
+// Key 11 is used as a "request settings" signal from watch to phone.
+// The phone responds with the full settings payload.
 #define APPMSG_KEY_SHOW_INCREMENT_ICONS    0
 #define APPMSG_KEY_SHOW_DIRECTION_ICON     1
 #define APPMSG_KEY_SHOW_QUIT_ICON          2
@@ -16,6 +18,7 @@
 #define APPMSG_KEY_SHOW_ALARM_RESET_ICON   8
 #define APPMSG_KEY_SHOW_SILENCE_ICON       9
 #define APPMSG_KEY_SHOW_SNOOZE_ICON        10
+#define APPMSG_KEY_REQUEST_SETTINGS        11
 
 typedef struct {
   bool show_increment_icons;
@@ -35,33 +38,23 @@ static AppSettings s_settings;
 static SettingsChangeCallback s_change_callback;
 static AppTimer *s_retry_timer = NULL;
 
-static void prv_send_to_phone(void);
+static void prv_request_settings(void);
 
-static void prv_retry_send(void *data) {
+static void prv_retry_request(void *data) {
   s_retry_timer = NULL;
-  prv_send_to_phone();
+  prv_request_settings();
 }
 
 static void prv_outbox_failed(DictionaryIterator *iterator, AppMessageResult reason, void *context) {
   if (!s_retry_timer) {
-    s_retry_timer = app_timer_register(1000, prv_retry_send, NULL);
+    s_retry_timer = app_timer_register(1000, prv_retry_request, NULL);
   }
 }
 
-static void prv_send_to_phone(void) {
+static void prv_request_settings(void) {
   DictionaryIterator *iter;
   if (app_message_outbox_begin(&iter) != APP_MSG_OK) { return; }
-  dict_write_int8(iter, APPMSG_KEY_SHOW_INCREMENT_ICONS,    s_settings.show_increment_icons    ? 1 : 0);
-  dict_write_int8(iter, APPMSG_KEY_SHOW_DIRECTION_ICON,     s_settings.show_direction_icon     ? 1 : 0);
-  dict_write_int8(iter, APPMSG_KEY_SHOW_QUIT_ICON,          s_settings.show_quit_icon          ? 1 : 0);
-  dict_write_int8(iter, APPMSG_KEY_SHOW_TO_BG_ICON,         s_settings.show_to_bg_icon         ? 1 : 0);
-  dict_write_int8(iter, APPMSG_KEY_SHOW_EDIT_ICON,          s_settings.show_edit_icon          ? 1 : 0);
-  dict_write_int8(iter, APPMSG_KEY_SHOW_PLAY_PAUSE_ICON,    s_settings.show_play_pause_icon    ? 1 : 0);
-  dict_write_int8(iter, APPMSG_KEY_SHOW_DETAILS_ICON,       s_settings.show_details_icon       ? 1 : 0);
-  dict_write_int8(iter, APPMSG_KEY_SHOW_REPEAT_ENABLE_ICON, s_settings.show_repeat_enable_icon ? 1 : 0);
-  dict_write_int8(iter, APPMSG_KEY_SHOW_ALARM_RESET_ICON,   s_settings.show_alarm_reset_icon   ? 1 : 0);
-  dict_write_int8(iter, APPMSG_KEY_SHOW_SILENCE_ICON,       s_settings.show_silence_icon       ? 1 : 0);
-  dict_write_int8(iter, APPMSG_KEY_SHOW_SNOOZE_ICON,        s_settings.show_snooze_icon        ? 1 : 0);
+  dict_write_int8(iter, APPMSG_KEY_REQUEST_SETTINGS, 1);
   app_message_outbox_send();
 }
 
@@ -133,5 +126,5 @@ void settings_init(SettingsChangeCallback on_change) {
   app_message_open(app_message_inbox_size_maximum(), 128);
   app_message_register_inbox_received(prv_inbox_received);
   app_message_register_outbox_failed(prv_outbox_failed);
-  prv_send_to_phone();
+  prv_request_settings();
 }

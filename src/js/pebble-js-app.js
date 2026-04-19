@@ -4,7 +4,8 @@ function getOr(key, def) {
   return config.hasOwnProperty(key) ? config[key] : def;
 }
 
-function sendSettingsToWatch(settings) {
+function sendSettingsToWatch(attempt) {
+  attempt = attempt || 0;
   Pebble.sendAppMessage(
     {
       '0':  getOr('show_increment_icons',    true) ? 1 : 0,
@@ -20,52 +21,40 @@ function sendSettingsToWatch(settings) {
       '10': getOr('show_snooze_icon',        true) ? 1 : 0
     },
     function() { console.log('QuickTimer: settings sent to watch'); },
-    function(err) { console.log('QuickTimer: send error ' + JSON.stringify(err)); }
+    function(err) {
+      console.log('QuickTimer: send error ' + JSON.stringify(err));
+      if (attempt < 3) {
+        setTimeout(function() { sendSettingsToWatch(attempt + 1); }, 1000);
+      }
+    }
   );
 }
 
-// On connect: phone is authoritative — push saved settings to watch immediately.
-Pebble.addEventListener('ready', function() {
+function loadConfig() {
   var stored = localStorage.getItem('config');
   if (stored) {
-    try {
-      config = JSON.parse(stored);
-      sendSettingsToWatch(config);
-    } catch (e) { console.log('QuickTimer: bad localStorage ' + e); }
+    try { config = JSON.parse(stored); } catch (e) { config = {}; }
   }
+}
+
+// On connect: phone is authoritative — push saved settings to watch.
+Pebble.addEventListener('ready', function() {
+  loadConfig();
+  sendSettingsToWatch();
 });
 
-// Watch sends its settings on every startup — respond with phone's authoritative settings.
-// If phone has nothing yet (first install), seed from the watch's defaults instead.
+// Watch sends key 11 on startup to request settings.
+// Respond with current stored settings (defaults if nothing stored yet).
 Pebble.addEventListener('appmessage', function(e) {
-  var stored = localStorage.getItem('config');
-  if (stored) {
-    try {
-      config = JSON.parse(stored);
-      sendSettingsToWatch(config);
-      console.log('QuickTimer: pushed stored settings to watch on startup');
-    } catch (ex) { console.log('QuickTimer: bad localStorage ' + ex); }
-  } else {
-    var p = e.payload;
-    config = {
-      show_increment_icons:    p.hasOwnProperty('0')  ? p['0']  === 1 : true,
-      show_direction_icon:     p.hasOwnProperty('1')  ? p['1']  === 1 : true,
-      show_quit_icon:          p.hasOwnProperty('2')  ? p['2']  === 1 : true,
-      show_to_bg_icon:         p.hasOwnProperty('3')  ? p['3']  === 1 : true,
-      show_edit_icon:          p.hasOwnProperty('4')  ? p['4']  === 1 : true,
-      show_play_pause_icon:    p.hasOwnProperty('5')  ? p['5']  === 1 : true,
-      show_details_icon:       p.hasOwnProperty('6')  ? p['6']  === 1 : true,
-      show_repeat_enable_icon: p.hasOwnProperty('7')  ? p['7']  === 1 : true,
-      show_alarm_reset_icon:   p.hasOwnProperty('8')  ? p['8']  === 1 : true,
-      show_silence_icon:       p.hasOwnProperty('9')  ? p['9']  === 1 : true,
-      show_snooze_icon:        p.hasOwnProperty('10') ? p['10'] === 1 : true
-    };
-    localStorage.setItem('config', JSON.stringify(config));
-    console.log('QuickTimer: initialized settings from watch defaults');
+  if (e.payload.hasOwnProperty('11')) {
+    loadConfig();
+    sendSettingsToWatch();
   }
 });
 
 Pebble.addEventListener('showConfiguration', function() {
+  loadConfig();
+
   function toggle(id, checked) {
     return '<label class="toggle"><input type="checkbox" id="' + id + '"' +
       (checked ? ' checked' : '') + '><span class="slider"></span></label>';
@@ -154,7 +143,7 @@ Pebble.addEventListener('webviewclosed', function(e) {
   try {
     config = JSON.parse(decodeURIComponent(e.response));
     localStorage.setItem('config', JSON.stringify(config));
-    sendSettingsToWatch(config);
+    sendSettingsToWatch();
   } catch (err) {
     console.log('QuickTimer: error parsing config ' + err);
   }
