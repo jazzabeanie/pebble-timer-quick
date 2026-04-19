@@ -257,6 +257,16 @@ These tests verify the correct icons are displayed beside each button in each mo
 
 ---
 
+## Settings
+
+Settings are configured via the Pebble mobile app (tap the gear icon next to the app). Changes are sent to the watch via AppMessage and persisted across launches.
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| Increment Icons | On | Shows/hides the +1, +5, +20 button indicator icons in edit modes |
+
+---
+
 ## Backlight Tests
 
 | Test | Description |

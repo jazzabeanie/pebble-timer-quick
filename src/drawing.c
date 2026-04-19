@@ -10,6 +10,7 @@
 #include <pebble.h>
 #include "animation.h"
 #include "main.h"
+#include "settings.h"
 #include "text_render.h"
 #include "timer.h"
 #include "utility.h"
@@ -526,54 +527,56 @@ static void prv_draw_action_icons(GContext *ctx, GRect bounds) {
   if (mode == ControlModeNew || mode == ControlModeEditSec) {
     // New/EditSec mode: show increment or decrement icons based on direction
     bool is_reverse = main_is_reverse_direction();
-    if (mode == ControlModeNew) {
-      if (is_reverse) {
-        prv_draw_icon(ctx, drawing_data.icon_minus_1hr, icon_back_x, icon_back_y,
-                      ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
-        if (!repeat_counter_visible) {
-          prv_draw_icon(ctx, drawing_data.icon_minus_20min, icon_up_x, icon_up_y,
+    if (settings_get_show_increment_icons()) {
+      if (mode == ControlModeNew) {
+        if (is_reverse) {
+          prv_draw_icon(ctx, drawing_data.icon_minus_1hr, icon_back_x, icon_back_y,
+                        ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+          if (!repeat_counter_visible) {
+            prv_draw_icon(ctx, drawing_data.icon_minus_20min, icon_up_x, icon_up_y,
+                          ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+          }
+          prv_draw_icon(ctx, drawing_data.icon_minus_5min, icon_select_x, icon_select_y,
+                        ICON_SMALL_SIZE, ICON_SMALL_SIZE);
+          prv_draw_icon(ctx, drawing_data.icon_minus_1min, icon_down_x, icon_down_y,
+                        ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+        } else {
+          prv_draw_icon(ctx, drawing_data.icon_plus_1hr, icon_back_x, icon_back_y,
+                        ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+          if (!repeat_counter_visible) {
+            prv_draw_icon(ctx, drawing_data.icon_plus_20min, icon_up_x, icon_up_y,
+                          ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+          }
+          prv_draw_icon(ctx, drawing_data.icon_plus_5min, icon_select_x, icon_select_y,
+                        ICON_SMALL_SIZE, ICON_SMALL_SIZE);
+          prv_draw_icon(ctx, drawing_data.icon_plus_1min, icon_down_x, icon_down_y,
                         ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
         }
-        prv_draw_icon(ctx, drawing_data.icon_minus_5min, icon_select_x, icon_select_y,
-                      ICON_SMALL_SIZE, ICON_SMALL_SIZE);
-        prv_draw_icon(ctx, drawing_data.icon_minus_1min, icon_down_x, icon_down_y,
-                      ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
       } else {
-        prv_draw_icon(ctx, drawing_data.icon_plus_1hr, icon_back_x, icon_back_y,
-                      ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
-        if (!repeat_counter_visible) {
-          prv_draw_icon(ctx, drawing_data.icon_plus_20min, icon_up_x, icon_up_y,
+        // EditSec - also fix the Back button icon (+60 instead of +30)
+        if (is_reverse) {
+          prv_draw_icon(ctx, drawing_data.icon_minus_60sec, icon_back_x, icon_back_y,
+                        ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+          if (!repeat_counter_visible) {
+            prv_draw_icon(ctx, drawing_data.icon_minus_20sec, icon_up_x, icon_up_y,
+                          ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+          }
+          prv_draw_icon(ctx, drawing_data.icon_minus_5sec, icon_select_x, icon_select_y,
+                        ICON_SMALL_SIZE, ICON_SMALL_SIZE);
+          prv_draw_icon(ctx, drawing_data.icon_minus_1sec, icon_down_x, icon_down_y,
+                        ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+        } else {
+          prv_draw_icon(ctx, drawing_data.icon_plus_60sec, icon_back_x, icon_back_y,
+                        ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+          if (!repeat_counter_visible) {
+            prv_draw_icon(ctx, drawing_data.icon_plus_20sec, icon_up_x, icon_up_y,
+                          ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+          }
+          prv_draw_icon(ctx, drawing_data.icon_plus_5sec, icon_select_x, icon_select_y,
+                        ICON_SMALL_SIZE, ICON_SMALL_SIZE);
+          prv_draw_icon(ctx, drawing_data.icon_plus_1sec, icon_down_x, icon_down_y,
                         ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
         }
-        prv_draw_icon(ctx, drawing_data.icon_plus_5min, icon_select_x, icon_select_y,
-                      ICON_SMALL_SIZE, ICON_SMALL_SIZE);
-        prv_draw_icon(ctx, drawing_data.icon_plus_1min, icon_down_x, icon_down_y,
-                      ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
-      }
-    } else {
-      // EditSec - also fix the Back button icon (+60 instead of +30)
-      if (is_reverse) {
-        prv_draw_icon(ctx, drawing_data.icon_minus_60sec, icon_back_x, icon_back_y,
-                      ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
-        if (!repeat_counter_visible) {
-          prv_draw_icon(ctx, drawing_data.icon_minus_20sec, icon_up_x, icon_up_y,
-                        ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
-        }
-        prv_draw_icon(ctx, drawing_data.icon_minus_5sec, icon_select_x, icon_select_y,
-                      ICON_SMALL_SIZE, ICON_SMALL_SIZE);
-        prv_draw_icon(ctx, drawing_data.icon_minus_1sec, icon_down_x, icon_down_y,
-                      ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
-      } else {
-        prv_draw_icon(ctx, drawing_data.icon_plus_60sec, icon_back_x, icon_back_y,
-                      ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
-        if (!repeat_counter_visible) {
-          prv_draw_icon(ctx, drawing_data.icon_plus_20sec, icon_up_x, icon_up_y,
-                        ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
-        }
-        prv_draw_icon(ctx, drawing_data.icon_plus_5sec, icon_select_x, icon_select_y,
-                      ICON_SMALL_SIZE, ICON_SMALL_SIZE);
-        prv_draw_icon(ctx, drawing_data.icon_plus_1sec, icon_down_x, icon_down_y,
-                      ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
       }
     }
     // Long press icons for New/EditSec
@@ -614,13 +617,15 @@ static void prv_draw_action_icons(GContext *ctx, GRect bounds) {
                   ICON_SMALL_SIZE, ICON_SMALL_SIZE);
   } else if (mode == ControlModeEditRepeat) {
     // EditRepeat mode icons
-    prv_draw_icon(ctx, drawing_data.icon_reset_count, icon_back_x, icon_back_y,
-                  ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
-    // +20 rep icon intentionally not drawn - overlaps with repeat counter indicator
-    prv_draw_icon(ctx, drawing_data.icon_plus_5_rep, icon_select_x, icon_select_y,
-                  ICON_SMALL_SIZE, ICON_SMALL_SIZE);
-    prv_draw_icon(ctx, drawing_data.icon_plus_1_rep, icon_down_x, icon_down_y,
-                  ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+    if (settings_get_show_increment_icons()) {
+      prv_draw_icon(ctx, drawing_data.icon_reset_count, icon_back_x, icon_back_y,
+                    ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+      // +20 rep icon intentionally not drawn - overlaps with repeat counter indicator
+      prv_draw_icon(ctx, drawing_data.icon_plus_5_rep, icon_select_x, icon_select_y,
+                    ICON_SMALL_SIZE, ICON_SMALL_SIZE);
+      prv_draw_icon(ctx, drawing_data.icon_plus_1_rep, icon_down_x, icon_down_y,
+                    ICON_STANDARD_SIZE, ICON_STANDARD_SIZE);
+    }
   }
 }
 

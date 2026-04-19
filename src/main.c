@@ -10,6 +10,7 @@
 #include <pebble.h>
 #include "main.h"
 #include "drawing.h"
+#include "settings.h"
 #include "timer.h"
 #include "utility.h"
 
@@ -810,12 +811,18 @@ static void prv_tick_timer_service_callback(struct tm *tick_time, TimeUnits unit
 // Loading and Unloading
 //
 
+static void prv_settings_changed(void) {
+  drawing_update();
+  layer_mark_dirty(main_data.layer);
+}
+
 // Initialize the program
 static void prv_initialize(void) {
   // cancel any existing wakeup events
   wakeup_cancel_all();
-  // load timer
+  // load timer and settings
   timer_persist_read();
+  settings_init(prv_settings_changed);
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Timer data: length_ms=%lld, start_ms=%lld, is_paused=%d, can_vibrate=%d",
           (long long)timer_data.length_ms, (long long)timer_data.start_ms, timer_data.is_paused, timer_data.can_vibrate);
   // set initial states
