@@ -29,6 +29,7 @@
 #define DOWN_BUTTON_INCREMENT_SEC_MS MSEC_IN_SEC
 #define BACK_BUTTON_INCREMENT_SEC_MS MSEC_IN_SEC * 60
 #define NEW_EXPIRE_TIME_MS MSEC_IN_SEC * 3
+#define BACKLIGHT_EDIT_LINGER_MS MSEC_IN_SEC
 #define INTERACTION_TIMEOUT_MS 10000
 
 // Main data structure
@@ -56,6 +57,7 @@ static void prv_reset_new_expire_timer(void);
 static void prv_quit_callback(void *data);
 static void prv_cancel_quit_timer(void);
 static void prv_set_backlight(bool on);
+static void prv_update_backlight(void);
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -65,7 +67,7 @@ static void prv_set_backlight(bool on);
 // Callback for the backlight timer
 static void prv_backlight_timer_callback(void *data) {
   backlight_timer = NULL;
-  prv_set_backlight(false);
+  prv_update_backlight();
 }
 
 // Helper to set backlight state
@@ -213,7 +215,16 @@ static void prv_new_expire_callback(void *data) {
     if (timer_is_paused() && !was_edit_sec_mode && !main_data.is_editing_existing_timer) {
       timer_toggle_play_pause();
     }
-    prv_update_backlight();
+    // Keep backlight on for 1 extra second after edit expires; prv_backlight_timer_callback
+    // will call prv_update_backlight() which respects vibration state.
+    if (backlight_on) {
+      if (backlight_timer) {
+        app_timer_cancel(backlight_timer);
+      }
+      backlight_timer = app_timer_register(BACKLIGHT_EDIT_LINGER_MS, prv_backlight_timer_callback, NULL);
+    } else {
+      prv_update_backlight();
+    }
     test_log_state("mode_change");
 
     // Exit if timer is longer than AUTO_BACKGROUND_TIMER_LENGTH_MS, after a delay
