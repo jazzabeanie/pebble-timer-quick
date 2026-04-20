@@ -87,7 +87,12 @@ static int8_t prv_slot_for_row(int16_t row) {
 
 static void prv_restart_idle_timer(void);
 
-static void prv_ensure_selection_visible(void) {
+static void prv_update_scroll(void) {
+#if defined(PBL_ROUND)
+  // On round displays: keep the selected row vertically centred
+  s_scroll_y = s_selected_row * ROW_HEIGHT + ROW_HEIGHT / 2 - s_screen_h / 2;
+#else
+  // On rectangular displays: scroll just enough to keep the row in view
   int16_t sel_top = s_selected_row * ROW_HEIGHT;
   int16_t sel_bot = sel_top + ROW_HEIGHT;
   if (sel_top < s_scroll_y) {
@@ -95,6 +100,7 @@ static void prv_ensure_selection_visible(void) {
   } else if (sel_bot > s_scroll_y + s_screen_h) {
     s_scroll_y = sel_bot - s_screen_h;
   }
+#endif
 }
 
 
@@ -161,10 +167,11 @@ static void prv_layer_update_proc(Layer *layer, GContext *ctx) {
     GRect l1_rect = GRect(4, row_y, w - 8, LINE1_HEIGHT);
     GRect l2_rect = GRect(4, row_y + LINE1_HEIGHT, w - 8, LINE2_HEIGHT);
 
+    GTextAlignment text_align = PBL_IF_ROUND_ELSE(GTextAlignmentCenter, GTextAlignmentLeft);
     graphics_draw_text(ctx, line1, label_font, l1_rect,
-                       GTextOverflowModeFill, GTextAlignmentLeft, NULL);
+                       GTextOverflowModeFill, text_align, NULL);
     graphics_draw_text(ctx, line2, value_font, l2_rect,
-                       GTextOverflowModeFill, GTextAlignmentLeft, NULL);
+                       GTextOverflowModeFill, text_align, NULL);
 
     // Separator line (between rows, only when not selected)
     if (!is_selected && row < s_total_rows - 1) {
@@ -210,7 +217,7 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_restart_idle_timer();
   if (s_selected_row > 0) {
     s_selected_row--;
-    prv_ensure_selection_visible();
+    prv_update_scroll();
     layer_mark_dirty(s_layer);
   }
 }
@@ -219,7 +226,7 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_restart_idle_timer();
   if (s_selected_row < (int16_t)(s_total_rows - 1)) {
     s_selected_row++;
-    prv_ensure_selection_visible();
+    prv_update_scroll();
     layer_mark_dirty(s_layer);
   }
 }
@@ -343,8 +350,9 @@ static void prv_window_load(Window *window) {
 
   s_total_rows = s_sorted_count + (s_implicit_idx >= 0 ? 1 : 0);
   s_selected_row = 0;
-  s_scroll_y = 0;
   s_screen_h = bounds.size.h;
+  s_scroll_y = 0;
+  prv_update_scroll();
 
   s_layer = layer_create(bounds);
   layer_set_update_proc(s_layer, prv_layer_update_proc);
