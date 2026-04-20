@@ -294,6 +294,9 @@ void timer_persist_read(void) {
   }
 
   timer_count = (uint8_t)count;
+  if (timer_count == 0) {
+    timer_reset();
+  }
   for (uint8_t i = 0; i < timer_count; i++) {
     if (persist_exists(PERSIST_TIMER_SLOT_KEY(i))) {
       persist_read_data(PERSIST_TIMER_SLOT_KEY(i), &timer_slots[i], sizeof(Timer));

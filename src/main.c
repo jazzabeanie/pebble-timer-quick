@@ -855,6 +855,7 @@ static void prv_initialize(void) {
   wakeup_cancel_all();
   // load timer and settings
   timer_persist_read();
+  uint8_t persisted_count = timer_count;
   settings_init(prv_settings_changed);
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Timer data: length_ms=%lld, start_ms=%lld, is_paused=%d, can_vibrate=%d",
           (long long)timer_data.length_ms, (long long)timer_data.start_ms, timer_data.is_paused, timer_data.can_vibrate);
@@ -887,6 +888,8 @@ static void prv_initialize(void) {
     // No timer was set and it wasn't in chrono mode, so start fresh
     main_data.control_mode = ControlModeNew;
     timer_reset();
+    // Formally claim slot 0 so this timer is persisted on exit
+    if (timer_count == 0) timer_count = 1;
     // Start timer running immediately in ControlModeNew
     // This allows the timer to count while user is adding time
     timer_data.start_ms = epoch();
@@ -899,8 +902,8 @@ static void prv_initialize(void) {
   prv_update_backlight();
   test_log_state("init");
 
-  // If multi-timer enabled and timers exist, we will push the Timer List on top
-  bool show_timer_list = settings_get_multiple_timers_enabled() && timer_count > 0;
+  // If multi-timer enabled and timers existed before this launch, push the Timer List
+  bool show_timer_list = settings_get_multiple_timers_enabled() && persisted_count > 0;
 
   // initialize window
   main_data.window = window_create();
