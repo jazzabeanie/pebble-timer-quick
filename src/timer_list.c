@@ -8,7 +8,9 @@
 #include "main.h"
 
 #define IDLE_TIMEOUT_MS   30000
-#define ROW_HEIGHT        34
+#define LINE1_HEIGHT      24
+#define LINE2_HEIGHT      18
+#define ROW_HEIGHT        (LINE1_HEIGHT + LINE2_HEIGHT)
 #define REFRESH_MS        500
 
 // State
@@ -106,8 +108,8 @@ static void prv_layer_update_proc(Layer *layer, GContext *ctx) {
       graphics_context_set_text_color(ctx, GColorBlack);
     }
 
-    GFont label_font = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
-    GFont value_font = fonts_get_system_font(FONT_KEY_GOTHIC_14);
+    GFont label_font = fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD);
+    GFont value_font = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
 
     char line1[20] = {0};
     char line2[20] = {0};
@@ -136,8 +138,8 @@ static void prv_layer_update_proc(Layer *layer, GContext *ctx) {
       }
     }
 
-    GRect l1_rect = GRect(4, row * ROW_HEIGHT, w - 8, ROW_HEIGHT / 2);
-    GRect l2_rect = GRect(4, row * ROW_HEIGHT + ROW_HEIGHT / 2, w - 8, ROW_HEIGHT / 2);
+    GRect l1_rect = GRect(4, row * ROW_HEIGHT, w - 8, LINE1_HEIGHT);
+    GRect l2_rect = GRect(4, row * ROW_HEIGHT + LINE1_HEIGHT, w - 8, LINE2_HEIGHT);
 
     graphics_draw_text(ctx, line1, label_font, l1_rect,
                        GTextOverflowModeFill, GTextAlignmentLeft, NULL);
