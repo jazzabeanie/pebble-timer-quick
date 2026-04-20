@@ -861,6 +861,18 @@ static void prv_initialize(void) {
   // load timer and settings
   timer_persist_read();
   uint8_t persisted_count = timer_count;
+
+  // If launched by a wakeup, restore the slot that scheduled the alarm and skip the timer list
+  bool wakeup_launch = (launch_reason() == APP_LAUNCH_WAKEUP);
+  if (wakeup_launch && timer_count > 0) {
+    WakeupId wakeup_id;
+    int32_t wakeup_cookie = 0;
+    wakeup_get_launch_event(&wakeup_id, &wakeup_cookie);
+    if (wakeup_cookie >= 0 && (uint8_t)wakeup_cookie < timer_count) {
+      timer_set_active_slot((uint8_t)wakeup_cookie);
+    }
+  }
+
   settings_init(prv_settings_changed);
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Timer data: length_ms=%lld, start_ms=%lld, is_paused=%d, can_vibrate=%d",
           (long long)timer_data.length_ms, (long long)timer_data.start_ms, timer_data.is_paused, timer_data.can_vibrate);
@@ -907,8 +919,9 @@ static void prv_initialize(void) {
   prv_update_backlight();
   test_log_state("init");
 
-  // If multi-timer enabled and timers existed before this launch, push the Timer List
-  bool show_timer_list = settings_get_multiple_timers_enabled() && persisted_count > 0;
+  // If multi-timer enabled and timers existed before this launch, push the Timer List.
+  // Skip the list on wakeup launches — go straight to the alarming timer.
+  bool show_timer_list = !wakeup_launch && settings_get_multiple_timers_enabled() && persisted_count > 0;
 
   // initialize window
   main_data.window = window_create();
@@ -953,7 +966,7 @@ static void prv_terminate(void) {
   // schedule wakeup for the active countdown timer (if any)
   if (timer_count > 0 && !timer_is_chrono() && !timer_is_paused() && !timer_data.reset_on_init) {
     time_t wakeup_time = (epoch() + timer_get_value_ms()) / MSEC_IN_SEC;
-    wakeup_schedule(wakeup_time, 0, true);
+    wakeup_schedule(wakeup_time, (int32_t)timer_get_active_slot(), true);
   }
   // destroy
   timer_persist_store();
