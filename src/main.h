@@ -54,5 +54,8 @@ bool main_is_backlight_on(void);
 //! Set the current control mode (used by Timer List window on timer selection)
 void main_set_control_mode(ControlMode mode);
 
+//! Reset the new-expire timer so the user gets a full 3 seconds in edit mode
+void main_reset_new_expire_timer(void);
+
 //! Force a redraw of the main window layer
 void main_force_redraw(void);

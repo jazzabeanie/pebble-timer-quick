@@ -207,6 +207,7 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     // "New Timer" selected: keep implicit slot, set active, reveal main window in New mode
     timer_set_active_slot((uint8_t)s_implicit_idx);
     main_set_control_mode(ControlModeNew);
+    main_reset_new_expire_timer();
     prv_log_list_state("timer_list_select_new");
   } else {
     // Existing timer selected

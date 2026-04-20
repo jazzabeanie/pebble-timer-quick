@@ -296,6 +296,11 @@ void main_set_control_mode(ControlMode mode) {
   main_data.control_mode = mode;
 }
 
+// Reset the new-expire timer (called by Timer List when entering edit mode)
+void main_reset_new_expire_timer(void) {
+  prv_reset_new_expire_timer();
+}
+
 // Force a redraw of the main window layer
 void main_force_redraw(void) {
   drawing_update();
