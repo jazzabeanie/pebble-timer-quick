@@ -8,8 +8,8 @@
 #include "main.h"
 
 #define IDLE_TIMEOUT_MS   30000
-#define LINE1_HEIGHT      24
-#define LINE2_HEIGHT      18
+#define LINE1_HEIGHT      26
+#define LINE2_HEIGHT      20
 #define ROW_HEIGHT        (LINE1_HEIGHT + LINE2_HEIGHT)
 #define REFRESH_MS        500
 
