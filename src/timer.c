@@ -4,21 +4,26 @@
 // Contains data and all functions for setting and accessing
 // a timer. Also saves and loads timers between closing and reopening.
 //
-// @author Eric D. Phillips
-// @data October 26, 2015
+// @author Eric D. Phillips & Jared Johnston
+// @date October 26, 2015
 // @bugs No known bugs
 
 #include "timer.h"
 #include "utility.h"
 
-#define PERSIST_VERSION 5
+#define PERSIST_VERSION 6
 #define PERSIST_VERSION_KEY 4342896
+// Legacy keys kept for cleanup only
 #define PERSIST_TIMER_KEY_V2_DATA 58734
-#define PERSIST_TIMER_KEY 58736
-#define VIBRATION_LENGTH_MS 30000
-// legacy persistent storage
+#define PERSIST_TIMER_KEY         58736
 #define PERSIST_TIMER_KEY_V1_LEGACY 3456
-// TODO: I think I can remove V2 and V3 once I have updated my app to all devices
+
+// Multi-timer persistence
+#define PERSIST_TIMER_COUNT_KEY     59000
+#define PERSIST_TIMER_SLOTS_BASE    59001
+#define PERSIST_TIMER_SLOT_KEY(n)   (PERSIST_TIMER_SLOTS_BASE + (n))
+
+#define VIBRATION_LENGTH_MS 30000
 
 // Vibration sequence
 static const uint32_t vibe_sequence[] = {150, 200, 300};
@@ -27,8 +32,23 @@ static const VibePattern vibe_pattern = {
   .num_segments = ARRAY_LENGTH(vibe_sequence),
 };
 
-// Main data structure
-Timer timer_data;
+// Multi-timer globals
+Timer timer_slots[MAX_TIMERS];
+uint8_t timer_count = 0;
+static uint8_t s_active_slot = 0;
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Active Slot Helpers
+//
+
+uint8_t timer_get_active_slot(void) {
+  return s_active_slot;
+}
+
+void timer_set_active_slot(uint8_t index) {
+  s_active_slot = index;
+}
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -223,15 +243,17 @@ void timer_reset(void) {
   timer_data.elapsed = false;
 }
 
-// Save the timer to persistent storage
+// Save all timer slots to persistent storage
 void timer_persist_store(void) {
-// write out current persistent data version
   persist_write_int(PERSIST_VERSION_KEY, PERSIST_VERSION);
-  // Always write to the new V3 key
-  persist_write_data(PERSIST_TIMER_KEY, &timer_data, sizeof(timer_data));
-
-  // TODO: can I remove this code once all devices have been update?
-  // Clean up old keys if they still exist
+  persist_write_int(PERSIST_TIMER_COUNT_KEY, (int32_t)timer_count);
+  for (uint8_t i = 0; i < timer_count; i++) {
+    persist_write_data(PERSIST_TIMER_SLOT_KEY(i), &timer_slots[i], sizeof(Timer));
+  }
+  // Clean up legacy single-timer keys
+  if (persist_exists(PERSIST_TIMER_KEY)) {
+    persist_delete(PERSIST_TIMER_KEY);
+  }
   if (persist_exists(PERSIST_TIMER_KEY_V2_DATA)) {
     persist_delete(PERSIST_TIMER_KEY_V2_DATA);
   }
@@ -245,22 +267,156 @@ void timer_reset_auto_snooze(void) {
   timer_data.auto_snooze_count = 0;
 }
 
-// Read the timer from persistent storage
+// Read all timer slots from persistent storage
 void timer_persist_read(void) {
-  // Check version
   int version = persist_read_int(PERSIST_VERSION_KEY);
   if (version < PERSIST_VERSION) {
     APP_LOG(APP_LOG_LEVEL_INFO, "Old version (%d), resetting data.", version);
+    timer_count = 0;
+    s_active_slot = 0;
     timer_reset();
     return;
   }
 
-  // --- Now, just try to load the current data ---
-  if (persist_exists(PERSIST_TIMER_KEY)) {
-    // User has run the current app before, load their data
-    persist_read_data(PERSIST_TIMER_KEY, &timer_data, sizeof(timer_data));
-  } else {
-    // No data saved, reset to default
+  if (!persist_exists(PERSIST_TIMER_COUNT_KEY)) {
+    timer_count = 0;
+    s_active_slot = 0;
     timer_reset();
+    return;
+  }
+
+  int32_t count = persist_read_int(PERSIST_TIMER_COUNT_KEY);
+  if (count < 0 || count > MAX_TIMERS) {
+    timer_count = 0;
+    s_active_slot = 0;
+    timer_reset();
+    return;
+  }
+
+  timer_count = (uint8_t)count;
+  for (uint8_t i = 0; i < timer_count; i++) {
+    if (persist_exists(PERSIST_TIMER_SLOT_KEY(i))) {
+      persist_read_data(PERSIST_TIMER_SLOT_KEY(i), &timer_slots[i], sizeof(Timer));
+    } else {
+      // Initialize missing slot as reset timer
+      timer_slots[i] = (Timer){0};
+      timer_slots[i].is_paused = true;
+    }
+  }
+  s_active_slot = 0;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Multi-Timer Management
+//
+
+// Allocate next free slot as a running stopwatch; returns slot index or -1 if full
+int8_t timer_slot_create(void) {
+  if (timer_count >= MAX_TIMERS) return -1;
+  uint8_t idx = timer_count;
+  timer_count++;
+  timer_slots[idx] = (Timer){
+    .length_ms        = 0,
+    .start_ms         = epoch(),
+    .base_length_ms   = 0,
+    .elapsed          = false,
+    .can_vibrate      = false,
+    .reset_on_init    = false,
+    .auto_snooze_count = 0,
+    .is_repeating     = false,
+    .repeat_count     = 0,
+    .base_repeat_count = 0,
+    .is_paused        = false,
+  };
+  return (int8_t)idx;
+}
+
+// Delete the slot at index, compact the array, and clear the freed persist key
+void timer_slot_delete(uint8_t index) {
+  if (index >= timer_count) return;
+  // Compact: shift remaining slots down
+  for (uint8_t i = index; i < timer_count - 1; i++) {
+    timer_slots[i] = timer_slots[i + 1];
+  }
+  timer_count--;
+  // Clear the now-unused last persist slot
+  uint32_t freed_key = PERSIST_TIMER_SLOT_KEY(timer_count);
+  if (persist_exists(freed_key)) {
+    persist_delete(freed_key);
+  }
+  // Adjust active slot index
+  if (timer_count == 0) {
+    s_active_slot = 0;
+  } else if (s_active_slot >= timer_count) {
+    s_active_slot = timer_count - 1;
+  } else if (s_active_slot > index) {
+    s_active_slot--;
+  }
+}
+
+// Helper: get elapsed ms for a slot (works for paused and running)
+static int64_t prv_slot_elapsed_ms(const Timer *t) {
+  if (t->is_paused) {
+    return t->start_ms;
+  }
+  return epoch() - t->start_ms;
+}
+
+// Helper: returns true if a slot is in chrono (stopwatch) mode
+static bool prv_slot_is_chrono(const Timer *t) {
+  return t->length_ms - prv_slot_elapsed_ms(t) <= 0;
+}
+
+// Fill out_indices with slot indices sorted by expiry
+void timer_get_sorted_slots(uint8_t *out_indices, uint8_t *out_count) {
+  uint8_t countdown[MAX_TIMERS];
+  uint8_t countdown_count = 0;
+  uint8_t chrono[MAX_TIMERS];
+  uint8_t chrono_count = 0;
+
+  for (uint8_t i = 0; i < timer_count; i++) {
+    if (prv_slot_is_chrono(&timer_slots[i])) {
+      chrono[chrono_count++] = i;
+    } else {
+      countdown[countdown_count++] = i;
+    }
+  }
+
+  // Sort countdown timers ascending by remaining ms (soonest first)
+  for (uint8_t i = 1; i < countdown_count; i++) {
+    uint8_t key = countdown[i];
+    int64_t rem_key = timer_slots[key].length_ms - prv_slot_elapsed_ms(&timer_slots[key]);
+    int8_t j = (int8_t)i - 1;
+    while (j >= 0) {
+      int64_t rem_j = timer_slots[countdown[j]].length_ms - prv_slot_elapsed_ms(&timer_slots[countdown[j]]);
+      if (rem_j <= rem_key) break;
+      countdown[j + 1] = countdown[j];
+      j--;
+    }
+    countdown[j + 1] = key;
+  }
+
+  // Sort stopwatches descending by elapsed ms (longest running first)
+  for (uint8_t i = 1; i < chrono_count; i++) {
+    uint8_t key = chrono[i];
+    int64_t ela_key = prv_slot_elapsed_ms(&timer_slots[key]);
+    int8_t j = (int8_t)i - 1;
+    while (j >= 0) {
+      int64_t ela_j = prv_slot_elapsed_ms(&timer_slots[chrono[j]]);
+      if (ela_j >= ela_key) break;
+      chrono[j + 1] = chrono[j];
+      j--;
+    }
+    chrono[j + 1] = key;
+  }
+
+  // Combine: countdown first, then stopwatches
+  *out_count = 0;
+  for (uint8_t i = 0; i < countdown_count; i++) {
+    out_indices[(*out_count)++] = countdown[i];
+  }
+  for (uint8_t i = 0; i < chrono_count; i++) {
+    out_indices[(*out_count)++] = chrono[i];
   }
 }

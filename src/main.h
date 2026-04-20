@@ -50,3 +50,9 @@ bool main_is_reverse_direction(void);
 //! Get whether the backlight is currently on
 //! @return True if the backlight is on
 bool main_is_backlight_on(void);
+
+//! Set the current control mode (used by Timer List window on timer selection)
+void main_set_control_mode(ControlMode mode);
+
+//! Force a redraw of the main window layer
+void main_force_redraw(void);

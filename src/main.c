@@ -12,6 +12,7 @@
 #include "drawing.h"
 #include "settings.h"
 #include "timer.h"
+#include "timer_list.h"
 #include "utility.h"
 
 // Main constants
@@ -288,6 +289,17 @@ bool main_is_reverse_direction(void) {
 // Get whether the backlight is currently on
 bool main_is_backlight_on(void) {
   return backlight_on;
+}
+
+// Set the current control mode (called by Timer List window on selection)
+void main_set_control_mode(ControlMode mode) {
+  main_data.control_mode = mode;
+}
+
+// Force a redraw of the main window layer
+void main_force_redraw(void) {
+  drawing_update();
+  layer_mark_dirty(main_data.layer);
 }
 
 // Background layer update procedure
@@ -690,8 +702,8 @@ static void prv_down_long_click_handler(ClickRecognizerRef recognizer, void *ctx
   prv_record_interaction();
   prv_cancel_quit_timer();
   timer_reset_auto_snooze();
-  // Reset timer
-  timer_data.reset_on_init = true;
+  // Delete this timer slot and exit
+  timer_slot_delete(timer_get_active_slot());
   prv_update_backlight();
   test_log_state("long_press_down");
   // quit app
@@ -887,6 +899,9 @@ static void prv_initialize(void) {
   prv_update_backlight();
   test_log_state("init");
 
+  // If multi-timer enabled and timers exist, we will push the Timer List on top
+  bool show_timer_list = settings_get_multiple_timers_enabled() && timer_count > 0;
+
   // initialize window
   main_data.window = window_create();
   ASSERT(main_data.window);
@@ -911,6 +926,11 @@ static void prv_initialize(void) {
   // start refreshing
   prv_record_interaction();
   prv_app_timer_callback(NULL);
+
+  // Push Timer List on top when multiple timers exist and feature is enabled
+  if (show_timer_list) {
+    timer_list_window_push();
+  }
 }
 
 // Terminate the program
@@ -922,8 +942,8 @@ static void prv_terminate(void) {
     app_timer_cancel(backlight_timer);
     backlight_timer = NULL;
   }
-  // schedule wakeup
-  if (!timer_is_chrono() && !timer_is_paused() && !timer_data.reset_on_init) {
+  // schedule wakeup for the active countdown timer (if any)
+  if (timer_count > 0 && !timer_is_chrono() && !timer_is_paused() && !timer_data.reset_on_init) {
     time_t wakeup_time = (epoch() + timer_get_value_ms()) / MSEC_IN_SEC;
     wakeup_schedule(wakeup_time, 0, true);
   }

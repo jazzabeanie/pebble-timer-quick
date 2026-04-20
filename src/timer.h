@@ -12,6 +12,7 @@
 #include <pebble.h>
 
 #define SNOOZE_INCREMENT_MS (MSEC_IN_MIN * 5)
+#define MAX_TIMERS 5
 
 // Main data structure
 typedef struct {
@@ -27,7 +28,14 @@ typedef struct {
   uint8_t     base_repeat_count; //< The original repeat count set by the user (for restart)
   bool        is_paused;      //< A flag to indicate if the timer is paused
 } Timer;
-extern Timer timer_data;
+
+extern Timer timer_slots[MAX_TIMERS];
+extern uint8_t timer_count;
+
+// Active-slot indirection: all code that touches the current timer uses timer_data.xxx
+uint8_t timer_get_active_slot(void);
+void timer_set_active_slot(uint8_t index);
+#define timer_data (timer_slots[timer_get_active_slot()])
 
 
 //! Get timer value
@@ -87,3 +95,12 @@ void timer_persist_read(void);
 
 //! Reset the auto snooze count
 void timer_reset_auto_snooze(void);
+
+//! Allocate next free slot as a running stopwatch; returns slot index or -1 if full
+int8_t timer_slot_create(void);
+
+//! Delete the slot at index, compact the array, and clear the freed persist key
+void timer_slot_delete(uint8_t index);
+
+//! Fill out_indices with slot indices sorted by expiry (countdown soonest first, then stopwatches longest first)
+void timer_get_sorted_slots(uint8_t *out_indices, uint8_t *out_count);

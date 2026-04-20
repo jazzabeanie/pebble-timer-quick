@@ -18,3 +18,4 @@ bool settings_get_show_alarm_reset_icon(void);
 bool settings_get_show_silence_icon(void);
 bool settings_get_show_snooze_icon(void);
 bool settings_get_swap_back_and_select_long(void);
+bool settings_get_multiple_timers_enabled(void);
