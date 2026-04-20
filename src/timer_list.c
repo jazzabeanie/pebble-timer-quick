@@ -28,6 +28,9 @@ static uint8_t s_sorted_count;
 static int16_t s_selected_row;
 // Total displayable rows
 static uint8_t s_total_rows;
+// Scroll offset in pixels and screen height for scroll calculations
+static int16_t s_scroll_y;
+static int16_t s_screen_h;
 
 // Emit a TEST_STATE log line for timer list events so functional tests can assert them.
 static void prv_log_list_state(const char *event) {
@@ -84,6 +87,16 @@ static int8_t prv_slot_for_row(int16_t row) {
 
 static void prv_restart_idle_timer(void);
 
+static void prv_ensure_selection_visible(void) {
+  int16_t sel_top = s_selected_row * ROW_HEIGHT;
+  int16_t sel_bot = sel_top + ROW_HEIGHT;
+  if (sel_top < s_scroll_y) {
+    s_scroll_y = sel_top;
+  } else if (sel_bot > s_scroll_y + s_screen_h) {
+    s_scroll_y = sel_bot - s_screen_h;
+  }
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Drawing
@@ -93,10 +106,17 @@ static void prv_layer_update_proc(Layer *layer, GContext *ctx) {
   GRect bounds = layer_get_bounds(layer);
   const int16_t w = bounds.size.w;
 
+  // Background
+  graphics_context_set_fill_color(ctx, PBL_IF_COLOR_ELSE(GColorMintGreen, GColorWhite));
+  graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+
   graphics_context_set_text_color(ctx, GColorBlack);
 
   for (int16_t row = 0; row < s_total_rows; row++) {
-    GRect row_rect = GRect(0, row * ROW_HEIGHT, w, ROW_HEIGHT);
+    int16_t row_y = row * ROW_HEIGHT - s_scroll_y;
+    if (row_y + ROW_HEIGHT <= 0 || row_y >= bounds.size.h) continue;
+
+    GRect row_rect = GRect(0, row_y, w, ROW_HEIGHT);
     bool is_selected = (row == s_selected_row);
 
     // Highlight selected row
@@ -138,8 +158,8 @@ static void prv_layer_update_proc(Layer *layer, GContext *ctx) {
       }
     }
 
-    GRect l1_rect = GRect(4, row * ROW_HEIGHT, w - 8, LINE1_HEIGHT);
-    GRect l2_rect = GRect(4, row * ROW_HEIGHT + LINE1_HEIGHT, w - 8, LINE2_HEIGHT);
+    GRect l1_rect = GRect(4, row_y, w - 8, LINE1_HEIGHT);
+    GRect l2_rect = GRect(4, row_y + LINE1_HEIGHT, w - 8, LINE2_HEIGHT);
 
     graphics_draw_text(ctx, line1, label_font, l1_rect,
                        GTextOverflowModeFill, GTextAlignmentLeft, NULL);
@@ -149,7 +169,7 @@ static void prv_layer_update_proc(Layer *layer, GContext *ctx) {
     // Separator line (between rows, only when not selected)
     if (!is_selected && row < s_total_rows - 1) {
       graphics_context_set_stroke_color(ctx, GColorLightGray);
-      int16_t sep_y = (row + 1) * ROW_HEIGHT - 1;
+      int16_t sep_y = row_y + ROW_HEIGHT - 1;
       graphics_draw_line(ctx, GPoint(0, sep_y), GPoint(w, sep_y));
     }
 
@@ -190,6 +210,7 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_restart_idle_timer();
   if (s_selected_row > 0) {
     s_selected_row--;
+    prv_ensure_selection_visible();
     layer_mark_dirty(s_layer);
   }
 }
@@ -198,6 +219,7 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_restart_idle_timer();
   if (s_selected_row < (int16_t)(s_total_rows - 1)) {
     s_selected_row++;
+    prv_ensure_selection_visible();
     layer_mark_dirty(s_layer);
   }
 }
@@ -321,6 +343,8 @@ static void prv_window_load(Window *window) {
 
   s_total_rows = s_sorted_count + (s_implicit_idx >= 0 ? 1 : 0);
   s_selected_row = 0;
+  s_scroll_y = 0;
+  s_screen_h = bounds.size.h;
 
   s_layer = layer_create(bounds);
   layer_set_update_proc(s_layer, prv_layer_update_proc);
