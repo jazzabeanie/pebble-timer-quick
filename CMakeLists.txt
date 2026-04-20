@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.2)
-PROJECT (Timer++)
+PROJECT (QuickTimer)
 
 FILE(GLOB SOURCE
   "src/*.h"

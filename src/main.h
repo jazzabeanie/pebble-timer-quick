@@ -1,5 +1,5 @@
 //! @file main.c
-//! @brief Main logic for Timer++
+//! @brief Main logic for QuickTimer
 //!
 //! Contains the higher level logic code
 //!

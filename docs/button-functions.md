@@ -1,6 +1,6 @@
 # Button Functions by Mode
 
-This document describes what each physical button does in every control mode of Timer++.
+This document describes what each physical button does in every control mode of QuickTimer.
 
 ## Modes Overview
 
