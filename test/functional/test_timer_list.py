@@ -92,7 +92,8 @@ class TestTimerList:
         # At least 2 rows: "New Timer" + the existing timer
         list_count = int(state.get("list_count", 0))
         assert list_count >= 2, (
-            f"Expected at least 2 list entries (New Timer + existing), got {list_count}"
+            f"Expected at least 2 list entries (New Timer + existing), got {list_count}. "
+            f"Full state: {state}"
         )
 
     def test_select_existing_timer_opens_counting_mode(self, emulator):
@@ -155,12 +156,14 @@ class TestTimerList:
         platform = emulator.platform
 
         _create_timer_and_background(emulator, platform)
+
+        # Start capture before open_app_via_menu so timer_list_show is not missed
+        capture = LogCapture(platform)
+        capture.start()
         emulator.open_app_via_menu()
         time.sleep(1.0)
 
         # Wait for timer list to appear
-        capture = LogCapture(platform)
-        capture.start()
         state = capture.wait_for_state(event="timer_list_show", timeout=5.0)
         assert state is not None, "Timer List did not appear"
 
@@ -199,12 +202,13 @@ class TestTimerList:
         platform = emulator.platform
 
         _create_timer_and_background(emulator, platform)
+
+        capture = LogCapture(platform)
+        capture.start()
         emulator.open_app_via_menu()
         time.sleep(1.0)
 
         # Wait for timer list
-        capture = LogCapture(platform)
-        capture.start()
         show_state = capture.wait_for_state(event="timer_list_show", timeout=5.0)
         assert show_state is not None, "Timer List did not appear"
         initial_count = int(show_state.get("list_count", 0))
@@ -247,11 +251,11 @@ class TestTimerList:
         platform = emulator.platform
 
         _create_timer_and_background(emulator, platform)
-        emulator.open_app_via_menu()
-        time.sleep(1.0)
 
         capture = LogCapture(platform)
         capture.start()
+        emulator.open_app_via_menu()
+        time.sleep(1.0)
 
         # Wait for timer list
         show_state = capture.wait_for_state(event="timer_list_show", timeout=5.0)

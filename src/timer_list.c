@@ -35,7 +35,7 @@ static int16_t s_screen_h;
 // Emit a TEST_STATE log line for timer list events so functional tests can assert them.
 static void prv_log_list_state(const char *event) {
   TEST_LOG(APP_LOG_LEVEL_DEBUG,
-    "TEST_STATE:%s,t=0:00,m=TimerList,r=0,p=0,v=0,d=1,l=0,c=0,bl=0,tl=0,list_count=%d,sel=%d",
+    "TEST_STATE:%s,m=TimerList,list_count=%d,sel=%d",
     event, (int)s_total_rows, (int)s_selected_row);
 }
 
@@ -276,7 +276,6 @@ static void prv_down_long_click_handler(ClickRecognizerRef recognizer, void *ctx
   }
 
   // Hold Down on existing timer: delete it and refresh list
-  prv_log_list_state("timer_list_delete");
   int8_t slot_to_delete = prv_slot_for_row(s_selected_row);
   timer_slot_delete((uint8_t)slot_to_delete);
 
@@ -312,6 +311,8 @@ static void prv_down_long_click_handler(ClickRecognizerRef recognizer, void *ctx
     s_selected_row = (int16_t)(s_total_rows - 1);
   }
 
+  // Log after list is rebuilt so list_count reflects the post-deletion state
+  prv_log_list_state("timer_list_delete");
   layer_mark_dirty(s_layer);
 }
 

@@ -378,7 +378,7 @@ class EmulatorHelper:
                 pass
             self._ws = None
         try:
-            self._run_pebble("kill", check=False)
+            self._run_pebble("kill", "--force", check=False)
         except Exception:
             pass
         self._pypkjs_port = None
@@ -399,13 +399,33 @@ def emulator(request, platform, build_app):
     save_screenshots = request.config.getoption("--save-screenshots")
     helper = EmulatorHelper(platform, save_screenshots)
 
-    # Setup: wipe and install (build is already done by build_app fixture)
+    # Keep a LogCapture active throughout wipe+install so the _PlatformReader uses
+    # a 0.3s reconnect back-off (instead of 2.0s) and can quickly recover when
+    # wipe() kills the emulator.  pebble logs may also hang silently if it spawns
+    # before the new emulator is ready; the stuck-process detection in _read() will
+    # restart it within 5s.
+    _fixture_capture = LogCapture(platform)
+    _fixture_capture.start()
+
+    # First install: fresh start. The app immediately claims slot 0 (timer_count=1),
+    # which would cause the Timer List to appear on re-launch. Hold Down to delete
+    # slot 0 and exit, leaving timer_count=0 persisted.
     helper.wipe()
     helper.install()
+    time.sleep(1)
+    helper.hold_button(Button.DOWN)
+    time.sleep(1)
+    helper.release_buttons()
+    time.sleep(0.5)
+
+    # Second install: persisted_count=0 → no Timer List, fresh ControlModeNew.
+    helper.install()
+
+    _fixture_capture.stop()
 
     yield helper
 
-    # Teardown: keep emulator running for faster subsequent tests on same platform
+    helper.kill()
 
 
 @pytest.fixture(scope="module", params=PLATFORMS)
@@ -469,21 +489,32 @@ def _setup_test_environment(request):
     test_name = request.node.name
     emulator_helper = None
 
-    # Try to get emulator helper from various fixture names
+    # Only fetch a fixture if the test explicitly declared it, to avoid
+    # parameter-resolution errors with module-scoped parameterized fixtures.
     for fixture_name in ['persistent_emulator', 'emulator']:
-        try:
+        if fixture_name in request.fixturenames:
             emulator_helper = request.getfixturevalue(fixture_name)
             break
-        except pytest.FixtureLookupError:
-            continue
 
     if emulator_helper is not None:
         # Set test name for screenshot prefixing
         emulator_helper.set_test_name(test_name)
-        # Open the app before the test
         logger.info(f"[{emulator_helper.platform}] Opening app for test: {test_name}")
-        emulator_helper.open_app_via_menu()
-        time.sleep(0.5)
+        if fixture_name == 'persistent_emulator':
+            # persistent_emulator closes the app after each test, so we need
+            # to re-open it before the next test.
+            emulator_helper.open_app_via_menu()
+            time.sleep(0.5)
+        else:
+            # emulator fixture handled the warm-up cycle (two installs).
+            # Warm up the platform log reader so pebble logs is connected
+            # before the test body starts. Attaching the LogCapture wakes the
+            # _PlatformReader immediately if it was sleeping between tests,
+            # and the 2.5s gives pebble logs time to spawn and connect.
+            _warmup = LogCapture(emulator_helper.platform)
+            _warmup.start()
+            time.sleep(3.0)
+            _warmup.stop()
 
     yield
 
@@ -509,6 +540,7 @@ def _setup_test_environment(request):
 #
 
 import re
+import select
 import threading
 import queue
 from typing import Optional
@@ -543,6 +575,7 @@ class _PlatformReader:
         self._active: Optional['LogCapture'] = None  # current sink
         self._sink_lock = threading.Lock()
         self._running = False
+        self._wake = threading.Event()  # set when a capture attaches
 
     def _spawn(self):
         if self._process is not None:
@@ -570,26 +603,50 @@ class _PlatformReader:
         logger.debug(f"[{self.platform}] Platform log reader started")
 
     def _read(self):
+        _spawn_time = time.time()
+        _ever_had_output = False  # True once pebble logs emits any line
         while self._running:
             if self._process is None or self._process.poll() is not None:
                 if not self._running:
                     break
-                # Back off longer when no active capture (emulator may be between tests)
+                # Back off longer when no active capture (emulator may be between tests).
+                # Use an interruptible wait so attaching a capture wakes us immediately.
                 with self._sink_lock:
                     has_sink = self._active is not None
-                time.sleep(0.3 if has_sink else 2.0)
+                self._wake.wait(timeout=0.3 if has_sink else 2.0)
+                self._wake.clear()
                 try:
                     self._spawn()
+                    _spawn_time = time.time()
+                    _ever_had_output = False
                     logger.debug(f"[{self.platform}] Platform log reader restarted")
                 except Exception as e:
                     logger.warning(f"[{self.platform}] Failed to restart log reader: {e}")
                     time.sleep(1.0)
                 continue
             try:
+                # Use select with 1s timeout so we don't block forever on a hung pebble logs.
+                # pebble logs can hang silently when the emulator is restarting (after wipe).
+                ready, _, _ = select.select([self._process.stdout], [], [], 1.0)
+                if not ready:
+                    # No data available in 1s.  If pebble logs has never output a line
+                    # since it was spawned, it is probably stuck waiting for an emulator
+                    # that is not yet running.  Kill it so the respawn cycle can try again.
+                    if not _ever_had_output and (time.time() - _spawn_time) > 5.0:
+                        logger.debug(
+                            f"[{self.platform}] pebble logs stuck (no output after "
+                            f"{time.time() - _spawn_time:.1f}s), restarting"
+                        )
+                        try:
+                            self._process.terminate()
+                        except Exception:
+                            pass
+                    continue
                 line = self._process.stdout.readline()
                 if not line:
                     time.sleep(0.05)
                     continue
+                _ever_had_output = True
                 line = line.strip()
                 with self._sink_lock:
                     sink = self._active
@@ -601,6 +658,7 @@ class _PlatformReader:
     def attach(self, capture: 'LogCapture'):
         with self._sink_lock:
             self._active = capture
+        self._wake.set()  # interrupt any back-off sleep so pebble logs spawns sooner
 
     def detach(self, capture: 'LogCapture'):
         with self._sink_lock:
