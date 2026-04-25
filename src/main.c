@@ -81,6 +81,7 @@ static void prv_set_backlight(bool on) {
   if (on != backlight_on) {
     backlight_on = on;
     light_enable(on);
+    test_log_state("backlight_change");
   }
 
   if (on) {
@@ -215,16 +216,7 @@ static void prv_new_expire_callback(void *data) {
     if (timer_is_paused() && !was_edit_sec_mode && !main_data.is_editing_existing_timer) {
       timer_toggle_play_pause();
     }
-    // Keep backlight on for 1 extra second after edit expires; prv_backlight_timer_callback
-    // will call prv_update_backlight() which respects vibration state.
-    if (backlight_on) {
-      if (backlight_timer) {
-        app_timer_cancel(backlight_timer);
-      }
-      backlight_timer = app_timer_register(BACKLIGHT_EDIT_LINGER_MS, prv_backlight_timer_callback, NULL);
-    } else {
-      prv_update_backlight();
-    }
+    prv_update_backlight();
     test_log_state("mode_change");
 
     // Exit if timer is longer than AUTO_BACKGROUND_TIMER_LENGTH_MS, after a delay

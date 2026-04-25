@@ -38,7 +38,7 @@ class TestBacklight:
         capture.stop()
 
     def test_backlight_off_in_counting_mode(self, persistent_emulator):
-        """Test 3: Backlight turns off when entering counting mode."""
+        """Test 3: Backlight lingers 1s after entering counting mode, then turns off."""
         emulator = persistent_emulator
         capture = LogCapture(emulator.platform)
         capture.start()
@@ -52,12 +52,25 @@ class TestBacklight:
         state = capture.wait_for_state(event="button_up", timeout=5.0)
         assert_backlight(state, True)
 
-        # Wait for mode transition to Counting
+        # Wait for mode transition to Counting — backlight should still be on (linger)
         state = capture.wait_for_state(event="mode_change", timeout=10.0)
-        
         assert state is not None
         assert_mode(state, "Counting")
+        assert_backlight(state, True)
+
+        mode_change_time = time.time()
+
+        # 0.5s after mode change, backlight should still be on
+        time.sleep(0.5)
+        assert capture.wait_for_state(event="backlight_change", timeout=0.05) is None, \
+            "Backlight should not have turned off 0.5s after mode change"
+
+        # Backlight should turn off within the next 1s (linger expires ~1s after mode change)
+        state = capture.wait_for_state(event="backlight_change", timeout=2.0)
+        assert state is not None, "Backlight should turn off after linger period"
         assert_backlight(state, False)
+        elapsed = time.time() - mode_change_time
+        assert elapsed >= 0.8, f"Backlight turned off too early ({elapsed:.2f}s after mode change)"
 
         capture.stop()
 
