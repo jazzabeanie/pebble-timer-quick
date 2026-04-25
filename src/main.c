@@ -216,7 +216,14 @@ static void prv_new_expire_callback(void *data) {
     if (timer_is_paused() && !was_edit_sec_mode && !main_data.is_editing_existing_timer) {
       timer_toggle_play_pause();
     }
-    prv_update_backlight();
+    if (backlight_on) {
+      if (backlight_timer) {
+        app_timer_cancel(backlight_timer);
+      }
+      backlight_timer = app_timer_register(BACKLIGHT_EDIT_LINGER_MS, prv_backlight_timer_callback, NULL);
+    } else {
+      prv_update_backlight();
+    }
     test_log_state("mode_change");
 
     // Exit if timer is longer than AUTO_BACKGROUND_TIMER_LENGTH_MS, after a delay
