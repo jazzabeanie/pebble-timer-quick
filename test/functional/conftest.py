@@ -64,6 +64,23 @@ def pytest_generate_tests(metafunc):
             metafunc.parametrize("platform", PLATFORMS)
 
 
+def pytest_sessionfinish(session, exitstatus):
+    """Kill all emulators and pebble logs subprocesses at end of session."""
+    for platform, reader in list(_PlatformReader._instances.items()):
+        reader.shutdown()
+        env = os.environ.copy()
+        env["PEBBLE_EMULATOR"] = platform
+        subprocess.run(
+            [str(PEBBLE_CMD), "kill", "--force"],
+            capture_output=True, text=True,
+            cwd=str(PROJECT_ROOT), env=env, timeout=30,
+        )
+    # pkill any orphaned emulator processes the pebble tool may not know about
+    subprocess.run(["pkill", "-f", "qemu-pebble"], capture_output=True)
+    subprocess.run(["pkill", "-f", "pypkjs"], capture_output=True)
+    subprocess.run(["pkill", "-f", "pebble logs"], capture_output=True)
+
+
 class EmulatorHelper:
     """Helper class for interacting with the Pebble emulator."""
 
@@ -601,6 +618,20 @@ class _PlatformReader:
         self._thread = threading.Thread(target=self._read, daemon=True)
         self._thread.start()
         logger.debug(f"[{self.platform}] Platform log reader started")
+
+    def shutdown(self):
+        self._running = False
+        self._wake.set()
+        if self._process is not None:
+            try:
+                self._process.terminate()
+                self._process.wait(timeout=2)
+            except Exception:
+                try:
+                    self._process.kill()
+                except Exception:
+                    pass
+            self._process = None
 
     def _read(self):
         _spawn_time = time.time()
