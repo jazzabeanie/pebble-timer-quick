@@ -27,6 +27,7 @@ typedef struct {
   uint8_t     repeat_count;   //< A counter to track the number of times the timer has repeated
   uint8_t     base_repeat_count; //< The original repeat count set by the user (for restart)
   bool        is_paused;      //< A flag to indicate if the timer is paused
+  char        name[20];       //< Mnemonic name assigned at creation; never changes
 } Timer;
 
 extern Timer timer_slots[MAX_TIMERS];
@@ -98,6 +99,9 @@ void timer_reset_auto_snooze(void);
 
 //! Allocate next free slot as a running stopwatch; returns slot index or -1 if full
 int8_t timer_slot_create(void);
+
+//! Assign (or reassign) a mnemonic name to an existing slot; call after start_ms is set
+void timer_assign_name(uint8_t idx);
 
 //! Delete the slot at index, compact the array, and clear the freed persist key
 void timer_slot_delete(uint8_t index);

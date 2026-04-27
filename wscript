@@ -93,7 +93,7 @@ def build(ctx):
         print("Debug: Includes: {}, {}, {}".format(test_dir, src_dir, cmocka_inc))
         
         ctx.program(
-            source=['test/test_timer.c', 'src/timer.c'],
+            source=['test/test_timer.c', 'src/timer.c', 'src/mnemonic.c'],
             target='run_tests',
             includes=[test_dir, src_dir, cmocka_inc],
             use=['CMOCKA']

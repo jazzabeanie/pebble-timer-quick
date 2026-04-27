@@ -10,8 +10,10 @@
 
 #include "timer.h"
 #include "utility.h"
+#include "mnemonic.h"
+#include <time.h>
 
-#define PERSIST_VERSION 6
+#define PERSIST_VERSION 7
 #define PERSIST_VERSION_KEY 4342896
 // Legacy keys kept for cleanup only
 #define PERSIST_TIMER_KEY_V2_DATA 58734
@@ -314,6 +316,41 @@ void timer_persist_read(void) {
 // Multi-Timer Management
 //
 
+void timer_assign_name(uint8_t new_idx) {
+  time_t t = (time_t)(timer_slots[new_idx].start_ms / 1000);
+  struct tm *tm_info = localtime(&t);
+  const char *adj, *noun;
+  mnemonic_generate_name(tm_info->tm_hour, tm_info->tm_min, &adj, &noun);
+
+  // Max base: "awesome honeybee" = 16 chars; fits in 17-byte buffer.
+  char base[17];
+  snprintf(base, sizeof(base), "%s %s", adj, noun);
+
+  int suffix = 1;
+  bool collision;
+  do {
+    collision = false;
+    if (suffix == 1) {
+      snprintf(timer_slots[new_idx].name, sizeof(timer_slots[new_idx].name), "%s", base);
+    } else {
+      // suffix is bounded by MAX_TIMERS (5) — always a single digit.
+      int len = snprintf(timer_slots[new_idx].name,
+                         sizeof(timer_slots[new_idx].name) - 2, "%s", base);
+      timer_slots[new_idx].name[len]     = ' ';
+      timer_slots[new_idx].name[len + 1] = '0' + (char)suffix;
+      timer_slots[new_idx].name[len + 2] = '\0';
+    }
+    for (uint8_t i = 0; i < new_idx; i++) {
+      if (strncmp(timer_slots[i].name, timer_slots[new_idx].name,
+                  sizeof(timer_slots[new_idx].name)) == 0) {
+        collision = true;
+        break;
+      }
+    }
+    suffix++;
+  } while (collision);
+}
+
 // Allocate next free slot as a running stopwatch; returns slot index or -1 if full
 int8_t timer_slot_create(void) {
   if (timer_count >= MAX_TIMERS) return -1;
@@ -332,6 +369,7 @@ int8_t timer_slot_create(void) {
     .base_repeat_count = 0,
     .is_paused        = false,
   };
+  timer_assign_name(idx);
   return (int8_t)idx;
 }
 

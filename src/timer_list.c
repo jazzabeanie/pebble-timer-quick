@@ -34,9 +34,14 @@ static int16_t s_screen_h;
 
 // Emit a TEST_STATE log line for timer list events so functional tests can assert them.
 static void prv_log_list_state(const char *event) {
+  // Include the name of the first existing slot (if any) so tests can verify name display.
+  const char *name0 = "";
+  if (s_sorted_count > 0) {
+    name0 = timer_slots[s_sorted[0]].name;
+  }
   TEST_LOG(APP_LOG_LEVEL_DEBUG,
-    "TEST_STATE:%s,m=TimerList,list_count=%d,sel=%d",
-    event, (int)s_total_rows, (int)s_selected_row);
+    "TEST_STATE:%s,m=TimerList,list_count=%d,sel=%d,name0=%s",
+    event, (int)s_total_rows, (int)s_selected_row, name0);
 }
 
 
@@ -149,16 +154,12 @@ static void prv_layer_update_proc(Layer *layer, GContext *ctx) {
       prv_format_time(line2, sizeof(line2), elapsed);
     } else {
       // Existing timer
+      strncpy(line1, timer_slots[slot].name, sizeof(line1) - 1);
+      line1[sizeof(line1) - 1] = '\0';
       if (prv_slot_is_chrono((uint8_t)slot)) {
-        // Stopwatch: "HH:MM:SS -->" on line 1, elapsed on line 2
-        int64_t total_ms = timer_slots[slot].length_ms;
-        prv_format_time(line1, sizeof(line1) - 4, total_ms);
-        strncat(line1, " -->", sizeof(line1) - strlen(line1) - 1);
         int64_t elapsed = prv_slot_elapsed((uint8_t)slot);
         prv_format_time(line2, sizeof(line2), elapsed);
       } else {
-        // Countdown: total on line 1, remaining on line 2
-        prv_format_time(line1, sizeof(line1), timer_slots[slot].length_ms);
         int64_t remaining = prv_slot_remaining((uint8_t)slot);
         prv_format_time(line2, sizeof(line2), remaining);
       }

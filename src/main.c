@@ -924,6 +924,7 @@ static void prv_initialize(void) {
     main_data.is_editing_existing_timer = false;
     vibes_short_pulse();
     main_data.timer_length_modified_in_edit_mode = false;
+    timer_assign_name(timer_get_active_slot());
   }
   prv_reset_new_expire_timer();
   prv_update_backlight();
