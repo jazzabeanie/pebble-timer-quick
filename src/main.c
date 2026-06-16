@@ -12,6 +12,7 @@
 #include "drawing.h"
 #include "settings.h"
 #include "timer.h"
+#include "timer_list.h"
 #include "utility.h"
 
 // Main constants
@@ -28,6 +29,7 @@
 #define DOWN_BUTTON_INCREMENT_SEC_MS MSEC_IN_SEC
 #define BACK_BUTTON_INCREMENT_SEC_MS MSEC_IN_SEC * 60
 #define NEW_EXPIRE_TIME_MS MSEC_IN_SEC * 3
+#define BACKLIGHT_EDIT_LINGER_MS MSEC_IN_SEC
 #define INTERACTION_TIMEOUT_MS 10000
 
 // Main data structure
@@ -55,6 +57,7 @@ static void prv_reset_new_expire_timer(void);
 static void prv_quit_callback(void *data);
 static void prv_cancel_quit_timer(void);
 static void prv_set_backlight(bool on);
+static void prv_update_backlight(void);
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -64,7 +67,7 @@ static void prv_set_backlight(bool on);
 // Callback for the backlight timer
 static void prv_backlight_timer_callback(void *data) {
   backlight_timer = NULL;
-  prv_set_backlight(false);
+  prv_update_backlight();
 }
 
 // Helper to set backlight state
@@ -78,6 +81,7 @@ static void prv_set_backlight(bool on) {
   if (on != backlight_on) {
     backlight_on = on;
     light_enable(on);
+    test_log_state("backlight_change");
   }
 
   if (on) {
@@ -212,7 +216,14 @@ static void prv_new_expire_callback(void *data) {
     if (timer_is_paused() && !was_edit_sec_mode && !main_data.is_editing_existing_timer) {
       timer_toggle_play_pause();
     }
-    prv_update_backlight();
+    if (backlight_on) {
+      if (backlight_timer) {
+        app_timer_cancel(backlight_timer);
+      }
+      backlight_timer = app_timer_register(BACKLIGHT_EDIT_LINGER_MS, prv_backlight_timer_callback, NULL);
+    } else {
+      prv_update_backlight();
+    }
     test_log_state("mode_change");
 
     // Exit if timer is longer than AUTO_BACKGROUND_TIMER_LENGTH_MS, after a delay
@@ -288,6 +299,22 @@ bool main_is_reverse_direction(void) {
 // Get whether the backlight is currently on
 bool main_is_backlight_on(void) {
   return backlight_on;
+}
+
+// Set the current control mode (called by Timer List window on selection)
+void main_set_control_mode(ControlMode mode) {
+  main_data.control_mode = mode;
+}
+
+// Reset the new-expire timer (called by Timer List when entering edit mode)
+void main_reset_new_expire_timer(void) {
+  prv_reset_new_expire_timer();
+}
+
+// Force a redraw of the main window layer
+void main_force_redraw(void) {
+  drawing_update();
+  layer_mark_dirty(main_data.layer);
 }
 
 // Background layer update procedure
@@ -690,8 +717,8 @@ static void prv_down_long_click_handler(ClickRecognizerRef recognizer, void *ctx
   prv_record_interaction();
   prv_cancel_quit_timer();
   timer_reset_auto_snooze();
-  // Reset timer
-  timer_data.reset_on_init = true;
+  // Delete this timer slot and exit
+  timer_slot_delete(timer_get_active_slot());
   prv_update_backlight();
   test_log_state("long_press_down");
   // quit app
@@ -843,6 +870,19 @@ static void prv_initialize(void) {
   wakeup_cancel_all();
   // load timer and settings
   timer_persist_read();
+  uint8_t persisted_count = timer_count;
+
+  // If launched by a wakeup, restore the slot that scheduled the alarm and skip the timer list
+  bool wakeup_launch = (launch_reason() == APP_LAUNCH_WAKEUP);
+  if (wakeup_launch && timer_count > 0) {
+    WakeupId wakeup_id;
+    int32_t wakeup_cookie = 0;
+    wakeup_get_launch_event(&wakeup_id, &wakeup_cookie);
+    if (wakeup_cookie >= 0 && (uint8_t)wakeup_cookie < timer_count) {
+      timer_set_active_slot((uint8_t)wakeup_cookie);
+    }
+  }
+
   settings_init(prv_settings_changed);
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Timer data: length_ms=%lld, start_ms=%lld, is_paused=%d, can_vibrate=%d",
           (long long)timer_data.length_ms, (long long)timer_data.start_ms, timer_data.is_paused, timer_data.can_vibrate);
@@ -875,6 +915,8 @@ static void prv_initialize(void) {
     // No timer was set and it wasn't in chrono mode, so start fresh
     main_data.control_mode = ControlModeNew;
     timer_reset();
+    // Formally claim slot 0 so this timer is persisted on exit
+    if (timer_count == 0) timer_count = 1;
     // Start timer running immediately in ControlModeNew
     // This allows the timer to count while user is adding time
     timer_data.start_ms = epoch();
@@ -882,10 +924,15 @@ static void prv_initialize(void) {
     main_data.is_editing_existing_timer = false;
     vibes_short_pulse();
     main_data.timer_length_modified_in_edit_mode = false;
+    timer_assign_name(timer_get_active_slot());
   }
   prv_reset_new_expire_timer();
   prv_update_backlight();
   test_log_state("init");
+
+  // If multi-timer enabled and timers existed before this launch, push the Timer List.
+  // Skip the list on wakeup launches — go straight to the alarming timer.
+  bool show_timer_list = !wakeup_launch && settings_get_multiple_timers_enabled() && persisted_count > 0;
 
   // initialize window
   main_data.window = window_create();
@@ -911,6 +958,11 @@ static void prv_initialize(void) {
   // start refreshing
   prv_record_interaction();
   prv_app_timer_callback(NULL);
+
+  // Push Timer List on top when multiple timers exist and feature is enabled
+  if (show_timer_list) {
+    timer_list_window_push();
+  }
 }
 
 // Terminate the program
@@ -922,10 +974,10 @@ static void prv_terminate(void) {
     app_timer_cancel(backlight_timer);
     backlight_timer = NULL;
   }
-  // schedule wakeup
-  if (!timer_is_chrono() && !timer_is_paused() && !timer_data.reset_on_init) {
+  // schedule wakeup for the active countdown timer (if any)
+  if (timer_count > 0 && !timer_is_chrono() && !timer_is_paused() && !timer_data.reset_on_init) {
     time_t wakeup_time = (epoch() + timer_get_value_ms()) / MSEC_IN_SEC;
-    wakeup_schedule(wakeup_time, 0, true);
+    wakeup_schedule(wakeup_time, (int32_t)timer_get_active_slot(), true);
   }
   // destroy
   timer_persist_store();

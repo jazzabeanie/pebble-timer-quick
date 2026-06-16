@@ -48,8 +48,10 @@
 #define FOCUS_BOUNCE_ANI_HEIGHT 8
 #define FOCUS_BOUNCE_ANI_DURATION 70
 #define FOCUS_BOUNCE_ANI_SETTLE_DURATION 140
-// Header Text
-#define HEADER_Y_OFFSET 5
+// Header and Name Text
+#define HEADER_Y_OFFSET 2
+#define HEADER_FONT_HEIGHT 18
+#define NAME_Y_OFFSET (HEADER_Y_OFFSET + HEADER_FONT_HEIGHT + 1)
 #define FOOTER_Y_OFFSET -39
 
 // Main drawing state description, used to determine changes in state
@@ -161,8 +163,19 @@ static void prv_render_header_text(GContext *ctx, GRect bounds) {
     }
     buff = s_time_buffer;
   }
-  graphics_draw_text(ctx, buff, fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD), bounds,
+  graphics_draw_text(ctx, buff, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD), bounds,
     GTextOverflowModeFill, GTextAlignmentCenter, NULL);
+}
+
+// Draw timer name below the header
+static void prv_render_name_text(GContext *ctx, GRect bounds) {
+  bounds.origin = grect_center_point(&bounds);
+  bounds.origin.x -= CIRCLE_RADIUS;
+  bounds.origin.y -= (CIRCLE_RADIUS - NAME_Y_OFFSET);
+  bounds.size.w = CIRCLE_RADIUS * 2;
+  bounds.size.h = CIRCLE_RADIUS / 3;
+  graphics_draw_text(ctx, timer_data.name, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD), bounds,
+    GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
 }
 
 // Draw footer text
@@ -668,9 +681,10 @@ void drawing_render(Layer *layer, GContext *ctx) {
   graphics_context_set_stroke_color(ctx, drawing_data.fore_color);
   graphics_context_set_fill_color(ctx, drawing_data.fore_color);
   prv_render_main_text(ctx, bounds);
-  // draw header and footer text
+  // draw header, name, and footer text
   graphics_context_set_text_color(ctx, drawing_data.fore_color);
   prv_render_header_text(ctx, bounds);
+  prv_render_name_text(ctx, bounds);
   prv_render_footer_text(ctx, bounds);
 
   // Draw button action icons

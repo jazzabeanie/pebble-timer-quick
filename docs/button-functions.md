@@ -6,6 +6,7 @@ This document describes what each physical button does in every control mode of 
 
 | Mode | Description |
 |------|-------------|
+| **TimerList** | List of all active timers. Shown on app open when ≥1 existing timer is saved and the "Multiple Timers" setting is enabled. |
 | **New** | Setting a new timer in minute granularity. Entered on app launch or after pressing Up from Counting. |
 | **EditSec** | Setting a timer in second granularity. Entered via long-press Select from New mode. |
 | **EditRepeat** | Configuring repeat count for a timer. Entered via long-press Up from Counting mode. |
@@ -22,6 +23,29 @@ This document describes what each physical button does in every control mode of 
 | Back   | +60 min (1 hr)    | +60 sec (1 min)      |
 
 When reverse direction is active (toggled via long-press Up), all increments become decrements.
+
+---
+
+## Timer List Mode (TimerList)
+
+Shown on app open when ≥1 existing timer is saved and the "Multiple Timers" setting is enabled. An implicit new stopwatch slot is created on entry; it becomes the active slot if the user selects "New Timer", and is discarded if the user selects an existing timer.
+
+| Button | Press | Action | Tests |
+|--------|-------|--------|-------|
+| Up | Short | Scroll selection up (clamped at top row) | `test_timer_list.py::TestTimerListNavigation::test_up_down_navigation` |
+| Down | Short | Scroll selection down (clamped at bottom row) | `test_timer_list.py::TestTimerListNavigation::test_up_down_navigation` |
+| Down | Long | If "New Timer" selected: discard implicit slot and exit app. If existing timer selected: delete that timer and refresh list (exits app if list becomes empty) | `test_timer_list.py::TestTimerListDelete::test_hold_down_deletes_timer` |
+| Select | Short | If "New Timer" selected: set implicit slot as active, open main window in New mode. If existing timer selected: discard implicit slot, set selected slot as active, open main window in Counting mode | `test_timer_list.py::TestTimerListSelect::test_select_new_timer`, `test_timer_list.py::TestTimerListSelect::test_select_existing_timer` |
+| Back | Short | Exit app (implicit slot remains and is persisted on terminate) | *(no dedicated test)* |
+| *(auto)* | — | 30-second idle timeout: save implicit slot and background the app | `test_timer_list.py::TestTimerListIdle::test_idle_backgrounds_app` |
+
+**Timer display format:**
+
+| Timer type | Line 1 | Line 2 |
+|------------|--------|--------|
+| Countdown | Total duration (e.g. `05:00`) | Remaining time |
+| Stopwatch / chrono | Total duration + ` -->` (e.g. `05:00 -->`) | Elapsed time |
+| New Timer row | `New Timer` | Elapsed time of implicit slot |
 
 ---
 
@@ -107,8 +131,8 @@ When reverse direction is active (toggled via long-press Up), all increments bec
 | Select | Long (running) | Restart timer to original base_length_ms (preserves running state) | `test_hold_select_restart.py::test_restart_running_countdown_preserves_running`, `test_hold_select_restart.py::test_restart_running_chrono_preserves_running`, `test_hold_select_restart.py::test_restart_repeating_timer_restores_count`, `test_create_timer.py::TestLongPressReset::test_long_press_select_resets_timer` |
 | Select | Long (paused) | Reset to 0:00 and enter EditSec mode | `test_hold_select_restart.py::test_long_press_select_paused_countdown_resets_to_editsec`, `test_hold_select_restart.py::test_long_press_select_paused_chrono_resets_to_editsec` |
 | Down | Short | Extend high-refresh display rate (cosmetic, no timer change) | *(no dedicated behavioral test)* |
-| Down | Long | Quit app | *(no dedicated test)* |
-| Back | Short | Quit app (pop window) | *(no dedicated test)* |
+| Down | Long | Delete this timer and exit app. If multiple timers are enabled, remaining timers stay persisted; re-launching shows the Timer List with the remaining slots. | `test_hold_down_delete.py::TestHoldDownDelete::test_hold_down_in_main_window_deletes_only_active_timer`, `test_hold_down_delete.py::TestHoldDownDelete::test_hold_down_single_timer_exits_cleanly` |
+| Back | Short | Exit app (timer persisted; re-launching shows Timer List if any timers remain) | *(no dedicated test)* |
 
 **Paused state icon tests:**
 
