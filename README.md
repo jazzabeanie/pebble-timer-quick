@@ -1,5 +1,7 @@
 # pebble-timer-quick
 
+WIP: Implementing voice naming spec. continue with `claude --resume 56ff22a8-21da-4692-9edd-cb7a7df60ac7` on framework 13
+
 QuickTimer is a timer app for the Pebble Smartwatch, intended to be the fastest
 way to start a timer or stopwatch. Made for people that think needing 5 seconds
 to set a countdown timer or stopwatch is far too long. With QuickTimer, rest
