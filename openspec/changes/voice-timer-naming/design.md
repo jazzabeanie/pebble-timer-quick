@@ -4,7 +4,19 @@ The Pebble SDK 4.x ships a `DictationSession` API (in `pebble.h` for the `emery`
 
 The app already handles per-timer naming via the mnemonic system (`src/mnemonic.c`). Timer names are stored in `timer_slots[i].name` — a `char[20]` field (19 usable bytes). Edit mode (`ControlModeEditSec`) is the natural hook point for voice rename, since it is where the user is already actively configuring a timer.
 
-The standard Pebble click API has no simultaneous-button concept. Raw click handlers (`window_raw_click_subscribe`) fire on individual button-down and button-up events, making it possible to track concurrent holds in firmware. The `BUTTON_ID_BACK` raw handler requires careful handling because Back navigates up by default — we must intercept it before the system processes it (the SDK allows this in raw handlers).
+The standard Pebble click API has no simultaneous-button concept. Raw click handlers (`window_raw_click_subscribe`) fire on individual button-down and button-up events, making it possible to track concurrent holds in firmware. **However, the official SDK docs state: "you cannot set a repeating, long or raw click handler on the back button because a long press will always terminate the app and return to the main menu."** Whether raw click on Back is truly forbidden or merely undocumented-but-functional must be verified empirically before the rest of this feature is implemented.
+
+## Implementation Order
+
+**Step 0 (must complete before anything else): Prove the Up + Back chord is feasible.**
+
+Implement a minimal spike in `ControlModeEditSec`:
+- Subscribe `window_raw_click_subscribe` on `BUTTON_ID_UP` and `BUTTON_ID_BACK`.
+- Track `s_up_held` / `s_back_held` booleans on button-down/up events.
+- On chord detection, show a `APP_LOG` or on-screen status confirming it fired.
+- Verify that normal Back navigation still works when Up is not held.
+
+If the SDK silently ignores the raw Back subscription (or crashes), D1 is invalid and an alternative gesture must be chosen before proceeding. Do not implement D2–D5 until this is confirmed working on device.
 
 ## Goals / Non-Goals
 
@@ -27,12 +39,14 @@ The standard Pebble click API has no simultaneous-button concept. Raw click hand
 
 **Decision:** Use `window_raw_click_subscribe` on both `BUTTON_ID_UP` and `BUTTON_ID_BACK` in `ControlModeEditSec`. Track `s_up_held` and `s_back_held` booleans. When both are true at the same time, trigger dictation.
 
+**⚠️ Unverified assumption:** The official SDK docs say "you cannot set a repeating, long or raw click handler on the back button." It is unknown whether this is a hard firmware enforcement or a documentation-only warning. This must be confirmed by the Step 0 spike before D1 is considered decided.
+
 **Alternatives considered:**
 - *Double-tap Select in edit mode* — conflicts with existing Select behavior (advance seconds digit).
 - *Long-press Up + Back chord via a dedicated SDK API* — no such API exists in SDK 4.x.
-- *A new dedicated button combo (e.g., double-tap Back)* — multi-click on Back is disallowed by the SDK ("you cannot set a repeating, long or raw click handler on the back button because a long press on back exits the app"). Actually raw is allowed; the restriction is on long_click for back.
+- *A new dedicated button combo (e.g., long-press Up in edit mode)* — fallback gesture if raw Back is truly forbidden; Up is already raw-subscribed in this codebase so this is known-feasible.
 
-**Note:** Raw click intercepts Back before the system exit handler. We must call `window_stack_pop` explicitly if the user taps Back without Up being held (to preserve normal back navigation).
+**Note (if raw Back works):** Raw click intercepts Back before the system exit handler. We must call `window_stack_pop` explicitly if the user taps Back without Up being held (to preserve normal back navigation).
 
 ### D2: Platform guard — `PBL_IF_MICROPHONE_ELSE`
 
@@ -61,7 +75,8 @@ The standard Pebble click API has no simultaneous-button concept. Raw click hand
 ## Risks / Trade-offs
 
 - **[Risk] Dictation requires phone + internet connectivity** → Mitigation: SDK error dialogs handle this gracefully (`dictation_session_enable_error_dialogs(session, true)`). No special code needed.
-- **[Risk] Raw Back handler suppresses system back navigation** → Mitigation: In the raw up-handler, only suppress Back exit if Up is also held; otherwise call `window_stack_pop` on Back-up to restore normal navigation.
+- **[Risk] Raw Back handler may be forbidden by the SDK** → Mitigation: Step 0 spike must confirm this works on device before any further implementation. If forbidden, fall back to long-press Up as the trigger gesture.
+- **[Risk] Raw Back handler suppresses system back navigation** → Mitigation (if raw Back works): In the raw handler, only suppress Back exit if Up is also held; otherwise call `window_stack_pop` on Back-up to restore normal navigation.
 - **[Risk] 19-char limit silently truncates long phrases** → Mitigation: `timer_set_name` truncates at a word boundary where possible, and the SDK confirmation dialog shows the full transcription so the user sees it before committing.
 - **[Risk] `DictationSession` lifecycle in C — must destroy before window is popped** → Mitigation: Destroy session in the `ControlModeEditSec` unload/deinit hook.
 
