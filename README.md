@@ -134,7 +134,7 @@ QuickTimer versus in the default Pebble timer.
 
 - install SDK almost according to https://developer.repebble.com/sdk/
   - install node
-  - `sudo apt install libsdl1.2debian libfdt1`
+  - `sudo apt install libsdl1.2debian libfdt1 libsndio7.0`
   - `brew install uv`
 - create virtual env `conda create --prefix conda-env python=3.10` and activate it with `conda activate conda-env`, although i think it works up to python 3.13
 - `uv pip install pebble-tool`

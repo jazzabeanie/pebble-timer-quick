@@ -50,6 +50,13 @@ static struct {
 static AppTimer *backlight_timer = NULL;
 static bool backlight_on = false;
 
+// POC: Up+Back chord feasibility test
+static bool s_up_held = false;
+
+static AppTimer *s_flash_timer = NULL;
+static bool s_flashing = false;
+static bool s_up_chord_consumed = false;
+
 // Function declarations
 static void prv_app_timer_callback(void *data);
 static void prv_new_expire_callback(void *data);
@@ -99,6 +106,21 @@ static bool prv_is_edit_mode(void) {
 // Helper to update backlight based on state
 static void prv_update_backlight(void) {
   prv_set_backlight(prv_is_edit_mode() || timer_is_vibrating());
+}
+
+static void prv_flash_callback(void *data) {
+  s_flash_timer = NULL;
+  s_flashing = false;
+  layer_mark_dirty(main_data.layer);
+}
+
+static void prv_flash_screen(void) {
+  if (s_flash_timer) {
+    app_timer_cancel(s_flash_timer);
+  }
+  s_flashing = true;
+  layer_mark_dirty(main_data.layer);
+  s_flash_timer = app_timer_register(150, prv_flash_callback, NULL);
 }
 
 // Helper to record interaction time
@@ -321,6 +343,11 @@ void main_force_redraw(void) {
 static void prv_layer_update_proc_handler(Layer *layer, GContext *ctx) {
   // render the timer's visuals
   drawing_render(layer, ctx);
+  if (s_flashing) {
+    GRect bounds = layer_get_bounds(layer);
+    graphics_context_set_fill_color(ctx, GColorWhite);
+    graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+  }
 }
 
 // Back click handler
@@ -329,6 +356,14 @@ static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
+  if (main_data.control_mode == ControlModeNew && s_up_held) {
+    APP_LOG(APP_LOG_LEVEL_INFO, "Up+Back chord detected in New");
+    s_up_chord_consumed = true;
+    vibes_long_pulse();
+    prv_flash_screen();
+    test_log_state("button_back");
+    return;
+  }
   if (main_data.control_mode == ControlModeNew) {
     if (settings_get_swap_back_and_select_long()) {
       main_data.control_mode = ControlModeEditSec;
@@ -364,6 +399,10 @@ static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 
 // Up click handler
 static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  if (s_up_chord_consumed) {
+    s_up_chord_consumed = false;
+    return;
+  }
   prv_record_interaction();
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
@@ -693,6 +732,13 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     test_log_state("button_down");
   }
   else if (main_data.control_mode == ControlModeEditSec) {
+    if (s_up_held) {
+      APP_LOG(APP_LOG_LEVEL_INFO, "POC: Up+Down chord detected in EditSec — SUCCESS");
+      vibes_long_pulse();
+      prv_flash_screen();
+      test_log_state("button_down");
+      return;
+    }
     int64_t increment = DOWN_BUTTON_INCREMENT_SEC_MS;
     bool was_chrono = timer_is_chrono();
     prv_update_timer(increment);
@@ -727,21 +773,31 @@ static void prv_down_long_click_handler(ClickRecognizerRef recognizer, void *ctx
 
 // Up raw down click handler
 static void prv_up_raw_down_handler(ClickRecognizerRef recognizer, void *ctx) {
+  s_up_held = true;
   prv_record_interaction();
   prv_stop_new_expire_timer();
+}
+
+// Up raw up handler (clears held flag)
+static void prv_up_raw_up_handler(ClickRecognizerRef recognizer, void *ctx) {
+  s_up_held = false;
+}
+
+static void prv_down_raw_down_handler(ClickRecognizerRef recognizer, void *ctx) {
 }
 
 // Click configuration provider
 static void prv_click_config_provider(void *ctx) {
   window_single_click_subscribe(BUTTON_ID_BACK, prv_back_click_handler);
   window_single_click_subscribe(BUTTON_ID_UP, prv_up_click_handler);
-  window_raw_click_subscribe(BUTTON_ID_UP, prv_up_raw_down_handler, NULL, NULL);
+  window_raw_click_subscribe(BUTTON_ID_UP, prv_up_raw_down_handler, prv_up_raw_up_handler, NULL);
   window_long_click_subscribe(BUTTON_ID_UP, BUTTON_HOLD_RESET_MS, prv_up_long_click_handler, NULL);
   window_single_click_subscribe(BUTTON_ID_SELECT, prv_select_click_handler);
   window_raw_click_subscribe(BUTTON_ID_SELECT, prv_select_raw_click_handler, NULL, NULL);
   window_long_click_subscribe(BUTTON_ID_SELECT, BUTTON_HOLD_RESET_MS, prv_select_long_click_handler,
     NULL);
   window_single_click_subscribe(BUTTON_ID_DOWN, prv_down_click_handler);
+  window_raw_click_subscribe(BUTTON_ID_DOWN, prv_down_raw_down_handler, NULL, NULL); // POC
   window_long_click_subscribe(BUTTON_ID_DOWN, BUTTON_HOLD_RESET_MS, prv_down_long_click_handler, NULL);
 }
 
