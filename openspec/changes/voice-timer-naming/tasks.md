@@ -16,7 +16,7 @@
 Note: No raw Back subscription is needed (see design.md D1). `s_up_held` is already tracked via the existing raw Up handler. The chord is detected in `prv_back_click_handler`.
 
 - [ ] 3.1 In `src/main.c`, inside `#ifdef PBL_MICROPHONE`, add a `DictationSession *s_dictation_session` pointer (the `s_up_held` and `s_up_chord_consumed` booleans from the POC are already present and can be reused)
-- [ ] 3.2 At the top of `prv_back_click_handler`, inside `#ifdef PBL_MICROPHONE`, add: if `control_mode == ControlModeEditSec && s_up_held && settings_get_voice_naming_enabled()`: set `s_up_chord_consumed = true`, call `prv_start_voice_rename()`, return
+- [ ] 3.2 At the top of `prv_back_click_handler`, inside `#ifdef PBL_MICROPHONE`, add: if `(control_mode == ControlModeEditSec || control_mode == ControlModeNew) && s_up_held && settings_get_voice_naming_enabled()`: set `s_up_chord_consumed = true`, call `prv_start_voice_rename()`, return
 - [ ] 3.3 Remove the POC flash/vibe chord handlers in `ControlModeEditSec` (Up+Down chord) and `ControlModeNew` (Up+Back chord) once the real dictation feature is wired up
 
 ## 4. Dictation session lifecycle

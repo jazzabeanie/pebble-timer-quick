@@ -2,7 +2,7 @@
 
 The Pebble SDK 4.x ships a `DictationSession` API (in `pebble.h` for the `emery` platform) that opens the microphone, streams audio to Nuance's cloud STT service, and returns a `char *` transcription via callback. This is the only voice-input mechanism available.
 
-The app already handles per-timer naming via the mnemonic system (`src/mnemonic.c`). Timer names are stored in `timer_slots[i].name` — a `char[20]` field (19 usable bytes). Edit mode (`ControlModeEditSec`) is the natural hook point for voice rename, since it is where the user is already actively configuring a timer.
+The app already handles per-timer naming via the mnemonic system (`src/mnemonic.c`). Timer names are stored in `timer_slots[i].name` — a `char[20]` field (19 usable bytes). Either edit mode (`ControlModeNew` or `ControlModeEditSec`) is a valid hook point for voice rename, since both are states where the user is actively configuring a timer.
 
 The standard Pebble click API has no simultaneous-button concept. Raw click handlers (`window_raw_click_subscribe`) fire on individual button-down and button-up events, making it possible to track concurrent holds in firmware. **However, the official SDK docs state: "you cannot set a repeating, long or raw click handler on the back button because a long press will always terminate the app and return to the main menu."** Whether raw click on Back is truly forbidden or merely undocumented-but-functional must be verified empirically before the rest of this feature is implemented.
 
@@ -24,7 +24,7 @@ D1 is **confirmed feasible** with the modified approach below. Proceed to D2–D
 ## Goals / Non-Goals
 
 **Goals:**
-- Allow users to name a timer by voice while in `ControlModeEditSec`, triggered by holding Up + Back simultaneously.
+- Allow users to name a timer by voice while in `ControlModeNew` or `ControlModeEditSec`, triggered by holding Up + Back simultaneously (Up pressed first).
 - Gate the feature behind a `voice_naming_enabled` setting (default off).
 - Restrict to `emery` platform using `PBL_IF_MICROPHONE_ELSE` / `#ifdef PBL_MICROPHONE`.
 - Truncate transcription to 19 chars and trim whitespace before saving.
@@ -43,6 +43,8 @@ D1 is **confirmed feasible** with the modified approach below. Proceed to D2–D
 **Decision:** Use `window_raw_click_subscribe` on `BUTTON_ID_UP` only. Track `s_up_held` boolean. In the existing `prv_back_click_handler` (single-click subscriber), check `s_up_held` at the top and return early on chord detection. Use `s_up_chord_consumed` to suppress the spurious Up single-click on Up release.
 
 **✅ Confirmed working on device (2026-06-22).** The SDK restriction on raw Back handlers is irrelevant — no raw Back subscription is needed. Normal Back navigation is preserved automatically: the early-return only fires when `s_up_held` is true, so tapping Back alone still executes the full handler.
+
+**⚠️ Order dependency:** Because only Up has a raw handler, `s_up_held` is only set when Up is pressed first. If the user presses Back before Up, `s_up_held` is false when the Back handler fires and the chord is not detected — Back executes normally. The gesture **requires Up to be pressed first, then Back**. This is a deliberate constraint of the no-raw-Back approach and should be reflected in UX documentation.
 
 **Alternatives considered:**
 - *Raw-subscribe both Up and Back* — originally proposed, but not needed; the single-click Back handler fires at the right time and `s_up_held` is already set.
@@ -76,12 +78,12 @@ D1 is **confirmed feasible** with the modified approach below. Proceed to D2–D
 ## Risks / Trade-offs
 
 - **[Risk] Dictation requires phone + internet connectivity** → Mitigation: SDK error dialogs handle this gracefully (`dictation_session_enable_error_dialogs(session, true)`). No special code needed.
-- **[Risk] Raw Back handler may be forbidden by the SDK** → Mitigation: Step 0 spike must confirm this works on device before any further implementation. If forbidden, fall back to long-press Up as the trigger gesture.
-- **[Risk] Raw Back handler suppresses system back navigation** → Mitigation (if raw Back works): In the raw handler, only suppress Back exit if Up is also held; otherwise call `window_stack_pop` on Back-up to restore normal navigation.
 - **[Risk] 19-char limit silently truncates long phrases** → Mitigation: `timer_set_name` truncates at a word boundary where possible, and the SDK confirmation dialog shows the full transcription so the user sees it before committing.
 - **[Risk] `DictationSession` lifecycle in C — must destroy before window is popped** → Mitigation: Destroy session in the `ControlModeEditSec` unload/deinit hook.
 
 ## Open Questions
 
 - Should the settings toggle be hidden on non-emery builds (JS can't detect platform), or always shown with a note that it only applies to Pebble 2? → Recommend: always show, add a help text line "Pebble 2 only".
+  - Answer: always show (but with help test line)
 - Word-boundary truncation vs. hard char truncation at 19 bytes — is a truncated word better or worse than a shorter clean name? → Default to word-boundary truncation (stop before the word that would overflow).
+  - Answer: word-boundary
