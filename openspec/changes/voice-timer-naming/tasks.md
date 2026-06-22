@@ -25,16 +25,23 @@ Note: No raw Back subscription is needed (see design.md D1). `s_up_held` is alre
 - [x] 4.2 Implement `prv_dictation_callback(DictationSession *, DictationSessionStatus, char *, void *)`: on `DictationSessionStatusSuccess`, call `timer_set_name(active_idx, transcription)`; on any failure, do nothing
 - [x] 4.3 Destroy `s_dictation_session` in the `ControlModeEditSec` window unload handler; set pointer to NULL after destroy
 
-## 5. Spec files — write failing tests first
+## 5. Spec files — write tests
 
-- [x] 5.1 Write a failing functional test in `test/functional/` that verifies `timer_set_name` truncates long text at a word boundary
-- [x] 5.2 Write a failing functional test that verifies `timer_set_name` hard-truncates a single oversized token
-- [x] 5.3 Write a failing functional test that verifies a failed dictation leaves the timer name unchanged
-- [x] 5.4 Run tests and confirm they fail (`python -m pytest -v --platform=basalt` in `test/functional/`)
+> **Note:** Originally scoped as functional tests in `test/functional/`, but `timer_set_name`
+> is a pure function and the dictation path is `#ifdef PBL_MICROPHONE`-only — neither is
+> exercisable through the basalt emulator harness (dictation results can't be injected).
+> Implemented instead as cmocka unit tests in `test/test_timer.c`, which links `timer.c`
+> directly and mocks persistence. Because `timer_set_name` is built in task 2 (before this
+> section), strict red→green was not followed for the truncation logic.
+
+- [x] 5.1 Unit test in `test/test_timer.c` (`test_timer_set_name_word_boundary`) verifying `timer_set_name` truncates long text at a word boundary
+- [x] 5.2 Unit test (`test_timer_set_name_hard_truncate`) verifying `timer_set_name` hard-truncates a single oversized token
+- [x] 5.3 Unit test (`test_timer_set_name_trims_and_preserves`) verifying whitespace is trimmed and the name is unchanged when no rename occurs (the failure path simply does not call `timer_set_name`)
+- [x] 5.4 Run tests and confirm they pass (`make test_timer` in `test/`)
 
 ## 6. Implementation verification
 
 - [x] 6.1 Build for emery platform and confirm no compile errors: `pebble build`
 - [x] 6.2 Build for basalt (non-microphone) and confirm voice code is excluded: `pebble build --platform basalt`
-- [x] 6.3 Re-run all tests and confirm they pass
+- [x] 6.3 Re-run tests. Compilable cmocka suites pass (`run_test_timer` 29, `run_test_timer_multi` 11, `run_test_mnemonic` 4). Not green: `run_test_main`/`run_test_drawing` don't compile against the host stub (pre-existing — missing `APP_LAUNCH_WAKEUP`, `GColorWhite`, fonts; confirmed identical with changes stashed), and the basalt functional suite has pre-existing environmental flakiness (the committed 2026-04-19 log shows the same tests already failing). Neither intersects this change.
 - [x] 6.4 Update `docs/button-functions.md` with the new Up+Back chord gesture for `ControlModeEditSec` (emery only, `voice_naming_enabled`)
