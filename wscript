@@ -48,8 +48,35 @@ def configure(ctx):
     if '' in ctx.all_envs:
         ctx.set_env(ctx.all_envs[''])
 
+def check_js_syntax(ctx):
+    # Validate the PebbleKit JS before bundling. A syntax error here does not
+    # fail `pebble build` on its own, but it breaks the phone-side app at
+    # runtime (e.g. the settings/config page never opens), so catch it early.
+    import shutil
+    import subprocess
+
+    js_nodes = ctx.path.ant_glob('src/js/**/*.js')
+    if not js_nodes:
+        return
+
+    node = shutil.which('node') or shutil.which('nodejs')
+    if not node:
+        print("Warning: node not found; skipping JS syntax check.")
+        return
+
+    for node_file in js_nodes:
+        path = node_file.abspath()
+        result = subprocess.run([node, '--check', path],
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        if result.returncode != 0:
+            output = result.stdout.decode('utf-8', 'replace')
+            ctx.fatal("JS syntax error in {}:\n{}".format(path, output))
+    print("JS syntax check passed ({} file(s)).".format(len(js_nodes)))
+
 def build(ctx):
     ctx.load('pebble_sdk')
+
+    check_js_syntax(ctx)
 
     # Load host environment
     if 'host' in ctx.all_envs:
