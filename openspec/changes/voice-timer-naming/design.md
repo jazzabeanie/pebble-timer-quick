@@ -10,13 +10,16 @@ The standard Pebble click API has no simultaneous-button concept. Raw click hand
 
 **Step 0 (must complete before anything else): Prove the Up + Back chord is feasible.**
 
-Implement a minimal spike in `ControlModeEditSec`:
-- Subscribe `window_raw_click_subscribe` on `BUTTON_ID_UP` and `BUTTON_ID_BACK`.
-- Track `s_up_held` / `s_back_held` booleans on button-down/up events.
-- On chord detection, show a `APP_LOG` or on-screen status confirming it fired.
-- Verify that normal Back navigation still works when Up is not held.
+✅ **Completed 2026-06-22.** Verified on physical Pebble watch (basalt platform).
 
-If the SDK silently ignores the raw Back subscription (or crashes), D1 is invalid and an alternative gesture must be chosen before proceeding. Do not implement D2–D5 until this is confirmed working on device.
+**Findings:**
+- Raw click subscription on `BUTTON_ID_UP` works correctly (`prv_up_raw_down_handler` / `prv_up_raw_up_handler`), setting/clearing `s_up_held`.
+- **Back subscription is not needed.** Rather than raw-subscribing `BUTTON_ID_BACK`, we check `s_up_held` at the top of the existing `prv_back_click_handler` (single-click subscriber). When `s_up_held` is true, the chord is detected and the handler returns early — suppressing the normal Back action without touching the Back subscription at all. This sidesteps the SDK restriction on raw/long Back handlers entirely.
+- A `s_up_chord_consumed` boolean suppresses the spurious Up single-click that fires when Up is released after the chord. This is set on chord detection and checked at the top of `prv_up_click_handler`.
+- On-screen flash (`prv_flash_screen`: white full-screen overlay for 150 ms) plus `vibes_long_pulse()` confirmed the chord fires correctly and normal button functions are fully suppressed.
+- The same chord was also verified in `ControlModeNew` (Up+Back → flash, no timer increment), confirming the pattern works across modes.
+
+D1 is **confirmed feasible** with the modified approach below. Proceed to D2–D5.
 
 ## Goals / Non-Goals
 
@@ -35,18 +38,16 @@ If the SDK silently ignores the raw Back subscription (or crashes), D1 is invali
 
 ## Decisions
 
-### D1: Gesture — simultaneous Up + Back hold via raw click handlers
+### D1: Gesture — simultaneous Up + Back chord via raw Up handler + Back single-click check
 
-**Decision:** Use `window_raw_click_subscribe` on both `BUTTON_ID_UP` and `BUTTON_ID_BACK` in `ControlModeEditSec`. Track `s_up_held` and `s_back_held` booleans. When both are true at the same time, trigger dictation.
+**Decision:** Use `window_raw_click_subscribe` on `BUTTON_ID_UP` only. Track `s_up_held` boolean. In the existing `prv_back_click_handler` (single-click subscriber), check `s_up_held` at the top and return early on chord detection. Use `s_up_chord_consumed` to suppress the spurious Up single-click on Up release.
 
-**⚠️ Unverified assumption:** The official SDK docs say "you cannot set a repeating, long or raw click handler on the back button." It is unknown whether this is a hard firmware enforcement or a documentation-only warning. This must be confirmed by the Step 0 spike before D1 is considered decided.
+**✅ Confirmed working on device (2026-06-22).** The SDK restriction on raw Back handlers is irrelevant — no raw Back subscription is needed. Normal Back navigation is preserved automatically: the early-return only fires when `s_up_held` is true, so tapping Back alone still executes the full handler.
 
 **Alternatives considered:**
+- *Raw-subscribe both Up and Back* — originally proposed, but not needed; the single-click Back handler fires at the right time and `s_up_held` is already set.
 - *Double-tap Select in edit mode* — conflicts with existing Select behavior (advance seconds digit).
-- *Long-press Up + Back chord via a dedicated SDK API* — no such API exists in SDK 4.x.
-- *A new dedicated button combo (e.g., long-press Up in edit mode)* — fallback gesture if raw Back is truly forbidden; Up is already raw-subscribed in this codebase so this is known-feasible.
-
-**Note (if raw Back works):** Raw click intercepts Back before the system exit handler. We must call `window_stack_pop` explicitly if the user taps Back without Up being held (to preserve normal back navigation).
+- *Long-press Up in edit mode* — fallback if chord had been infeasible; not needed.
 
 ### D2: Platform guard — `PBL_IF_MICROPHONE_ELSE`
 

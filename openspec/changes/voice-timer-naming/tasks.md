@@ -11,12 +11,13 @@
 - [ ] 2.1 Add `void timer_set_name(uint8_t idx, const char *name)` declaration to `src/timer.h`
 - [ ] 2.2 Implement `timer_set_name` in `src/timer.c`: trim leading/trailing whitespace, truncate at word boundary to fit 19 chars (hard-truncate if single token > 19), write to `timer_slots[idx].name`, call `timer_save()`
 
-## 3. Edit mode — simultaneous Up+Back raw click handlers
+## 3. Edit mode — Up+Back chord detection
 
-- [ ] 3.1 In `src/main.c`, inside `#ifdef PBL_MICROPHONE`, add static booleans `s_voice_up_held` and `s_voice_back_held` and a `DictationSession *s_dictation_session` pointer
-- [ ] 3.2 Implement raw down/up handlers for `BUTTON_ID_UP`: set/clear `s_voice_up_held`; when both `s_voice_up_held` and `s_voice_back_held` are true, call `prv_start_voice_rename()`
-- [ ] 3.3 Implement raw down/up handlers for `BUTTON_ID_BACK`: set/clear `s_voice_back_held`; when both held, call `prv_start_voice_rename()`; on Back-up when Up was not held, call `window_stack_pop` to restore normal back navigation
-- [ ] 3.4 Register these raw handlers in the `ControlModeEditSec` click config only when `settings_get_voice_naming_enabled()` is true and `#ifdef PBL_MICROPHONE`
+Note: No raw Back subscription is needed (see design.md D1). `s_up_held` is already tracked via the existing raw Up handler. The chord is detected in `prv_back_click_handler`.
+
+- [ ] 3.1 In `src/main.c`, inside `#ifdef PBL_MICROPHONE`, add a `DictationSession *s_dictation_session` pointer (the `s_up_held` and `s_up_chord_consumed` booleans from the POC are already present and can be reused)
+- [ ] 3.2 At the top of `prv_back_click_handler`, inside `#ifdef PBL_MICROPHONE`, add: if `control_mode == ControlModeEditSec && s_up_held && settings_get_voice_naming_enabled()`: set `s_up_chord_consumed = true`, call `prv_start_voice_rename()`, return
+- [ ] 3.3 Remove the POC flash/vibe chord handlers in `ControlModeEditSec` (Up+Down chord) and `ControlModeNew` (Up+Back chord) once the real dictation feature is wired up
 
 ## 4. Dictation session lifecycle
 
