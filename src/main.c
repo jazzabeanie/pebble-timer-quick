@@ -53,9 +53,12 @@ static bool backlight_on = false;
 // POC: Up+Back chord feasibility test
 static bool s_up_held = false;
 
-static AppTimer *s_flash_timer = NULL;
-static bool s_flashing = false;
 static bool s_up_chord_consumed = false;
+
+#ifdef PBL_MICROPHONE
+// Voice naming: dictation session for the Up+Back chord rename gesture
+static DictationSession *s_dictation_session = NULL;
+#endif
 
 // Function declarations
 static void prv_app_timer_callback(void *data);
@@ -106,21 +109,6 @@ static bool prv_is_edit_mode(void) {
 // Helper to update backlight based on state
 static void prv_update_backlight(void) {
   prv_set_backlight(prv_is_edit_mode() || timer_is_vibrating());
-}
-
-static void prv_flash_callback(void *data) {
-  s_flash_timer = NULL;
-  s_flashing = false;
-  layer_mark_dirty(main_data.layer);
-}
-
-static void prv_flash_screen(void) {
-  if (s_flash_timer) {
-    app_timer_cancel(s_flash_timer);
-  }
-  s_flashing = true;
-  layer_mark_dirty(main_data.layer);
-  s_flash_timer = app_timer_register(150, prv_flash_callback, NULL);
 }
 
 // Helper to record interaction time
@@ -343,12 +331,31 @@ void main_force_redraw(void) {
 static void prv_layer_update_proc_handler(Layer *layer, GContext *ctx) {
   // render the timer's visuals
   drawing_render(layer, ctx);
-  if (s_flashing) {
-    GRect bounds = layer_get_bounds(layer);
-    graphics_context_set_fill_color(ctx, GColorWhite);
-    graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+}
+
+#ifdef PBL_MICROPHONE
+// Dictation result callback: on success, rename the active timer; ignore failures
+static void prv_dictation_callback(DictationSession *session, DictationSessionStatus status,
+                                   char *transcription, void *context) {
+  if (status == DictationSessionStatusSuccess && transcription != NULL) {
+    timer_set_name(timer_get_active_slot(), transcription);
+    main_force_redraw();
   }
 }
+
+// Launch a voice dictation session to rename the active timer
+static void prv_start_voice_rename(void) {
+  if (!s_dictation_session) {
+    s_dictation_session = dictation_session_create(64, prv_dictation_callback, NULL);
+    if (!s_dictation_session) {
+      return;
+    }
+    dictation_session_enable_confirmation(s_dictation_session, true);
+    dictation_session_enable_error_dialogs(s_dictation_session, true);
+  }
+  dictation_session_start(s_dictation_session);
+}
+#endif
 
 // Back click handler
 static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
@@ -356,14 +363,16 @@ static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
-  if (main_data.control_mode == ControlModeNew && s_up_held) {
-    APP_LOG(APP_LOG_LEVEL_INFO, "Up+Back chord detected in New");
+#ifdef PBL_MICROPHONE
+  // Up+Back chord (Up pressed first) launches voice rename when enabled
+  if ((main_data.control_mode == ControlModeEditSec || main_data.control_mode == ControlModeNew)
+      && s_up_held && settings_get_voice_naming_enabled()) {
     s_up_chord_consumed = true;
-    vibes_long_pulse();
-    prv_flash_screen();
+    prv_start_voice_rename();
     test_log_state("button_back");
     return;
   }
+#endif
   if (main_data.control_mode == ControlModeNew) {
     if (settings_get_swap_back_and_select_long()) {
       main_data.control_mode = ControlModeEditSec;
@@ -732,13 +741,6 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     test_log_state("button_down");
   }
   else if (main_data.control_mode == ControlModeEditSec) {
-    if (s_up_held) {
-      APP_LOG(APP_LOG_LEVEL_INFO, "POC: Up+Down chord detected in EditSec — SUCCESS");
-      vibes_long_pulse();
-      prv_flash_screen();
-      test_log_state("button_down");
-      return;
-    }
     int64_t increment = DOWN_BUTTON_INCREMENT_SEC_MS;
     bool was_chrono = timer_is_chrono();
     prv_update_timer(increment);
@@ -1036,6 +1038,12 @@ static void prv_terminate(void) {
     wakeup_schedule(wakeup_time, (int32_t)timer_get_active_slot(), true);
   }
   // destroy
+#ifdef PBL_MICROPHONE
+  if (s_dictation_session) {
+    dictation_session_destroy(s_dictation_session);
+    s_dictation_session = NULL;
+  }
+#endif
   timer_persist_store();
   drawing_terminate();
   layer_destroy(main_data.layer);

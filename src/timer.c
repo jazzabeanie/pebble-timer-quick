@@ -351,6 +351,51 @@ void timer_assign_name(uint8_t new_idx) {
   } while (collision);
 }
 
+// Set a user-provided name on a slot, trimming whitespace and truncating to fit
+void timer_set_name(uint8_t idx, const char *name) {
+  if (idx >= MAX_TIMERS || name == NULL) {
+    return;
+  }
+  // Max usable characters (name buffer is [20]: 19 chars + null terminator)
+  const size_t max_chars = sizeof(timer_slots[idx].name) - 1;
+
+  // Trim leading whitespace
+  const char *start = name;
+  while (*start == ' ' || *start == '\t' || *start == '\n' || *start == '\r') {
+    start++;
+  }
+  // Trim trailing whitespace
+  const char *end = start;
+  while (*end != '\0') {
+    end++;
+  }
+  while (end > start &&
+         (end[-1] == ' ' || end[-1] == '\t' || end[-1] == '\n' || end[-1] == '\r')) {
+    end--;
+  }
+
+  size_t len = (size_t)(end - start);
+  if (len > max_chars) {
+    // Truncate at the last word boundary that keeps the text within max_chars.
+    size_t cut = 0;
+    for (size_t i = 0; i < len && i <= max_chars; i++) {
+      if (start[i] == ' ') {
+        cut = i;
+      }
+    }
+    // cut == 0 means a single token longer than the field: hard-truncate.
+    len = (cut > 0) ? cut : max_chars;
+  }
+
+  char *dst = timer_slots[idx].name;
+  for (size_t i = 0; i < len; i++) {
+    dst[i] = start[i];
+  }
+  dst[len] = '\0';
+
+  timer_persist_store();
+}
+
 // Allocate next free slot as a running stopwatch; returns slot index or -1 if full
 int8_t timer_slot_create(void) {
   if (timer_count >= MAX_TIMERS) return -1;
