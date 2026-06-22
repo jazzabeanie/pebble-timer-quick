@@ -1,5 +1,7 @@
 # pebble-timer-quick
 
+WIP: Implementing voice naming spec. continue with `claude --resume 56ff22a8-21da-4692-9edd-cb7a7df60ac7` on framework 13
+
 QuickTimer is a timer app for the Pebble Smartwatch, intended to be the fastest
 way to start a timer or stopwatch. Made for people that think needing 5 seconds
 to set a countdown timer or stopwatch is far too long. With QuickTimer, rest
@@ -132,7 +134,7 @@ QuickTimer versus in the default Pebble timer.
 
 - install SDK almost according to https://developer.repebble.com/sdk/
   - install node
-  - `sudo apt install libsdl1.2debian libfdt1`
+  - `sudo apt install libsdl1.2debian libfdt1 libsndio7.0`
   - `brew install uv`
 - create virtual env `conda create --prefix conda-env python=3.10` and activate it with `conda activate conda-env`, although i think it works up to python 3.13
 - `uv pip install pebble-tool`

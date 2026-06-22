@@ -60,6 +60,7 @@ Shown on app open when ≥1 existing timer is saved and the "Multiple Timers" se
 | Down | Short | Add 1 minute to timer | `test_create_timer.py::TestCreateTimer::test_down_button_increments_minutes`, `test_create_timer.py::TestCreateTimer::test_create_2_minute_timer`, `test_log_based.py::test_multiple_button_presses_log_sequence`, `test_create_timer.py::TestTimerStartsImmediately::test_timer_counts_down_during_setup`, `test_stopwatch_subtraction.py::TestStopwatchSubtraction::test_chrono_subtraction_multiple_minutes` |
 | Down | Long | Quit app (sets reset flag and closes) | `test_button_icons.py::TestNewModeIcons::test_new_long_down_icon` (icon only) |
 | Back | Short | Add 60 minutes (1 hour) to timer | *(no dedicated test)* |
+| Up + Back | Chord (Up first) | **Emery only, `Voice Naming` enabled:** launch voice dictation to rename the active timer. Suppresses the normal Back action. Compiled out (`#ifdef PBL_MICROPHONE`) on non-microphone platforms. | `test_timer.c::test_timer_set_name_word_boundary`, `test_timer.c::test_timer_set_name_hard_truncate`, `test_timer.c::test_timer_set_name_trims_and_preserves` |
 
 **Mode transitions:**
 - After 3 seconds of inactivity: auto-transitions to Counting mode (`test_create_timer.py::TestTimerCountdown::test_timer_transitions_to_counting_mode`, `test_log_based.py::test_mode_transition_via_logs`)
@@ -87,6 +88,13 @@ Shown on app open when ≥1 existing timer is saved and the "Multiple Timers" se
 | Down | Short | Add 1 second to timer | `test_timer_workflows.py::TestSetShortTimer::test_set_4_second_timer` (used to build timer) |
 | Down | Long | Quit app | *(no dedicated test)* |
 | Back | Short | Add 60 seconds (1 minute) to timer | `test_directional_icons.py::TestEditSecModeForwardIcons::test_editsec_forward_back_icon_plus60` |
+| Up + Back | Chord (Up first) | **Emery only, `Voice Naming` enabled:** launch voice dictation to rename the active timer. Suppresses the normal Back action. Compiled out (`#ifdef PBL_MICROPHONE`) on non-microphone platforms. | `test_timer.c::test_timer_set_name_word_boundary`, `test_timer.c::test_timer_set_name_hard_truncate`, `test_timer.c::test_timer_set_name_trims_and_preserves` |
+
+**Voice rename gesture (emery only):**
+- Requires the `Voice Naming` setting enabled and a microphone-capable platform (Pebble 2 / emery).
+- Up must be pressed **first**, then Back, while Up is still held (only Up has a raw click handler that tracks `s_up_held`).
+- A successful transcription is trimmed, truncated to 19 chars (at a word boundary where possible), and saved as the timer's name, replacing the mnemonic default.
+- A failed/cancelled dictation leaves the existing name unchanged.
 
 **Reverse direction icons:**
 
@@ -289,6 +297,7 @@ Settings are configured via the Pebble mobile app (tap the gear icon next to the
 |---------|---------|-------------|
 | Increment Icons | On | Shows/hides the +1, +5, +20 button indicator icons in edit modes |
 | Swap Back / Select-Hold Buttons | Off | When on, swaps the functions of Back (short press) and Select (long press) in New and EditSec modes only. Back becomes the New↔EditSec mode toggle; Select long press becomes the +1hr / +1min time increment. The back button icon is replaced with an **m/s** indicator: **m** bold in New mode, **s** bold in EditSec mode. |
+| Voice Naming (Pebble 2 only) | Off | When on (and running on an emery / microphone-capable watch), the Up + Back chord (Up pressed first) in New or EditSec mode launches voice dictation to rename the active timer. No effect on non-microphone platforms, where the feature is compiled out. |
 
 ---
 

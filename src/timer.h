@@ -103,6 +103,13 @@ int8_t timer_slot_create(void);
 //! Assign (or reassign) a mnemonic name to an existing slot; call after start_ms is set
 void timer_assign_name(uint8_t idx);
 
+//! Set a user-provided name on a slot (e.g. from voice dictation).
+//! Trims leading/trailing whitespace, truncates at a word boundary to fit the
+//! 19-character name field (hard-truncates a single oversized token), and persists.
+//! @param idx The slot index to rename
+//! @param name The null-terminated source name (may contain surrounding whitespace)
+void timer_set_name(uint8_t idx, const char *name);
+
 //! Delete the slot at index, compact the array, and clear the freed persist key
 void timer_slot_delete(uint8_t index);
 

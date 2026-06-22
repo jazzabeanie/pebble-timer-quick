@@ -798,6 +798,47 @@ static void test_timer_restart_preserves_paused_state(void **state) {
     assert_int_equal(timer_data.start_ms, 0);
 }
 
+// 27. test_timer_set_name_word_boundary (spec 5.1)
+// Purpose: Verify timer_set_name truncates long multi-word text at a word boundary
+// rather than cutting mid-word.
+static void test_timer_set_name_word_boundary(void **state) {
+    timer_set_active_slot(0);
+    memset(&timer_slots[0], 0, sizeof(Timer));
+
+    // "slow roasted chicken thighs" (27 chars) exceeds the 19-char field.
+    // Largest whole-word prefix that fits in 19 chars is "slow roasted" (12 chars).
+    timer_set_name(0, "slow roasted chicken thighs");
+
+    assert_string_equal(timer_slots[0].name, "slow roasted");
+}
+
+// 28. test_timer_set_name_hard_truncate (spec 5.2)
+// Purpose: Verify a single token longer than 19 chars is hard-truncated to 19 chars.
+static void test_timer_set_name_hard_truncate(void **state) {
+    timer_set_active_slot(0);
+    memset(&timer_slots[0], 0, sizeof(Timer));
+
+    // 20 characters, no spaces -> first 19 chars kept.
+    timer_set_name(0, "superlongwordexample");
+
+    assert_string_equal(timer_slots[0].name, "superlongwordexampl");
+    assert_int_equal((int)strlen(timer_slots[0].name), 19);
+}
+
+// 29. test_timer_set_name_trims_and_preserves (spec 5.3 / 5.4)
+// Purpose: Verify leading/trailing whitespace is trimmed, and that a name is left
+// unchanged when no rename occurs (the failure path simply does not call set_name).
+static void test_timer_set_name_trims_and_preserves(void **state) {
+    timer_set_active_slot(0);
+    memset(&timer_slots[0], 0, sizeof(Timer));
+
+    timer_set_name(0, "  pasta  ");
+    assert_string_equal(timer_slots[0].name, "pasta");
+
+    // A failed/cancelled dictation never calls timer_set_name, so the name is unchanged.
+    assert_string_equal(timer_slots[0].name, "pasta");
+}
+
 int main(void) {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test_setup_teardown(test_timer_reset, setup, teardown),
@@ -826,6 +867,9 @@ int main(void) {
         cmocka_unit_test_setup_teardown(test_timer_chrono_subtraction_paused_to_countdown, setup, teardown),
         cmocka_unit_test_setup_teardown(test_timer_restart_restores_repeat_count, setup, teardown),
         cmocka_unit_test_setup_teardown(test_timer_restart_preserves_paused_state, setup, teardown),
+        cmocka_unit_test_setup_teardown(test_timer_set_name_word_boundary, setup, teardown),
+        cmocka_unit_test_setup_teardown(test_timer_set_name_hard_truncate, setup, teardown),
+        cmocka_unit_test_setup_teardown(test_timer_set_name_trims_and_preserves, setup, teardown),
     };
 
     return cmocka_run_group_tests(tests, NULL, NULL);

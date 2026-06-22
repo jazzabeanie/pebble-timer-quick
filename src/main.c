@@ -50,6 +50,16 @@ static struct {
 static AppTimer *backlight_timer = NULL;
 static bool backlight_on = false;
 
+// POC: Up+Back chord feasibility test
+static bool s_up_held = false;
+
+static bool s_up_chord_consumed = false;
+
+#ifdef PBL_MICROPHONE
+// Voice naming: dictation session for the Up+Back chord rename gesture
+static DictationSession *s_dictation_session = NULL;
+#endif
+
 // Function declarations
 static void prv_app_timer_callback(void *data);
 static void prv_new_expire_callback(void *data);
@@ -323,12 +333,46 @@ static void prv_layer_update_proc_handler(Layer *layer, GContext *ctx) {
   drawing_render(layer, ctx);
 }
 
+#ifdef PBL_MICROPHONE
+// Dictation result callback: on success, rename the active timer; ignore failures
+static void prv_dictation_callback(DictationSession *session, DictationSessionStatus status,
+                                   char *transcription, void *context) {
+  if (status == DictationSessionStatusSuccess && transcription != NULL) {
+    timer_set_name(timer_get_active_slot(), transcription);
+    main_force_redraw();
+  }
+}
+
+// Launch a voice dictation session to rename the active timer
+static void prv_start_voice_rename(void) {
+  if (!s_dictation_session) {
+    s_dictation_session = dictation_session_create(64, prv_dictation_callback, NULL);
+    if (!s_dictation_session) {
+      return;
+    }
+    dictation_session_enable_confirmation(s_dictation_session, true);
+    dictation_session_enable_error_dialogs(s_dictation_session, true);
+  }
+  dictation_session_start(s_dictation_session);
+}
+#endif
+
 // Back click handler
 static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_record_interaction();
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
+#ifdef PBL_MICROPHONE
+  // Up+Back chord (Up pressed first) launches voice rename when enabled
+  if ((main_data.control_mode == ControlModeEditSec || main_data.control_mode == ControlModeNew)
+      && s_up_held && settings_get_voice_naming_enabled()) {
+    s_up_chord_consumed = true;
+    prv_start_voice_rename();
+    test_log_state("button_back");
+    return;
+  }
+#endif
   if (main_data.control_mode == ControlModeNew) {
     if (settings_get_swap_back_and_select_long()) {
       main_data.control_mode = ControlModeEditSec;
@@ -364,6 +408,10 @@ static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 
 // Up click handler
 static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  if (s_up_chord_consumed) {
+    s_up_chord_consumed = false;
+    return;
+  }
   prv_record_interaction();
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
@@ -727,21 +775,31 @@ static void prv_down_long_click_handler(ClickRecognizerRef recognizer, void *ctx
 
 // Up raw down click handler
 static void prv_up_raw_down_handler(ClickRecognizerRef recognizer, void *ctx) {
+  s_up_held = true;
   prv_record_interaction();
   prv_stop_new_expire_timer();
+}
+
+// Up raw up handler (clears held flag)
+static void prv_up_raw_up_handler(ClickRecognizerRef recognizer, void *ctx) {
+  s_up_held = false;
+}
+
+static void prv_down_raw_down_handler(ClickRecognizerRef recognizer, void *ctx) {
 }
 
 // Click configuration provider
 static void prv_click_config_provider(void *ctx) {
   window_single_click_subscribe(BUTTON_ID_BACK, prv_back_click_handler);
   window_single_click_subscribe(BUTTON_ID_UP, prv_up_click_handler);
-  window_raw_click_subscribe(BUTTON_ID_UP, prv_up_raw_down_handler, NULL, NULL);
+  window_raw_click_subscribe(BUTTON_ID_UP, prv_up_raw_down_handler, prv_up_raw_up_handler, NULL);
   window_long_click_subscribe(BUTTON_ID_UP, BUTTON_HOLD_RESET_MS, prv_up_long_click_handler, NULL);
   window_single_click_subscribe(BUTTON_ID_SELECT, prv_select_click_handler);
   window_raw_click_subscribe(BUTTON_ID_SELECT, prv_select_raw_click_handler, NULL, NULL);
   window_long_click_subscribe(BUTTON_ID_SELECT, BUTTON_HOLD_RESET_MS, prv_select_long_click_handler,
     NULL);
   window_single_click_subscribe(BUTTON_ID_DOWN, prv_down_click_handler);
+  window_raw_click_subscribe(BUTTON_ID_DOWN, prv_down_raw_down_handler, NULL, NULL); // POC
   window_long_click_subscribe(BUTTON_ID_DOWN, BUTTON_HOLD_RESET_MS, prv_down_long_click_handler, NULL);
 }
 
@@ -980,6 +1038,12 @@ static void prv_terminate(void) {
     wakeup_schedule(wakeup_time, (int32_t)timer_get_active_slot(), true);
   }
   // destroy
+#ifdef PBL_MICROPHONE
+  if (s_dictation_session) {
+    dictation_session_destroy(s_dictation_session);
+    s_dictation_session = NULL;
+  }
+#endif
   timer_persist_store();
   drawing_terminate();
   layer_destroy(main_data.layer);
