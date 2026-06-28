@@ -110,6 +110,10 @@ static struct {
   // Mode-indicator icons for swap-back-select feature
   GBitmap     *icon_edit_min;
   GBitmap     *icon_edit_sec;
+#ifdef PBL_MICROPHONE
+  // Feedback icon shown when a voice rename is started while disconnected
+  GBitmap     *no_phone_icon;
+#endif
 } drawing_data;
 
 
@@ -665,6 +669,24 @@ void drawing_start_reset_animation(void) {
 void drawing_render(Layer *layer, GContext *ctx) {
   // get properties
   GRect bounds = layer_get_bounds(layer);
+#ifdef PBL_MICROPHONE
+  // When a voice rename is started while the phone is disconnected, show a
+  // full-screen no-phone icon instead of the normal timer view.
+  if (main_is_showing_no_phone()) {
+    graphics_context_set_fill_color(ctx, GColorBlack);
+    graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+    if (drawing_data.no_phone_icon) {
+      GRect icon_bounds = gbitmap_get_bounds(drawing_data.no_phone_icon);
+      GPoint center = grect_center_point(&bounds);
+      graphics_context_set_compositing_mode(ctx, GCompOpSet);
+      prv_draw_icon(ctx, drawing_data.no_phone_icon,
+                    center.x - icon_bounds.size.w / 2,
+                    center.y - icon_bounds.size.h / 2,
+                    icon_bounds.size.w, icon_bounds.size.h);
+    }
+    return;
+  }
+#endif
   // draw background
   // this is actually the ring, which is then covered up with the background
   graphics_context_set_fill_color(ctx, drawing_data.ring_color);
@@ -829,6 +851,9 @@ void drawing_initialize(Layer *layer) {
   drawing_data.icon_minus_1sec = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_MINUS_1SEC);
   drawing_data.icon_edit_min = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_EDIT_MIN);
   drawing_data.icon_edit_sec = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_EDIT_SEC);
+#ifdef PBL_MICROPHONE
+  drawing_data.no_phone_icon = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_NO_PHONE);
+#endif
   // set animation update callback
   animation_register_update_callback(&prv_animation_update_callback);
 }
@@ -870,5 +895,8 @@ void drawing_terminate(void) {
   gbitmap_destroy(drawing_data.icon_minus_1sec);
   gbitmap_destroy(drawing_data.icon_edit_min);
   gbitmap_destroy(drawing_data.icon_edit_sec);
+#ifdef PBL_MICROPHONE
+  gbitmap_destroy(drawing_data.no_phone_icon);
+#endif
   animation_stop_all();
 }

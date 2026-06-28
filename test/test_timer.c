@@ -839,6 +839,43 @@ static void test_timer_set_name_trims_and_preserves(void **state) {
     assert_string_equal(timer_slots[0].name, "pasta");
 }
 
+// 30. test_timer_set_name_trims_punctuation (spec: punctuation trimming)
+// Purpose: Verify leading/trailing non-alphanumeric characters are stripped while
+// interior characters are preserved.
+static void test_timer_set_name_trims_punctuation(void **state) {
+    timer_set_active_slot(0);
+    memset(&timer_slots[0], 0, sizeof(Timer));
+
+    // Leading/trailing punctuation stripped.
+    timer_set_name(0, "...pasta!");
+    assert_string_equal(timer_slots[0].name, "pasta");
+
+    // Surrounding quotes and trailing period stripped.
+    memset(&timer_slots[0], 0, sizeof(Timer));
+    timer_set_name(0, "\"pasta\".");
+    assert_string_equal(timer_slots[0].name, "pasta");
+
+    // Interior punctuation preserved.
+    memset(&timer_slots[0], 0, sizeof(Timer));
+    timer_set_name(0, "mac & cheese");
+    assert_string_equal(timer_slots[0].name, "mac & cheese");
+
+    // Mixed surrounding whitespace and punctuation stripped together.
+    memset(&timer_slots[0], 0, sizeof(Timer));
+    timer_set_name(0, "  ...pasta!  ");
+    assert_string_equal(timer_slots[0].name, "pasta");
+}
+
+// 31. test_timer_set_name_punctuation_only_empty (spec: punctuation-only -> empty)
+// Purpose: Verify a transcription with no alphanumeric characters trims to empty.
+static void test_timer_set_name_punctuation_only_empty(void **state) {
+    timer_set_active_slot(0);
+    memset(&timer_slots[0], 0, sizeof(Timer));
+
+    timer_set_name(0, "?!.");
+    assert_string_equal(timer_slots[0].name, "");
+}
+
 int main(void) {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test_setup_teardown(test_timer_reset, setup, teardown),
@@ -870,6 +907,8 @@ int main(void) {
         cmocka_unit_test_setup_teardown(test_timer_set_name_word_boundary, setup, teardown),
         cmocka_unit_test_setup_teardown(test_timer_set_name_hard_truncate, setup, teardown),
         cmocka_unit_test_setup_teardown(test_timer_set_name_trims_and_preserves, setup, teardown),
+        cmocka_unit_test_setup_teardown(test_timer_set_name_trims_punctuation, setup, teardown),
+        cmocka_unit_test_setup_teardown(test_timer_set_name_punctuation_only_empty, setup, teardown),
     };
 
     return cmocka_run_group_tests(tests, NULL, NULL);

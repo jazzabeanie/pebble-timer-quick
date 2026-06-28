@@ -341,6 +341,43 @@ class EmulatorHelper:
         logger.debug(f"[{self.platform}] Pressing DOWN button")
         self._send_button(Button.DOWN)
 
+    def press_up_back_chord(self):
+        """Press the Up+Back chord (Up held first, then Back) used for voice rename.
+
+        The QEMU button protocol uses an absolute bitmask, so each call sets the
+        full set of currently-pressed buttons. Holding Up sets s_up_held; pressing
+        and releasing Back while Up stays held fires the Back single-click handler
+        with the chord active.
+        """
+        logger.debug(f"[{self.platform}] Pressing UP+BACK chord")
+        self.hold_button(Button.UP)                  # Up down -> s_up_held = true
+        self.hold_button(Button.UP | Button.BACK)    # Back down while Up held
+        self.hold_button(Button.UP)                  # Back up -> Back single click fires
+        self.release_buttons()                       # Up up -> s_up_held = false
+
+    def set_bt_connection(self, connected: bool):
+        """Set the emulated Bluetooth (phone app) connection state."""
+        state = "yes" if connected else "no"
+        logger.debug(f"[{self.platform}] Setting BT connection: {state}")
+        self._run_pebble(
+            "emu-bt-connection",
+            f"--connected={state}",
+            f"--emulator={self.platform}",
+            check=False,
+        )
+        time.sleep(0.5)
+
+    def send_app_message_int(self, key: int, value: int):
+        """Send an AppMessage with a single signed-int key (used to set settings)."""
+        logger.debug(f"[{self.platform}] Sending app message {key}={value}")
+        self._run_pebble(
+            "send-app-message",
+            f"--emulator={self.platform}",
+            "--int", f"{key}={value}",
+            check=False,
+        )
+        time.sleep(0.5)
+
     def open_app_via_menu(self):
         """
         Re-open the app using the install command.

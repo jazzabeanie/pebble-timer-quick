@@ -59,3 +59,7 @@ void main_reset_new_expire_timer(void);
 
 //! Force a redraw of the main window layer
 void main_force_redraw(void);
+
+//! Get whether the no-phone-connected feedback icon is currently being shown
+//! @return True while the disconnected-rename feedback icon is on screen
+bool main_is_showing_no_phone(void);

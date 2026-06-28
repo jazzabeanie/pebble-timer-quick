@@ -351,7 +351,15 @@ void timer_assign_name(uint8_t new_idx) {
   } while (collision);
 }
 
-// Set a user-provided name on a slot, trimming whitespace and truncating to fit
+// Returns true if c is an ASCII alphanumeric character
+static bool prv_is_alnum(char c) {
+  return (c >= '0' && c <= '9') ||
+         (c >= 'a' && c <= 'z') ||
+         (c >= 'A' && c <= 'Z');
+}
+
+// Set a user-provided name on a slot, trimming leading/trailing non-alphanumeric
+// characters (whitespace, punctuation, symbols) and truncating to fit
 void timer_set_name(uint8_t idx, const char *name) {
   if (idx >= MAX_TIMERS || name == NULL) {
     return;
@@ -359,18 +367,17 @@ void timer_set_name(uint8_t idx, const char *name) {
   // Max usable characters (name buffer is [20]: 19 chars + null terminator)
   const size_t max_chars = sizeof(timer_slots[idx].name) - 1;
 
-  // Trim leading whitespace
+  // Trim leading non-alphanumeric characters (whitespace, punctuation, symbols)
   const char *start = name;
-  while (*start == ' ' || *start == '\t' || *start == '\n' || *start == '\r') {
+  while (*start != '\0' && !prv_is_alnum(*start)) {
     start++;
   }
-  // Trim trailing whitespace
+  // Trim trailing non-alphanumeric characters
   const char *end = start;
   while (*end != '\0') {
     end++;
   }
-  while (end > start &&
-         (end[-1] == ' ' || end[-1] == '\t' || end[-1] == '\n' || end[-1] == '\r')) {
+  while (end > start && !prv_is_alnum(end[-1])) {
     end--;
   }
 

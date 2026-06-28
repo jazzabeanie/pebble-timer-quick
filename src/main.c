@@ -58,6 +58,10 @@ static bool s_up_chord_consumed = false;
 #ifdef PBL_MICROPHONE
 // Voice naming: dictation session for the Up+Back chord rename gesture
 static DictationSession *s_dictation_session = NULL;
+// Offline feedback: shown when a rename is started while the phone is disconnected
+#define NO_PHONE_FEEDBACK_MS 1000
+static bool s_show_no_phone = false;
+static AppTimer *s_no_phone_timer = NULL;
 #endif
 
 // Function declarations
@@ -343,8 +347,42 @@ static void prv_dictation_callback(DictationSession *session, DictationSessionSt
   }
 }
 
+// Hide the no-phone feedback icon and return to ControlModeEditSec, name unchanged
+static void prv_no_phone_hide_callback(void *data) {
+  s_no_phone_timer = NULL;
+  s_show_no_phone = false;
+  main_data.control_mode = ControlModeEditSec;
+  main_force_redraw();
+  test_log_state("voice_no_phone_dismiss");
+}
+
+// Show no-phone feedback: icon for ~1s plus three short vibration pulses
+static void prv_show_no_phone_feedback(void) {
+  s_show_no_phone = true;
+  // Three short pulses: durations alternate on/off, so five 100ms segments
+  // produce on-off-on-off-on = three distinct buzzes.
+  static const uint32_t segments[] = {100, 100, 100, 100, 100};
+  VibePattern pattern = {
+    .durations = segments,
+    .num_segments = ARRAY_LENGTH(segments),
+  };
+  vibes_enqueue_custom_pattern(pattern);
+  main_force_redraw();
+  test_log_state("voice_no_phone");
+  if (s_no_phone_timer) {
+    app_timer_cancel(s_no_phone_timer);
+  }
+  s_no_phone_timer = app_timer_register(NO_PHONE_FEEDBACK_MS, prv_no_phone_hide_callback, NULL);
+}
+
 // Launch a voice dictation session to rename the active timer
 static void prv_start_voice_rename(void) {
+  // Pre-check the phone connection; dictation needs the phone app. If it is not
+  // connected (e.g. airplane mode), show feedback instead of silently failing.
+  if (!connection_service_peek_pebble_app_connection()) {
+    prv_show_no_phone_feedback();
+    return;
+  }
   if (!s_dictation_session) {
     s_dictation_session = dictation_session_create(64, prv_dictation_callback, NULL);
     if (!s_dictation_session) {
@@ -356,6 +394,15 @@ static void prv_start_voice_rename(void) {
   dictation_session_start(s_dictation_session);
 }
 #endif
+
+// Report whether the no-phone feedback icon is currently being shown
+bool main_is_showing_no_phone(void) {
+#ifdef PBL_MICROPHONE
+  return s_show_no_phone;
+#else
+  return false;
+#endif
+}
 
 // Back click handler
 static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {

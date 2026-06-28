@@ -192,6 +192,12 @@
         "file": "images/icon_edit_sec.png",
         "type": "png",
         "name": "IMAGE_ICON_EDIT_SEC"
+      },
+      {
+        "file": "images/no_phone.png",
+        "type": "png",
+        "name": "IMAGE_NO_PHONE",
+        "targetPlatforms": ["basalt", "chalk", "diorite", "emery", "gabbro"]
       }
     ]
   }
