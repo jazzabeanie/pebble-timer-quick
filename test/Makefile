@@ -43,8 +43,10 @@ $(TEST_TIMER_BIN): $(TEST_TIMER_SRCS) $(TIMER_SRCS) $(MNEMONIC_SRCS)
 $(TEST_MAIN_BIN): $(TEST_MAIN_SRCS) $(TIMER_SRCS) $(MNEMONIC_SRCS)
 	$(CC) $(CFLAGS) $(INCLUDES) $^ -o $@ $(LDFLAGS) $(LIBS)
 
-$(TEST_DRAWING_BIN): $(TEST_DRAWING_SRCS)
-	$(CC) $(CFLAGS) $(INCLUDES) $^ -o $@ $(LDFLAGS) $(LIBS)
+# drawing.c is #included by the test, so it is a dependency but must NOT be
+# passed to gcc as a separate source (only compile $(TEST_DRAWING_SRCS)).
+$(TEST_DRAWING_BIN): $(TEST_DRAWING_SRCS) $(SRC_DIR)/drawing.c
+	$(CC) $(CFLAGS) $(INCLUDES) $(TEST_DRAWING_SRCS) -o $@ $(LDFLAGS) $(LIBS)
 
 $(TEST_TIMER_MULTI_BIN): $(TEST_TIMER_MULTI_SRCS) $(TIMER_SRCS) $(MNEMONIC_SRCS)
 	$(CC) $(CFLAGS) $(INCLUDES) $^ -o $@ $(LDFLAGS) $(LIBS)

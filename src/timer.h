@@ -45,6 +45,10 @@ void timer_set_active_slot(uint8_t index);
 //! @param sec A pointer to where to store the second value of the timer
 void timer_get_time_parts(uint16_t *hr, uint16_t *min, uint16_t *sec);
 
+//! Get the millisecond component (0-999) of the current timer value
+//! @return The remainder milliseconds within the current second
+uint16_t timer_get_ms_part(void);
+
 //! Get the timer time in milliseconds
 //! @return The current value of the timer in milliseconds
 int64_t timer_get_value_ms(void);

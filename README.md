@@ -1,7 +1,5 @@
 # pebble-timer-quick
 
-WIP: Implementing voice naming spec. continue with `claude --resume 56ff22a8-21da-4692-9edd-cb7a7df60ac7` on framework 13
-
 QuickTimer is a timer app for the Pebble Smartwatch, intended to be the fastest
 way to start a timer or stopwatch. Made for people that think needing 5 seconds
 to set a countdown timer or stopwatch is far too long. With QuickTimer, rest
@@ -67,6 +65,24 @@ Entered by holding Up while in counting mode (countdown timers only).
 - Down: Add 1 repeat
 - Hold Down: Quit app and delete timer
 
+### Renaming a timer (voice dictation)
+
+Each timer is given an automatic name when created. While setting a timer (in
+**New** or **EditSec** mode) you can rename the active timer by voice using the
+Up+Back chord:
+
+1. Press and **hold Up first** (Up must already be held — pressing Back on its own
+   just does its normal action).
+2. While still holding Up, press **Back**. This opens a dictation session, and the
+   text you speak becomes the timer's name.
+
+Requirements:
+
+- The **Voice naming** setting must be enabled (configurable in the app settings).
+- Only available on microphone-equipped Pebbles — every platform *except* aplite
+  (i.e. not on the original Pebble or Pebble Steel).
+- Requires a connected phone, since dictation uses the Pebble phone app.
+
 ### Counting mode
 
 - Up: Enter edit mode
@@ -77,6 +93,12 @@ Entered by holding Up while in counting mode (countdown timers only).
 - Hold Select (running): Restart timer to original length
 - Hold Select (paused): Reset to 0:00 and enter EditSec mode
 - Hold Down: Quit app and delete timer
+
+**Stopwatch display (paused milliseconds):** When a stopwatch is *paused* and its
+elapsed time is under one hour, the display shows milliseconds (e.g. `1:23.456`)
+so you can read off a precise split. Milliseconds are hidden while the stopwatch
+is running, hidden once it reaches an hour (the display stays `H:MM:SS`), and are
+never shown for countdown timers.
 
 ### Alarm mode
 

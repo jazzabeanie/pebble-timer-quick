@@ -22,6 +22,7 @@ typedef enum {
   GColorMintGreen,
   GColorGreen,
   GColorDarkGray,
+  GColorLightGray,
 } GColor;
 
 #define PBL_IF_COLOR_ELSE(if_true, if_false) (if_true)
@@ -41,11 +42,13 @@ typedef enum {
 typedef struct GBitmap GBitmap; // Opaque
 
 // FONT keys as strings
+#define FONT_KEY_GOTHIC_18_BOLD "FONT_KEY_GOTHIC_18_BOLD"
 #define FONT_KEY_GOTHIC_24_BOLD "FONT_KEY_GOTHIC_24_BOLD"
 #define FONT_KEY_GOTHIC_28_BOLD "FONT_KEY_GOTHIC_28_BOLD"
 
 typedef enum {
     GTextOverflowModeFill,
+    GTextOverflowModeTrailingEllipsis,
 } GTextOverflowMode;
 
 typedef enum {
@@ -106,6 +109,8 @@ typedef int32_t int32_t;
 #define RESOURCE_ID_IMAGE_ICON_MINUS_20SEC 31
 #define RESOURCE_ID_IMAGE_ICON_MINUS_5SEC 32
 #define RESOURCE_ID_IMAGE_ICON_MINUS_1SEC 33
+#define RESOURCE_ID_IMAGE_ICON_EDIT_MIN 34
+#define RESOURCE_ID_IMAGE_ICON_EDIT_SEC 35
 
 // Globals
 GSize GSizeZero = {0,0};
@@ -117,8 +122,13 @@ GRect GRectZero = {{0,0},{0,0}};
 // Note: drawing.c includes main.h and timer.h too.
 // We include them here so we can define mocks that use types from them.
 
-// Definition of timer_data
-Timer timer_data;
+// Backing storage for the timer_data macro, which expands to
+// timer_slots[timer_get_active_slot()] (see timer.h). The active slot is fixed
+// at 0 for drawing unit tests.
+Timer timer_slots[MAX_TIMERS];
+uint8_t timer_count = 0;
+uint8_t timer_get_active_slot(void) { return 0; }
+void timer_set_active_slot(uint8_t index) { (void)index; }
 
 // Include animation headers for InterpolationCurve
 #include "../src/interpolation.h"
@@ -139,13 +149,23 @@ bool main_is_last_interaction_down(void) { return mock_last_interaction_down; }
 uint64_t main_get_last_interaction_time(void) { return mock_last_interaction_time; }
 bool main_is_reverse_direction(void) { return mock_reverse_direction; }
 
-// Mocks for timer.c
-void timer_get_time_parts(uint16_t *hr, uint16_t *min, uint16_t *sec) { *hr=0; *min=0; *sec=0; }
-int64_t timer_get_value_ms(void) { return 0; }
-int64_t timer_get_length_ms(void) { return 0; }
-bool timer_is_vibrating(void) { return false; }
-bool timer_is_chrono(void) { return false; }
-bool timer_is_paused(void) { return true; }
+// Mocks for timer.c (settable so tests can drive the display)
+uint16_t mock_hr = 0, mock_min = 0, mock_sec = 0, mock_ms = 0;
+int64_t mock_value_ms = 0;
+int64_t mock_length_ms = 0;
+bool mock_is_vibrating = false;
+bool mock_is_chrono = false;
+bool mock_is_paused = true;
+
+void timer_get_time_parts(uint16_t *hr, uint16_t *min, uint16_t *sec) {
+  *hr = mock_hr; *min = mock_min; *sec = mock_sec;
+}
+uint16_t timer_get_ms_part(void) { return mock_ms; }
+int64_t timer_get_value_ms(void) { return mock_value_ms; }
+int64_t timer_get_length_ms(void) { return mock_length_ms; }
+bool timer_is_vibrating(void) { return mock_is_vibrating; }
+bool timer_is_chrono(void) { return mock_is_chrono; }
+bool timer_is_paused(void) { return mock_is_paused; }
 
 // Mocks for text_render.h
 // Note: drawing.c includes text_render.h, so we must match types.
@@ -153,7 +173,13 @@ bool timer_is_paused(void) { return true; }
 #include "../src/text_render.h"
 uint16_t text_render_get_max_font_size(char *text, GRect bounds) { return 10; }
 GRect text_render_get_content_bounds(char *text, uint16_t font_size) { return (GRect){{0,0},{10,10}}; }
-void text_render_draw_scalable_text(GContext *ctx, char *text, GRect bounds) {}
+
+// Capture the concatenated main-text fields so tests can assert the rendered string.
+char g_rendered_main_text[64];
+void text_render_draw_scalable_text(GContext *ctx, char *text, GRect bounds) {
+    strncat(g_rendered_main_text, text,
+            sizeof(g_rendered_main_text) - strlen(g_rendered_main_text) - 1);
+}
 
 // Mocks for animation.h
 // We must match signatures in animation.h
@@ -217,6 +243,22 @@ GPoint grect_center_point(const GRect *rect) { return (GPoint){0,0}; }
 GRect grect_inset(GRect rect, GEdgeInsets insets) { return rect; }
 bool clock_is_24h_style(void) { return true; }
 
+// Mocks for settings.c (icon visibility toggles; values don't affect main text)
+bool settings_get_show_increment_icons(void) { return true; }
+bool settings_get_show_direction_icon(void) { return true; }
+bool settings_get_show_quit_icon(void) { return true; }
+bool settings_get_show_to_bg_icon(void) { return true; }
+bool settings_get_show_edit_icon(void) { return true; }
+bool settings_get_show_play_pause_icon(void) { return true; }
+bool settings_get_show_details_icon(void) { return true; }
+bool settings_get_show_repeat_enable_icon(void) { return true; }
+bool settings_get_show_alarm_reset_icon(void) { return true; }
+bool settings_get_show_silence_icon(void) { return true; }
+bool settings_get_show_snooze_icon(void) { return true; }
+bool settings_get_swap_back_and_select_long(void) { return false; }
+bool settings_get_multiple_timers_enabled(void) { return false; }
+bool settings_get_voice_naming_enabled(void) { return false; }
+
 // Include source file
 #include "../src/drawing.c"
 
@@ -244,9 +286,78 @@ static void test_icon_overlap(void **state) {
     drawing_terminate();
 }
 
+// Render the main text once with the current mock state and return the
+// concatenated string that was drawn.
+static const char *render_main_text(void) {
+    g_rendered_main_text[0] = '\0';
+    draw_call_count = 0;
+    drawing_initialize((Layer*)1);
+    drawing_render((Layer*)1, (GContext*)1);
+    drawing_terminate();
+    return g_rendered_main_text;
+}
+
+// Reset all mocks to a neutral baseline before each millisecond-display test.
+static void reset_ms_mocks(void) {
+    mock_control_mode = ControlModeCounting;
+    mock_editing_existing = false;
+    mock_interaction_active = false;
+    mock_last_interaction_down = false;
+    mock_reverse_direction = false;
+    mock_hr = mock_min = mock_sec = mock_ms = 0;
+    mock_value_ms = 0;
+    mock_length_ms = 0;
+    mock_is_vibrating = false;
+    mock_is_chrono = false;
+    mock_is_paused = true;
+}
+
+// 1.1: paused chrono under one hour shows milliseconds as M:SS.mmm
+static void test_paused_chrono_under_hour_shows_ms(void **state) {
+    reset_ms_mocks();
+    mock_is_chrono = true;
+    mock_is_paused = true;
+    mock_hr = 0; mock_min = 1; mock_sec = 23; mock_ms = 456;
+    mock_value_ms = (1 * 60 + 23) * 1000 + 456;
+
+    assert_string_equal(render_main_text(), "1:23.456");
+}
+
+// 1.1: millisecond component is zero-padded to three digits
+static void test_paused_chrono_ms_zero_padded(void **state) {
+    reset_ms_mocks();
+    mock_is_chrono = true;
+    mock_is_paused = true;
+    mock_hr = 0; mock_min = 0; mock_sec = 5; mock_ms = 7;
+    mock_value_ms = 5 * 1000 + 7;
+
+    assert_string_equal(render_main_text(), "0:05.007");
+}
+
+// 1.2: paused chrono at one hour or more hides milliseconds.
+// Asserts the absence of a millisecond group (no '.') so it holds both before
+// and after implementation. (The seconds field itself may be power-degraded by
+// REDUCE_SCREEN_UPDATES for large values; that is orthogonal to the ms gate.)
+static void test_paused_chrono_over_hour_hides_ms(void **state) {
+    reset_ms_mocks();
+    mock_is_chrono = true;
+    mock_is_paused = true;
+    mock_hr = 1; mock_min = 2; mock_sec = 3; mock_ms = 456;
+    mock_value_ms = (1 * 3600 + 2 * 60 + 3) * 1000 + 456;
+
+    const char *rendered = render_main_text();
+    // Hours portion is present...
+    assert_non_null(strstr(rendered, "1:02:"));
+    // ...but no millisecond group is shown.
+    assert_null(strchr(rendered, '.'));
+}
+
 int main(void) {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_icon_overlap),
+        cmocka_unit_test(test_paused_chrono_under_hour_shows_ms),
+        cmocka_unit_test(test_paused_chrono_ms_zero_padded),
+        cmocka_unit_test(test_paused_chrono_over_hour_hides_ms),
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
