@@ -37,7 +37,8 @@
 #define MAIN_TEXT_BOUNDS_EDIT GRect(-MAIN_TEXT_CIRCLE_RADIUS_EDIT, \
  -MAIN_TEXT_CIRCLE_RADIUS_EDIT / 2, MAIN_TEXT_CIRCLE_RADIUS_EDIT * 2, MAIN_TEXT_CIRCLE_RADIUS_EDIT)
 // Main Text
-#define TEXT_FIELD_COUNT 6
+// Fields: [0]=edit-prefix, [1]=hr, [2]=':', [3]=min, [4]=':', [5]=sec, [6]=ms
+#define TEXT_FIELD_COUNT 7
 #define TEXT_FIELD_EDIT_SPACING 7
 #define TEXT_FIELD_ANI_DURATION 140
 // Focus Layer
@@ -59,6 +60,7 @@ typedef struct {
   ControlMode   control_mode;   //< The timer control mode at that state
   uint8_t       hr_digits;      //< The number of digits used by the hours
   uint8_t       min_digits;     //< The number of digits used by the minutes
+  bool          show_ms;        //< Whether the millisecond field is shown (paused chrono < 1h)
 } DrawState;
 
 // Main data
@@ -210,6 +212,42 @@ static void prv_render_footer_text(GContext *ctx, GRect bounds) {
 // Main Text
 //
 
+// Returns true if the paused-stopwatch millisecond display applies: chrono mode,
+// paused, and under one hour (hr == 0) so the on-screen digit count stays small.
+static bool prv_show_ms(uint16_t hr) {
+  return timer_is_chrono() && timer_is_paused() && hr == 0;
+}
+
+// Populate the seconds field (buff_sec) and millisecond field (buff_ms).
+// When the millisecond display applies, seconds are shown at full precision
+// (bypassing the REDUCE_SCREEN_UPDATES power degradation) and the ms field holds
+// ".mmm"; otherwise the ms field is empty and the seconds field follows the
+// normal (possibly power-degraded) logic so the running display is unchanged.
+static void prv_format_sec_ms_fields(char *buff_sec, size_t sec_n,
+                                     char *buff_ms, size_t ms_n,
+                                     uint16_t hr, uint16_t sec) {
+  if (prv_show_ms(hr)) {
+    snprintf(buff_sec, sec_n, "%02d", sec);
+    snprintf(buff_ms, ms_n, ".%03d", timer_get_ms_part());
+    return;
+  }
+  buff_ms[0] = '\0';
+#if REDUCE_SCREEN_UPDATES
+  int64_t val = timer_get_value_ms();
+  if (main_is_interaction_active() || main_is_last_interaction_down()) {
+     snprintf(buff_sec, sec_n, "%02d", sec);
+  } else if (val > 5 * MSEC_IN_MIN) {
+     snprintf(buff_sec, sec_n, "__");
+  } else if (val >= 30 * MSEC_IN_SEC) {
+     snprintf(buff_sec, sec_n, "%d_", sec / 10);
+  } else {
+     snprintf(buff_sec, sec_n, "%02d", sec);
+  }
+#else
+  snprintf(buff_sec, sec_n, "%02d", sec);
+#endif
+}
+
 // Update main text drawing state
 static void prv_main_text_update_state(Layer *layer) {
   // get properties
@@ -218,7 +256,7 @@ static void prv_main_text_update_state(Layer *layer) {
   uint16_t hr, min, sec;
   timer_get_time_parts(&hr, &min, &sec);
   // convert to strings
-  char buff[TEXT_FIELD_COUNT][4] = {{'\0'}};
+  char buff[TEXT_FIELD_COUNT][8] = {{'\0'}};
   if (main_get_control_mode() == ControlModeNew || main_get_control_mode() == ControlModeEditSec) {
     snprintf(buff[0], sizeof(buff[0]), "-");
   }
@@ -228,30 +266,21 @@ static void prv_main_text_update_state(Layer *layer) {
   snprintf(buff[2], sizeof(buff[2]), "%s", hr ? ":" : "\0");
   snprintf(buff[3], sizeof(buff[3]), hr ? "%02d" : "%d", min);
   snprintf(buff[4], sizeof(buff[4]), ":");
+  prv_format_sec_ms_fields(buff[5], sizeof(buff[5]), buff[6], sizeof(buff[6]), hr, sec);
 
-#if REDUCE_SCREEN_UPDATES
-  int64_t val = timer_get_value_ms();
-  if (main_is_interaction_active() || main_is_last_interaction_down()) {
-     snprintf(buff[5], sizeof(buff[5]), "%02d", sec);
-  } else if (val > 5 * MSEC_IN_MIN) {
-     snprintf(buff[5], sizeof(buff[5]), "__");
-  } else if (val >= 30 * MSEC_IN_SEC) {
-     snprintf(buff[5], sizeof(buff[5]), "%d_", sec / 10);
-  } else {
-     snprintf(buff[5], sizeof(buff[5]), "%02d", sec);
-  }
-#else
-  snprintf(buff[5], sizeof(buff[5]), "%02d", sec);
-#endif
-
-  // APP_LOG(APP_LOG_LEVEL_DEBUG, "Render Mode: %d | Buffers: [%s][%s][%s][%s][%s][%s] (prv_main_text_update_state)",
+  // APP_LOG(APP_LOG_LEVEL_DEBUG, "Render Mode: %d | Buffers: [%s][%s][%s][%s][%s][%s][%s] (prv_main_text_update_state)",
   //         main_get_control_mode(),
-  //         buff[0], buff[1], buff[2], buff[3], buff[4], buff[5]);
+  //         buff[0], buff[1], buff[2], buff[3], buff[4], buff[5], buff[6]);
 
   // calculate new sizes for all text elements
-  char tot_buff[32];
-  snprintf(tot_buff, sizeof(tot_buff), "%s%s%s%s%s%s", buff[0], buff[1], buff[2], buff[3], buff[4], buff[5]);
-  
+  char tot_buff[40];
+  snprintf(tot_buff, sizeof(tot_buff), "%s%s%s%s%s%s%s", buff[0], buff[1], buff[2], buff[3], buff[4], buff[5], buff[6]);
+
+  // Emit the rendered main-text string for functional tests. This runs only when
+  // the draw state actually changes (see prv_update_draw_state), so it does not
+  // flood the log channel the way the per-frame render path would.
+  TEST_LOG(APP_LOG_LEVEL_DEBUG, "TEST_STATE:display,disp=%s", tot_buff);
+
   // APP_LOG(APP_LOG_LEVEL_DEBUG, "tot_buff: %s (prv_main_text_update_state)", tot_buff);
 
   uint16_t font_size = text_render_get_max_font_size(tot_buff, MAIN_TEXT_BOUNDS);
@@ -287,7 +316,7 @@ static void prv_render_main_text(GContext *ctx, GRect bounds) {
   uint16_t hr, min, sec;
   timer_get_time_parts(&hr, &min, &sec);
   // convert to strings
-  char buff[TEXT_FIELD_COUNT][4] = {{'\0'}};
+  char buff[TEXT_FIELD_COUNT][8] = {{'\0'}};
   if ((main_get_control_mode() == ControlModeNew || main_get_control_mode() == ControlModeEditSec) && timer_data.length_ms == 0) {
     snprintf(buff[0], sizeof(buff[0]), "-");
   }
@@ -297,25 +326,11 @@ static void prv_render_main_text(GContext *ctx, GRect bounds) {
   snprintf(buff[2], sizeof(buff[2]), "%s", hr ? ":" : "\0");
   snprintf(buff[3], sizeof(buff[3]), hr ? "%02d" : "%d", min);
   snprintf(buff[4], sizeof(buff[4]), ":");
+  prv_format_sec_ms_fields(buff[5], sizeof(buff[5]), buff[6], sizeof(buff[6]), hr, sec);
 
-#if REDUCE_SCREEN_UPDATES
-  int64_t val = timer_get_value_ms();
-  if (main_is_interaction_active() || main_is_last_interaction_down()) {
-     snprintf(buff[5], sizeof(buff[5]), "%02d", sec);
-  } else if (val > 5 * MSEC_IN_MIN) {
-     snprintf(buff[5], sizeof(buff[5]), "__");
-  } else if (val >= 30 * MSEC_IN_SEC) {
-     snprintf(buff[5], sizeof(buff[5]), "%d_", sec / 10);
-  } else {
-     snprintf(buff[5], sizeof(buff[5]), "%02d", sec);
-  }
-#else
-  snprintf(buff[5], sizeof(buff[5]), "%02d", sec);
-#endif
-
-  // APP_LOG(APP_LOG_LEVEL_DEBUG, "Render Mode: %d | Buffers: [%s][%s][%s][%s][%s][%s]",
+  // APP_LOG(APP_LOG_LEVEL_DEBUG, "Render Mode: %d | Buffers: [%s][%s][%s][%s][%s][%s][%s]",
   //         main_get_control_mode(),
-  //         buff[0], buff[1], buff[2], buff[3], buff[4], buff[5]);
+  //         buff[0], buff[1], buff[2], buff[3], buff[4], buff[5], buff[6]);
 
   // draw the main text elements in their respective bounds
   for (uint8_t ii = 0; ii < TEXT_FIELD_COUNT; ii++) {
@@ -390,7 +405,8 @@ static bool prv_text_state_compare(DrawState text_state_1, DrawState text_state_
   return text_state_1.control_mode == text_state_2.control_mode && // if control modes are different
           (text_state_1.control_mode == ControlModeCounting &&     // if in counting mode
            text_state_1.hr_digits == text_state_2.hr_digits &&
-           text_state_1.min_digits == text_state_2.min_digits) &&
+           text_state_1.min_digits == text_state_2.min_digits &&
+           text_state_1.show_ms == text_state_2.show_ms) &&        // ms field appearing/disappearing forces re-layout
           text_state_2.hr_digits < 3; // on first start hr is set to 99 to force refresh
 }
 
@@ -403,6 +419,7 @@ static DrawState prv_draw_state_create(void) {
     .control_mode = main_get_control_mode(),
     .hr_digits = (uint8_t)(hr > 0) + (uint8_t)(hr > 9) + (uint8_t)(hr > 99),
     .min_digits = (uint8_t)(min > 0) + (uint8_t)(min > 9),
+    .show_ms = prv_show_ms(hr),
   };
 }
 
@@ -738,7 +755,10 @@ void drawing_render(Layer *layer, GContext *ctx) {
 #else
       GRect repeat_bounds = GRect(bounds.size.w - 50, 0, 50, 30);
 #endif
-      graphics_context_set_text_color(ctx, GColorWhite);
+      // Draw the repeat counter in black to match the other (black) icons on
+      // color displays. On black-and-white displays the corner background is
+      // dark, so keep it white there to stay visible.
+      graphics_context_set_text_color(ctx, PBL_IF_COLOR_ELSE(GColorBlack, GColorWhite));
       graphics_draw_text(ctx, s_repeat_buffer, fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD),
         repeat_bounds, GTextOverflowModeFill, GTextAlignmentRight, NULL);
       graphics_context_set_text_color(ctx, drawing_data.fore_color);

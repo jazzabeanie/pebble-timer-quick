@@ -182,6 +182,8 @@ Timers with only seconds (no minutes) stay paused after edit mode expires, rathe
 
 Chrono mode is a variant of Counting mode where the timer counts up from 0:00 instead of counting down.
 
+**Display format — paused milliseconds:** When a stopwatch is **paused** and its elapsed time is **under one hour**, the main display shows milliseconds (e.g. `1:23.456`). Milliseconds are hidden while running, hidden at one hour or more (the display keeps `H:MM:SS`), and never shown for countdown timers. This is a display-only behavior and does not change any button function.
+
 | Test | Description |
 |------|-------------|
 | `test_create_timer.py::TestChronoMode::test_chrono_mode_counts_up` | Stopwatch counts up when no timer is set |
@@ -190,6 +192,13 @@ Chrono mode is a variant of Counting mode where the timer counts up from 0:00 in
 | `test_stopwatch_subtraction.py::test_chrono_subtraction_multiple_minutes` | Subtracting 3 minutes from chrono |
 | `test_stopwatch_subtraction.py::test_chrono_add_then_subtract` | Add time then toggle direction and subtract |
 | `test_reverse_chrono_and_edit_pause.py::TestReverseChrono::test_reverse_direction_creates_chrono` | Reverse direction chrono runs without spurious vibration |
+| `test_stopwatch_milliseconds.py::TestStopwatchMilliseconds::test_paused_stopwatch_under_hour_shows_ms` | Paused stopwatch under 1h shows milliseconds |
+| `test_stopwatch_milliseconds.py::TestStopwatchMilliseconds::test_running_stopwatch_hides_ms` | Running stopwatch shows no milliseconds |
+| `test_stopwatch_milliseconds.py::TestStopwatchMilliseconds::test_paused_countdown_hides_ms` | Paused countdown shows no milliseconds |
+| `test_stopwatch_milliseconds.py::TestStopwatchMilliseconds::test_running_countdown_hides_ms` | Running countdown shows no milliseconds |
+| `test/test_drawing.c::test_paused_chrono_under_hour_shows_ms` | Unit: paused chrono renders `M:SS.mmm` |
+| `test/test_drawing.c::test_paused_chrono_ms_zero_padded` | Unit: millisecond field is zero-padded (`.007`) |
+| `test/test_drawing.c::test_paused_chrono_over_hour_hides_ms` | Unit: paused chrono ≥ 1h hides milliseconds |
 
 ---
 
@@ -277,6 +286,10 @@ These tests verify the correct icons are displayed beside each button in each mo
 ---
 
 ## Repeat Counter Visibility Tests
+
+The repeat counter (e.g. `6x`) is drawn in **black** on color displays to match
+the other (black) button icons, and **white** on black-and-white displays where
+the corner background is dark. Color test: `test/test_drawing.c::test_repeat_counter_drawn_black`.
 
 | Test | Description |
 |------|-------------|

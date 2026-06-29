@@ -65,6 +65,11 @@ void timer_get_time_parts(uint16_t *hr, uint16_t *min, uint16_t *sec) {
   (*sec) = value % MSEC_IN_MIN / MSEC_IN_SEC;
 }
 
+// Get the millisecond component (0-999) of the current timer value
+uint16_t timer_get_ms_part(void) {
+  return (uint16_t)(timer_get_value_ms() % MSEC_IN_SEC);
+}
+
 // Get the timer time in milliseconds assuming the following conditions
 // 1. when the timer is running, start_ms represents the epoch when it was started
 // 2. when it is paused, start_ms represents the time is has been running (elapsed)
