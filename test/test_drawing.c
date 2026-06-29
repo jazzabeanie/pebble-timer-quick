@@ -190,7 +190,18 @@ void animation_register_update_callback(void *callback) {}
 void animation_stop_all(void) {}
 
 // Mocks for Pebble Graphics
-void graphics_draw_text(GContext *ctx, const char *text, GFont const *font, GRect box, GTextOverflowMode overflow_mode, GTextAlignment alignment, void *layout) {}
+// Track the current text color and capture the color used for the repeat
+// counter (text formatted as "<n>x", e.g. "6x").
+GColor g_current_text_color;
+GColor g_repeat_text_color;
+bool g_repeat_drawn = false;
+void graphics_draw_text(GContext *ctx, const char *text, GFont const *font, GRect box, GTextOverflowMode overflow_mode, GTextAlignment alignment, void *layout) {
+    size_t len = text ? strlen(text) : 0;
+    if (len >= 2 && text[len - 1] == 'x') {
+        g_repeat_drawn = true;
+        g_repeat_text_color = g_current_text_color;
+    }
+}
 GFont *fonts_get_system_font(const char *font_key) { return NULL; }
 void graphics_context_set_fill_color(GContext *ctx, GColor color) {}
 void graphics_fill_radial(GContext *ctx, GRect rect, GOvalScaleMode mode, uint16_t inset_thickness, int32_t angle_start, int32_t angle_end) {}
@@ -198,7 +209,7 @@ void graphics_fill_rect(GContext *ctx, GRect rect, uint16_t corner_radius, GCorn
 void graphics_fill_rect_grey(GContext *ctx, GRect rect) {}
 void graphics_fill_circle(GContext *ctx, GPoint p, uint16_t radius) {}
 void graphics_context_set_stroke_color(GContext *ctx, GColor color) {}
-void graphics_context_set_text_color(GContext *ctx, GColor color) {}
+void graphics_context_set_text_color(GContext *ctx, GColor color) { g_current_text_color = color; }
 void graphics_context_set_compositing_mode(GContext *ctx, GCompOp mode) {}
 GRect layer_get_bounds(Layer *layer) { return (GRect){{0,0},{144,168}}; }
 void layer_mark_dirty(Layer *layer) {}
@@ -352,12 +363,32 @@ static void test_paused_chrono_over_hour_hides_ms(void **state) {
     assert_null(strchr(rendered, '.'));
 }
 
+// The repeat counter ("<n>x") must be drawn in black to match the other
+// (black) icons on color displays (PBL_IF_COLOR_ELSE resolves to the color
+// branch in this unit build).
+static void test_repeat_counter_drawn_black(void **state) {
+    reset_ms_mocks();
+    mock_control_mode = ControlModeCounting;
+    mock_is_chrono = false;
+    timer_slots[0].is_repeating = true;
+    timer_slots[0].repeat_count = 6;  // > 1 so the counter is shown
+
+    g_repeat_drawn = false;
+    drawing_initialize((Layer*)1);
+    drawing_render((Layer*)1, (GContext*)1);
+    drawing_terminate();
+
+    assert_true(g_repeat_drawn);
+    assert_int_equal(g_repeat_text_color, GColorBlack);
+}
+
 int main(void) {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_icon_overlap),
         cmocka_unit_test(test_paused_chrono_under_hour_shows_ms),
         cmocka_unit_test(test_paused_chrono_ms_zero_padded),
         cmocka_unit_test(test_paused_chrono_over_hour_hides_ms),
+        cmocka_unit_test(test_repeat_counter_drawn_black),
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }

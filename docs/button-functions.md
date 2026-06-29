@@ -287,6 +287,10 @@ These tests verify the correct icons are displayed beside each button in each mo
 
 ## Repeat Counter Visibility Tests
 
+The repeat counter (e.g. `6x`) is drawn in **black** on color displays to match
+the other (black) button icons, and **white** on black-and-white displays where
+the corner background is dark. Color test: `test/test_drawing.c::test_repeat_counter_drawn_black`.
+
 | Test | Description |
 |------|-------------|
 | `test_repeat_counter_visibility.py::TestRepeatCounterVisibility::test_editrepeat_shows_repeat_counter` | Counter visible in EditRepeat |

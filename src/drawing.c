@@ -755,7 +755,10 @@ void drawing_render(Layer *layer, GContext *ctx) {
 #else
       GRect repeat_bounds = GRect(bounds.size.w - 50, 0, 50, 30);
 #endif
-      graphics_context_set_text_color(ctx, GColorWhite);
+      // Draw the repeat counter in black to match the other (black) icons on
+      // color displays. On black-and-white displays the corner background is
+      // dark, so keep it white there to stay visible.
+      graphics_context_set_text_color(ctx, PBL_IF_COLOR_ELSE(GColorBlack, GColorWhite));
       graphics_draw_text(ctx, s_repeat_buffer, fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD),
         repeat_bounds, GTextOverflowModeFill, GTextAlignmentRight, NULL);
       graphics_context_set_text_color(ctx, drawing_data.fore_color);
