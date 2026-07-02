@@ -1,7 +1,7 @@
 #include <pebble.h>
 #include "settings.h"
 
-#define PERSIST_SETTINGS_VERSION 4
+#define PERSIST_SETTINGS_VERSION 5
 #define PERSIST_SETTINGS_VERSION_KEY 4342897
 #define PERSIST_SETTINGS_KEY 58737
 
@@ -22,6 +22,7 @@
 #define APPMSG_KEY_SWAP_BACK_AND_SELECT_LONG 12
 #define APPMSG_KEY_MULTIPLE_TIMERS_ENABLED   13
 #define APPMSG_KEY_VOICE_NAMING_ENABLED      14
+#define APPMSG_KEY_LAP_STOPWATCH_ENABLED     15
 
 typedef struct {
   bool show_increment_icons;
@@ -38,6 +39,7 @@ typedef struct {
   bool swap_back_and_select_long;
   bool multiple_timers_enabled;
   bool voice_naming_enabled;
+  bool lap_stopwatch_enabled;
 } AppSettings;
 
 static AppSettings s_settings;
@@ -86,6 +88,7 @@ static void prv_inbox_received(DictionaryIterator *iterator, void *context) {
   HANDLE(APPMSG_KEY_SWAP_BACK_AND_SELECT_LONG, swap_back_and_select_long)
   HANDLE(APPMSG_KEY_MULTIPLE_TIMERS_ENABLED,   multiple_timers_enabled)
   HANDLE(APPMSG_KEY_VOICE_NAMING_ENABLED,      voice_naming_enabled)
+  HANDLE(APPMSG_KEY_LAP_STOPWATCH_ENABLED,     lap_stopwatch_enabled)
 
   #undef HANDLE
 
@@ -109,6 +112,7 @@ bool settings_get_show_snooze_icon(void)        { return s_settings.show_snooze_
 bool settings_get_swap_back_and_select_long(void) { return s_settings.swap_back_and_select_long; }
 bool settings_get_multiple_timers_enabled(void)   { return s_settings.multiple_timers_enabled; }
 bool settings_get_voice_naming_enabled(void)      { return s_settings.voice_naming_enabled; }
+bool settings_get_lap_stopwatch_enabled(void)     { return s_settings.lap_stopwatch_enabled; }
 
 void settings_save(void) {
   persist_write_int(PERSIST_SETTINGS_VERSION_KEY, PERSIST_SETTINGS_VERSION);
@@ -132,6 +136,7 @@ void settings_init(SettingsChangeCallback on_change) {
     .swap_back_and_select_long = false,
     .multiple_timers_enabled   = true,
     .voice_naming_enabled      = false,
+    .lap_stopwatch_enabled     = false,
   };
   if (persist_read_int(PERSIST_SETTINGS_VERSION_KEY) == PERSIST_SETTINGS_VERSION &&
       persist_exists(PERSIST_SETTINGS_KEY)) {

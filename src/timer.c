@@ -13,7 +13,7 @@
 #include "mnemonic.h"
 #include <time.h>
 
-#define PERSIST_VERSION 7
+#define PERSIST_VERSION 8
 #define PERSIST_VERSION_KEY 4342896
 // Legacy keys kept for cleanup only
 #define PERSIST_TIMER_KEY_V2_DATA 58734
@@ -57,17 +57,19 @@ void timer_set_active_slot(uint8_t index) {
 // API Functions
 //
 
-// Get timer value divided into time parts
+// Get the displayed (split) value divided into time parts. The split equals
+// the timer value whenever no lap has been recorded, so this is unchanged for
+// countdown timers and un-lapped stopwatches.
 void timer_get_time_parts(uint16_t *hr, uint16_t *min, uint16_t *sec) {
-  int64_t value = timer_get_value_ms();
+  int64_t value = timer_get_split_ms();
   (*hr) = value / MSEC_IN_HR;
   (*min) = value % MSEC_IN_HR / MSEC_IN_MIN;
   (*sec) = value % MSEC_IN_MIN / MSEC_IN_SEC;
 }
 
-// Get the millisecond component (0-999) of the current timer value
+// Get the millisecond component (0-999) of the displayed (split) value
 uint16_t timer_get_ms_part(void) {
-  return (uint16_t)(timer_get_value_ms() % MSEC_IN_SEC);
+  return (uint16_t)(timer_get_split_ms() % MSEC_IN_SEC);
 }
 
 // Get the timer time in milliseconds assuming the following conditions
@@ -93,6 +95,17 @@ int64_t timer_get_value_ms(void) {
     return -raw_value;
   }
   return raw_value;
+}
+
+// Get the current split in milliseconds: value since the most recent lap.
+// last_lap_ms is 0 unless a lap has been recorded, so this equals the timer
+// value for every timer without laps.
+int64_t timer_get_split_ms(void) {
+#if LAP_FEATURE
+  return timer_get_value_ms() - timer_data.last_lap_ms;
+#else
+  return timer_get_value_ms();
+#endif
 }
 
 // Get the total timer time in milliseconds
@@ -221,6 +234,9 @@ void timer_toggle_play_pause(void) {
 //! Rewind the timer back to its original value
 void timer_rewind(void) {
   timer_data.start_ms = 0;
+#if LAP_FEATURE
+  timer_data.last_lap_ms = 0;
+#endif
   timer_data.is_paused = true;
   // enable vibration
   if (timer_data.length_ms) {
@@ -259,6 +275,12 @@ void timer_restart(void) {
     timer_data.repeat_count = timer_data.base_repeat_count;
   }
 
+#if LAP_FEATURE
+  // The split restarts with the timer (lap numbering is reset separately, only
+  // when the Lap Stopwatch feature handles the restart)
+  timer_data.last_lap_ms = 0;
+#endif
+
   timer_data.auto_snooze_count = 0;
   timer_data.elapsed = false;
 }
@@ -268,6 +290,10 @@ void timer_reset(void) {
   timer_data.length_ms = 0;
   timer_data.base_length_ms = 0;
   timer_data.start_ms = 0;
+#if LAP_FEATURE
+  timer_data.last_lap_ms = 0;
+  timer_data.lap_count = 0;
+#endif
   timer_data.is_paused = true;
   // disable vibration
   timer_data.can_vibrate = false;
@@ -366,14 +392,16 @@ void timer_assign_name(uint8_t new_idx) {
     if (suffix == 1) {
       snprintf(timer_slots[new_idx].name, sizeof(timer_slots[new_idx].name), "%s", base);
     } else {
-      // suffix is bounded by MAX_TIMERS (5) — always a single digit.
-      int len = snprintf(timer_slots[new_idx].name,
-                         sizeof(timer_slots[new_idx].name) - 2, "%s", base);
-      timer_slots[new_idx].name[len]     = ' ';
-      timer_slots[new_idx].name[len + 1] = '0' + (char)suffix;
-      timer_slots[new_idx].name[len + 2] = '\0';
+      // suffix can exceed a single digit with MAX_TIMERS slots
+      snprintf(timer_slots[new_idx].name, sizeof(timer_slots[new_idx].name),
+               "%s %d", base, suffix);
     }
-    for (uint8_t i = 0; i < new_idx; i++) {
+    // Compare against every other slot (not just lower indices) so reassigning
+    // a name to an existing slot also avoids collisions with later slots.
+    for (uint8_t i = 0; i < timer_count; i++) {
+      if (i == new_idx) {
+        continue;
+      }
       if (strncmp(timer_slots[i].name, timer_slots[new_idx].name,
                   sizeof(timer_slots[new_idx].name)) == 0) {
         collision = true;
@@ -397,7 +425,7 @@ void timer_set_name(uint8_t idx, const char *name) {
   if (idx >= MAX_TIMERS || name == NULL) {
     return;
   }
-  // Max usable characters (name buffer is [20]: 19 chars + null terminator)
+  // Max usable characters (buffer size minus the null terminator)
   const size_t max_chars = sizeof(timer_slots[idx].name) - 1;
 
   // Trim leading non-alphanumeric characters (whitespace, punctuation, symbols)
@@ -493,6 +521,44 @@ static int64_t prv_slot_elapsed_ms(const Timer *t) {
 static bool prv_slot_is_chrono(const Timer *t) {
   return t->length_ms - prv_slot_elapsed_ms(t) <= 0;
 }
+
+#if LAP_FEATURE
+// Record a lap: copy the source into a free slot as a paused snapshot frozen at
+// the source's current value, then advance the source's lap boundary
+int8_t timer_slot_lap(uint8_t src_idx) {
+  if (src_idx >= timer_count || timer_count >= MAX_TIMERS) {
+    return -1;
+  }
+  uint8_t idx = timer_count;
+  timer_count++;
+  Timer *src = &timer_slots[src_idx];
+  int64_t snapshot_ms = prv_slot_elapsed_ms(src);
+  Timer *copy = &timer_slots[idx];
+  *copy = *src;
+  // Paused slot stores its elapsed time in start_ms, freezing the value at the
+  // snapshot. last_lap_ms is carried from the source (the previous lap's
+  // cumulative), so the copy displays this lap's split and cumulative.
+  copy->is_paused = true;
+  copy->start_ms = snapshot_ms;
+  copy->can_vibrate = false;
+  copy->elapsed = false;
+  // "Lap [n]: <src name>": snprintf trims the END of the source name when the
+  // prefix would overflow the buffer, keeping the prefix intact. Built in a
+  // local buffer because source and destination both live in timer_slots.
+  uint8_t n = src->lap_count + 1;
+  char lap_name[sizeof(copy->name)];
+  snprintf(lap_name, sizeof(lap_name), "Lap %u: %s", (unsigned)n, src->name);
+  memcpy(copy->name, lap_name, sizeof(copy->name));
+  // The source keeps running; its split restarts from this lap. The split
+  // model only applies to stopwatches: a countdown source keeps last_lap_ms
+  // at 0 so its displayed value (value - last_lap_ms) is unaffected.
+  if (src->length_ms - snapshot_ms <= 0) {
+    src->last_lap_ms = snapshot_ms;
+  }
+  src->lap_count = n;
+  return (int8_t)idx;
+}
+#endif  // LAP_FEATURE
 
 // Fill out_indices with slot indices sorted by expiry
 void timer_get_sorted_slots(uint8_t *out_indices, uint8_t *out_count) {

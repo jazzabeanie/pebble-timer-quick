@@ -850,24 +850,24 @@ static void test_timer_set_name_word_boundary(void **state) {
     timer_set_active_slot(0);
     memset(&timer_slots[0], 0, sizeof(Timer));
 
-    // "slow roasted chicken thighs" (27 chars) exceeds the 19-char field.
-    // Largest whole-word prefix that fits in 19 chars is "slow roasted" (12 chars).
-    timer_set_name(0, "slow roasted chicken thighs");
+    // 47 chars exceeds the 39-char field. Largest whole-word prefix that fits
+    // in 39 chars is "slow roasted chicken thighs with lemon" (38 chars).
+    timer_set_name(0, "slow roasted chicken thighs with lemon and thyme");
 
-    assert_string_equal(timer_slots[0].name, "slow roasted");
+    assert_string_equal(timer_slots[0].name, "slow roasted chicken thighs with lemon");
 }
 
 // 28. test_timer_set_name_hard_truncate (spec 5.2)
-// Purpose: Verify a single token longer than 19 chars is hard-truncated to 19 chars.
+// Purpose: Verify a single token longer than the field is hard-truncated to fit.
 static void test_timer_set_name_hard_truncate(void **state) {
     timer_set_active_slot(0);
     memset(&timer_slots[0], 0, sizeof(Timer));
 
-    // 20 characters, no spaces -> first 19 chars kept.
-    timer_set_name(0, "superlongwordexample");
+    // 40 characters, no spaces -> first 39 chars kept.
+    timer_set_name(0, "superlongwordexamplesuperlongwordexample");
 
-    assert_string_equal(timer_slots[0].name, "superlongwordexampl");
-    assert_int_equal((int)strlen(timer_slots[0].name), 19);
+    assert_string_equal(timer_slots[0].name, "superlongwordexamplesuperlongwordexampl");
+    assert_int_equal((int)strlen(timer_slots[0].name), 39);
 }
 
 // 29. test_timer_set_name_trims_and_preserves (spec 5.3 / 5.4)

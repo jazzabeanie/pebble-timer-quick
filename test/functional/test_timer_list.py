@@ -322,3 +322,207 @@ class TestTimerList:
             assert mode in ("New", "Counting"), (
                 f"Expected New or Counting mode on fresh start, got '{mode}'"
             )
+
+
+####################################################################################################
+# Delete all row, scrolling, and post-delete selection (openspec: add-stopwatch-laps)
+#
+# These behaviors are compiled out on aplite together with the lap feature
+# (24KB app region), so the tests skip that platform.
+
+import time as _time
+
+# AppMessage key for the lap_stopwatch_enabled setting (see src/settings.c)
+APPMSG_KEY_LAP_STOPWATCH_ENABLED = 15
+
+
+def _skip_if_no_lap_feature(emulator):
+    if emulator.platform == "aplite":
+        pytest.skip("Delete all / lap feature is compiled out on aplite (RAM)")
+
+
+def _create_second_timer(emulator, platform):
+    """With one persisted timer, relaunch shows the Timer List; select the
+    "New Timer" row and let it persist, leaving two timers stored."""
+    capture = LogCapture(platform)
+    capture.start()
+    emulator.open_app_via_menu()
+    show = capture.wait_for_state(event="timer_list_show", timeout=10.0)
+    assert show is not None, "Timer List did not appear while creating 2nd timer"
+    emulator.press_select()  # row 0 = New Timer -> main window, New mode
+    assert capture.wait_for_state(event="timer_list_select_new", timeout=5.0) is not None
+    capture.stop()
+    emulator.press_select()  # +5 minutes
+    time.sleep(3.5)          # expire to Counting
+    emulator.press_back()    # exit, persist both timers
+    time.sleep(0.5)
+
+
+def _relaunch_to_list(emulator, platform, expected_count=None):
+    capture = LogCapture(platform)
+    capture.start()
+    emulator.open_app_via_menu()
+    show = capture.wait_for_state(event="timer_list_show", timeout=10.0)
+    assert show is not None, "Timer List did not appear"
+    if expected_count is not None:
+        assert int(show.get("list_count", -1)) == expected_count, (
+            f"Unexpected row count: {show}"
+        )
+    return capture, show
+
+
+def _hold_down(emulator):
+    emulator.hold_button(Button.DOWN)
+    time.sleep(1.0)
+    emulator.release_buttons()
+    time.sleep(0.5)
+
+
+class TestDeleteAllRow:
+    """The pinned "Delete all" bottom row and its behaviors."""
+
+    def test_select_shows_hint_and_deletes_nothing(self, emulator):
+        _skip_if_no_lap_feature(emulator)
+        platform = emulator.platform
+        _create_timer_and_background(emulator, platform)
+
+        # Rows: 0 = New Timer, 1 = timer, 2 = Delete all
+        capture, _ = _relaunch_to_list(emulator, platform, expected_count=3)
+        emulator.press_down()
+        emulator.press_down()
+        emulator.press_select()
+        hint = capture.wait_for_state(event="timer_list_delete_all_hint", timeout=5.0)
+        assert hint is not None, "Select on Delete all did not show the hint"
+        events = [s["event"] for s in capture.get_state_logs()]
+        capture.stop()
+        assert "timer_list_delete" not in events, "Select on Delete all deleted a timer"
+        assert "timer_list_delete_all" not in events, "Select on Delete all cleared timers"
+
+        # Nothing was deleted: exiting and relaunching still shows the timer.
+        # Back persists the implicit new-timer slot, so the next launch shows
+        # one extra timer row (New Timer + 2 timers + Delete all).
+        emulator.press_back()
+        time.sleep(1.0)
+        capture2, _ = _relaunch_to_list(emulator, platform, expected_count=4)
+        capture2.stop()
+
+    def test_hold_down_clears_all_and_exits(self, emulator):
+        _skip_if_no_lap_feature(emulator)
+        platform = emulator.platform
+        _create_timer_and_background(emulator, platform)
+
+        capture, _ = _relaunch_to_list(emulator, platform, expected_count=3)
+        emulator.press_down()
+        emulator.press_down()
+        _hold_down(emulator)
+        cleared = capture.wait_for_state(event="timer_list_delete_all", timeout=5.0)
+        capture.stop()
+        assert cleared is not None, "Hold Down on Delete all did not clear timers"
+
+        # All timers gone: a fresh launch starts in the main window (no list).
+        # Read the queue non-destructively so one check cannot consume the
+        # other's event.
+        capture2 = LogCapture(platform)
+        capture2.start()
+        emulator.open_app_via_menu()
+        _time.sleep(3.0)
+        events = [s["event"] for s in capture2.get_state_logs()]
+        capture2.stop()
+        assert "timer_list_show" not in events, (
+            f"Timer List appeared although all timers were deleted: {events}"
+        )
+        assert "init" in events, (
+            f"App did not restart cleanly after Delete all: {events}"
+        )
+
+
+class TestPostDeleteSelection:
+    """Deleting an entry selects the previous timer (never Delete all)."""
+
+    def test_delete_selects_previous_then_new_timer(self, emulator):
+        _skip_if_no_lap_feature(emulator)
+        platform = emulator.platform
+        _create_timer_and_background(emulator, platform)
+        _create_second_timer(emulator, platform)
+
+        # Rows: 0 = New Timer, 1 = timer A, 2 = timer B, 3 = Delete all
+        capture, _ = _relaunch_to_list(emulator, platform, expected_count=4)
+
+        # Delete the bottom timer (row 2): the previous timer (row 1) is selected
+        emulator.press_down()
+        emulator.press_down()
+        _hold_down(emulator)
+        deleted = capture.wait_for_state(event="timer_list_delete", timeout=5.0)
+        assert deleted is not None, "First delete did not fire"
+        assert int(deleted.get("sel", -1)) == 1, (
+            f"Expected previous timer (row 1) selected: {deleted}"
+        )
+        assert int(deleted.get("list_count", -1)) == 3, deleted
+
+        # Delete the only remaining timer: the New Timer row is selected
+        _hold_down(emulator)
+        deleted2 = capture.wait_for_state(event="timer_list_delete", timeout=5.0)
+        capture.stop()
+        assert deleted2 is not None, "Second delete did not fire"
+        assert int(deleted2.get("sel", -1)) == 0, (
+            f"Expected New Timer row selected after deleting the last timer: {deleted2}"
+        )
+
+    def test_delete_topmost_keeps_position(self, emulator):
+        _skip_if_no_lap_feature(emulator)
+        platform = emulator.platform
+        _create_timer_and_background(emulator, platform)
+        _create_second_timer(emulator, platform)
+
+        capture, _ = _relaunch_to_list(emulator, platform, expected_count=4)
+
+        # Delete the topmost timer (row 1): the position is kept so the next
+        # timer shifts up into the selection (still row 1, never Delete all)
+        emulator.press_down()
+        _hold_down(emulator)
+        deleted = capture.wait_for_state(event="timer_list_delete", timeout=5.0)
+        capture.stop()
+        assert deleted is not None, "Delete did not fire"
+        assert int(deleted.get("sel", -1)) == 1, (
+            f"Expected position kept at row 1 after deleting topmost: {deleted}"
+        )
+        assert int(deleted.get("list_count", -1)) == 3, deleted
+
+
+class TestListScrolling:
+    """With many slots the list scrolls so every row stays reachable."""
+
+    def test_scroll_reaches_delete_all(self, emulator):
+        _skip_if_no_lap_feature(emulator)
+        platform = emulator.platform
+
+        # Create 5 timers quickly: a running stopwatch plus 4 laps. The setting
+        # is sent twice because the phone JS pushes defaults shortly after
+        # install and can race (and overwrite) the first send.
+        capture = LogCapture(platform)
+        capture.start()
+        emulator.send_app_message_int(APPMSG_KEY_LAP_STOPWATCH_ENABLED, 1)
+        time.sleep(3.0)
+        emulator.send_app_message_int(APPMSG_KEY_LAP_STOPWATCH_ENABLED, 1)
+        for i in range(4):
+            emulator.press_select()
+            lap = capture.wait_for_state(event="lap_recorded", timeout=5.0)
+            assert lap is not None, f"Lap {i + 1} was not recorded for scrolling test"
+            time.sleep(0.3)
+        emulator.press_back()
+        time.sleep(1.0)
+        capture.stop()
+
+        # Rows: New Timer + 5 timers + Delete all = 7 (taller than the screen)
+        capture2, show = _relaunch_to_list(emulator, platform, expected_count=7)
+        rows = int(show.get("list_count"))
+        for _ in range(rows - 1):
+            emulator.press_down()
+            time.sleep(0.15)
+        # Reaching and activating the bottom row proves the list scrolled
+        emulator.press_select()
+        hint = capture2.wait_for_state(event="timer_list_delete_all_hint", timeout=5.0)
+        capture2.stop()
+        assert hint is not None, (
+            "Could not reach the Delete all row at the bottom of a scrolled list"
+        )

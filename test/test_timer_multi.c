@@ -243,6 +243,141 @@ static void test_name_unchanged_after_length_edit(void **state) {
   assert_string_equal(timer_slots[0].name, "dry mouse");
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Lap recording (timer_slot_lap / timer_get_split_ms)
+//
+
+// Lap copy is paused and frozen at the source's value at the snapshot
+static void test_lap_copy_paused_at_snapshot(void **state) {
+  will_return(epoch, EPOCH_14_30_UTC);
+  int8_t src = timer_slot_create();  // running chrono started at 14:30
+  assert_int_equal(src, 0);
+
+  // Lap 5 seconds later
+  will_return(epoch, EPOCH_14_30_UTC + 5000);
+  int8_t lap = timer_slot_lap(0);
+
+  assert_int_equal(lap, 1);
+  assert_int_equal(timer_count, 2);
+  assert_true(timer_slots[1].is_paused);
+  // Paused slot stores elapsed in start_ms: frozen at 5000ms
+  assert_int_equal(timer_slots[1].start_ms, 5000);
+  assert_int_equal(timer_slots[1].length_ms, 0);
+
+  // The copy's value does not advance: read it as the active slot
+  timer_set_active_slot(1);
+  assert_int_equal(timer_get_value_ms(), 5000);
+}
+
+// The copy carries the previous lap boundary; the source's split restarts
+static void test_lap_split_and_cumulative(void **state) {
+  will_return(epoch, EPOCH_14_30_UTC);
+  timer_slot_create();
+
+  // First lap at 5s
+  will_return(epoch, EPOCH_14_30_UTC + 5000);
+  timer_slot_lap(0);
+  assert_int_equal(timer_slots[0].last_lap_ms, 5000);
+  assert_int_equal(timer_slots[0].lap_count, 1);
+  // First lap copy: no previous lap, split == cumulative == 5000
+  assert_int_equal(timer_slots[1].last_lap_ms, 0);
+
+  // Second lap at 7s
+  will_return(epoch, EPOCH_14_30_UTC + 7000);
+  int8_t lap2 = timer_slot_lap(0);
+  assert_int_equal(lap2, 2);
+  // Copy carries the previous boundary (5000): its split is 7000 - 5000 = 2000
+  assert_int_equal(timer_slots[2].last_lap_ms, 5000);
+  timer_set_active_slot(2);
+  assert_int_equal(timer_get_value_ms(), 7000);   // cumulative at the lap
+  assert_int_equal(timer_get_split_ms(), 2000);   // this lap's split
+
+  // Source: split restarts from the second lap
+  assert_int_equal(timer_slots[0].last_lap_ms, 7000);
+  assert_int_equal(timer_slots[0].lap_count, 2);
+  timer_set_active_slot(0);
+  will_return(epoch, EPOCH_14_30_UTC + 8500);  // running: value needs epoch
+  will_return(epoch, EPOCH_14_30_UTC + 8500);
+  assert_int_equal(timer_get_split_ms(), 1500);   // 8500 - 7000
+  assert_int_equal(timer_get_value_ms(), 8500);   // total unchanged by laps
+}
+
+// Split equals the value while no lap has been recorded
+static void test_split_equals_value_without_laps(void **state) {
+  will_return(epoch, EPOCH_14_30_UTC);
+  timer_slot_create();
+  timer_set_active_slot(0);
+  will_return(epoch, EPOCH_14_30_UTC + 4000);
+  will_return(epoch, EPOCH_14_30_UTC + 4000);
+  assert_int_equal(timer_get_split_ms(), 4000);
+  assert_int_equal(timer_get_value_ms(), 4000);
+}
+
+// Lap slots are named "Lap [n]: <name>" with n incrementing per source timer
+static void test_lap_names_increment(void **state) {
+  will_return(epoch, EPOCH_14_30_UTC);
+  timer_slot_create();
+  assert_string_equal(timer_slots[0].name, "dry mouse");
+
+  will_return(epoch, EPOCH_14_30_UTC + 5000);
+  timer_slot_lap(0);
+  assert_string_equal(timer_slots[1].name, "Lap 1: dry mouse");
+
+  will_return(epoch, EPOCH_14_30_UTC + 7000);
+  timer_slot_lap(0);
+  assert_string_equal(timer_slots[2].name, "Lap 2: dry mouse");
+}
+
+// A long source name is trimmed at the END so the prefix stays intact
+static void test_lap_long_name_trimmed(void **state) {
+  will_return(epoch, EPOCH_14_30_UTC);
+  timer_slot_create();
+  // Fill the source name to buffer capacity (39 chars + null in char[40])
+  const char *long_name = "abcdefghijklmnopqrstuvwxyz0123456789abc";
+  assert_int_equal(strlen(long_name), sizeof(timer_slots[0].name) - 1);
+  snprintf(timer_slots[0].name, sizeof(timer_slots[0].name), "%s", long_name);
+
+  will_return(epoch, EPOCH_14_30_UTC + 5000);
+  int8_t lap = timer_slot_lap(0);
+  assert_int_equal(lap, 1);
+
+  // Prefix intact, source name trimmed at the end, null within the buffer
+  assert_memory_equal(timer_slots[1].name, "Lap 1: ", 7);
+  assert_int_equal(strlen(timer_slots[1].name), sizeof(timer_slots[1].name) - 1);
+  assert_memory_equal(timer_slots[1].name + 7, long_name,
+                      sizeof(timer_slots[1].name) - 1 - 7);
+}
+
+// timer_slot_lap returns -1 at capacity and leaves the source untouched
+static void test_lap_returns_minus1_at_capacity(void **state) {
+  for (uint8_t i = 0; i < MAX_TIMERS; i++) {
+    will_return(epoch, EPOCH_14_30_UTC + i * MSEC_IN_MIN);
+    assert_int_equal(timer_slot_create(), (int8_t)i);
+  }
+  assert_int_equal(timer_count, MAX_TIMERS);
+
+  int8_t lap = timer_slot_lap(0);
+  assert_int_equal(lap, -1);
+  assert_int_equal(timer_count, MAX_TIMERS);
+  assert_int_equal(timer_slots[0].lap_count, 0);
+  assert_int_equal(timer_slots[0].last_lap_ms, 0);
+}
+
+// Recording a lap does not change the original's running state or total
+static void test_lap_original_keeps_running(void **state) {
+  will_return(epoch, EPOCH_14_30_UTC);
+  timer_slot_create();
+
+  will_return(epoch, EPOCH_14_30_UTC + 5000);
+  timer_slot_lap(0);
+
+  assert_false(timer_slots[0].is_paused);
+  // start_ms (epoch anchor) unchanged: the total keeps counting from creation
+  timer_set_active_slot(0);
+  will_return(epoch, EPOCH_14_30_UTC + 9000);
+  assert_int_equal(timer_get_value_ms(), 9000);
+}
+
 int main(void) {
   const struct CMUnitTest tests[] = {
     cmocka_unit_test_setup_teardown(test_slot_create_success, setup, teardown),
@@ -256,6 +391,13 @@ int main(void) {
     cmocka_unit_test_setup_teardown(test_name_collision_second_gets_suffix_2, setup_utc, teardown),
     cmocka_unit_test_setup_teardown(test_name_collision_third_gets_suffix_3, setup_utc, teardown),
     cmocka_unit_test_setup_teardown(test_name_unchanged_after_length_edit, setup_utc, teardown),
+    cmocka_unit_test_setup_teardown(test_lap_copy_paused_at_snapshot, setup_utc, teardown),
+    cmocka_unit_test_setup_teardown(test_lap_split_and_cumulative, setup_utc, teardown),
+    cmocka_unit_test_setup_teardown(test_split_equals_value_without_laps, setup_utc, teardown),
+    cmocka_unit_test_setup_teardown(test_lap_names_increment, setup_utc, teardown),
+    cmocka_unit_test_setup_teardown(test_lap_long_name_trimmed, setup_utc, teardown),
+    cmocka_unit_test_setup_teardown(test_lap_returns_minus1_at_capacity, setup_utc, teardown),
+    cmocka_unit_test_setup_teardown(test_lap_original_keeps_running, setup_utc, teardown),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

@@ -120,8 +120,103 @@ static struct {
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+// Render Slot Override
+//
+
+#if LAP_FEATURE
+// When >= 0, the render path reads this slot instead of the active slot (used
+// by the lap flash to show the recorded lap without touching button context)
+static int8_t s_slot_override = -1;
+
+void drawing_set_slot_override(int8_t slot) {
+  s_slot_override = slot;
+}
+
+int8_t drawing_get_slot_override(void) {
+  return s_slot_override;
+}
+
+// Point the timer module's slot indirection at the override for the duration
+// of one synchronous render/update call. The app is single-threaded, so the
+// swap cannot be observed by button handlers: it is always restored before
+// the render call returns, and only the drawing code performs it.
+static uint8_t prv_apply_slot_override(void) {
+  uint8_t saved = timer_get_active_slot();
+  if (s_slot_override >= 0) {
+    timer_set_active_slot((uint8_t)s_slot_override);
+  }
+  return saved;
+}
+
+static void prv_restore_slot(uint8_t saved) {
+  timer_set_active_slot(saved);
+}
+#else
+// Without the lap feature there is no render override
+#define prv_apply_slot_override() 0
+#define prv_restore_slot(saved) ((void)(saved))
+#endif  // LAP_FEATURE
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 // Sub Texts
 //
+
+// Format the header text for the current render slot into buf
+static void prv_format_header_text(char *buf, size_t buf_size) {
+  if (main_get_control_mode() == ControlModeNew || main_get_control_mode() == ControlModeEditSec || main_get_control_mode() == ControlModeEditRepeat) {
+    if (main_is_editing_existing_timer()) {
+      snprintf(buf, buf_size, "Edit");
+    } else {
+      snprintf(buf, buf_size, "New");
+    }
+  } else if (timer_is_chrono()) {
+#if LAP_FEATURE
+    if (settings_get_lap_stopwatch_enabled()) {
+      // Lap Stopwatch: show the total elapsed since first start, prefixed
+      // with the count-up arrow (the main value shows the current split)
+      int64_t total_seconds = timer_get_value_ms() / 1000;
+      int hours = total_seconds / 3600;
+      int minutes = (total_seconds % 3600) / 60;
+      int seconds = total_seconds % 60;
+
+      if (hours > 0) {
+          snprintf(buf, buf_size, "-->%02d:%02d:%02d", hours, minutes, seconds);
+      } else {
+          snprintf(buf, buf_size, "-->%02d:%02d", minutes, seconds);
+      }
+    } else {
+#else
+    {
+#endif
+      // Calculate and format the total timer length
+      int64_t total_ms = timer_get_length_ms();
+      int64_t total_seconds = total_ms / 1000;
+      int hours = total_seconds / 3600;
+      int minutes = (total_seconds % 3600) / 60;
+      int seconds = total_seconds % 60;
+
+      if (hours > 0) {
+          snprintf(buf, buf_size, "%02d:%02d:%02d-->", hours, minutes, seconds);
+      } else {
+          snprintf(buf, buf_size, "%02d:%02d-->", minutes, seconds);
+      }
+    }
+  } else {
+    // Calculate and format the total timer length
+    int64_t total_ms = timer_get_length_ms();
+    int64_t total_seconds = total_ms / 1000;
+    int hours = total_seconds / 3600;
+    int minutes = (total_seconds % 3600) / 60;
+    int seconds = total_seconds % 60;
+
+    if (hours > 0) {
+        snprintf(buf, buf_size, "%02d:%02d:%02d", hours, minutes, seconds);
+    } else {
+        snprintf(buf, buf_size, "%02d:%02d", minutes, seconds);
+    }
+  }
+}
 
 // Draw header text
 static void prv_render_header_text(GContext *ctx, GRect bounds) {
@@ -132,44 +227,9 @@ static void prv_render_header_text(GContext *ctx, GRect bounds) {
   bounds.size.w = CIRCLE_RADIUS * 2;
   bounds.size.h = CIRCLE_RADIUS / 2;
   // draw text
-  static char s_time_buffer[16]; // Buffer for formatted time
-  char *buff;
-  if (main_get_control_mode() == ControlModeNew || main_get_control_mode() == ControlModeEditSec || main_get_control_mode() == ControlModeEditRepeat) {
-    if (main_is_editing_existing_timer()) {
-      buff = "Edit";
-    } else {
-      buff = "New";
-    }
-  } else if (timer_is_chrono()) {
-    // Calculate and format the total timer length
-    int64_t total_ms = timer_get_length_ms();
-    int64_t total_seconds = total_ms / 1000;
-    int hours = total_seconds / 3600;
-    int minutes = (total_seconds % 3600) / 60;
-    int seconds = total_seconds % 60;
-
-    if (hours > 0) {
-        snprintf(s_time_buffer, sizeof(s_time_buffer), "%02d:%02d:%02d-->", hours, minutes, seconds);
-    } else {
-        snprintf(s_time_buffer, sizeof(s_time_buffer), "%02d:%02d-->", minutes, seconds);
-    }
-    buff = s_time_buffer;
-  } else {
-    // Calculate and format the total timer length
-    int64_t total_ms = timer_get_length_ms();
-    int64_t total_seconds = total_ms / 1000;
-    int hours = total_seconds / 3600;
-    int minutes = (total_seconds % 3600) / 60;
-    int seconds = total_seconds % 60;
-
-    if (hours > 0) {
-        snprintf(s_time_buffer, sizeof(s_time_buffer), "%02d:%02d:%02d", hours, minutes, seconds);
-    } else {
-        snprintf(s_time_buffer, sizeof(s_time_buffer), "%02d:%02d", minutes, seconds);
-    }
-    buff = s_time_buffer;
-  }
-  graphics_draw_text(ctx, buff, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD), bounds,
+  static char s_time_buffer[24]; // Buffer for formatted time
+  prv_format_header_text(s_time_buffer, sizeof(s_time_buffer));
+  graphics_draw_text(ctx, s_time_buffer, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD), bounds,
     GTextOverflowModeFill, GTextAlignmentCenter, NULL);
 }
 
@@ -273,13 +333,22 @@ static void prv_main_text_update_state(Layer *layer) {
   //         buff[0], buff[1], buff[2], buff[3], buff[4], buff[5], buff[6]);
 
   // calculate new sizes for all text elements
-  char tot_buff[40];
+  char tot_buff[64];
   snprintf(tot_buff, sizeof(tot_buff), "%s%s%s%s%s%s%s", buff[0], buff[1], buff[2], buff[3], buff[4], buff[5], buff[6]);
 
   // Emit the rendered main-text string for functional tests. This runs only when
   // the draw state actually changes (see prv_update_draw_state), so it does not
   // flood the log channel the way the per-frame render path would.
+#if LAP_FEATURE
+  // The header (total / base length) and rendered slot are included so tests
+  // can verify the split/total display model.
+  char hdr_buff[24];
+  prv_format_header_text(hdr_buff, sizeof(hdr_buff));
+  TEST_LOG(APP_LOG_LEVEL_DEBUG, "TEST_STATE:display,disp=%s,hdr=%s,slot=%d",
+           tot_buff, hdr_buff, (int)timer_get_active_slot());
+#else
   TEST_LOG(APP_LOG_LEVEL_DEBUG, "TEST_STATE:display,disp=%s", tot_buff);
+#endif
 
   // APP_LOG(APP_LOG_LEVEL_DEBUG, "tot_buff: %s (prv_main_text_update_state)", tot_buff);
 
@@ -682,10 +751,27 @@ void drawing_start_reset_animation(void) {
     FOCUS_FIELD_SHRINK_DURATION, BUTTON_HOLD_RESET_MS, CurveLinear);
 }
 
-// Render everything to the screen
-void drawing_render(Layer *layer, GContext *ctx) {
+// Render everything to the screen (runs with the slot override applied)
+static void prv_render_internal(Layer *layer, GContext *ctx) {
   // get properties
   GRect bounds = layer_get_bounds(layer);
+  // When a slot-limit warning is active (3-second overlay after creating a
+  // timer near the limit, the at-capacity lap failure, or the "original"
+  // phase of the lap flash near the limit), show the message instead of the
+  // timer view.
+#if LAP_FEATURE
+  const char *warning = main_get_warning_message();
+  if (warning) {
+    graphics_context_set_fill_color(ctx, drawing_data.mid_color);
+    graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+    graphics_context_set_text_color(ctx, drawing_data.fore_color);
+    GRect text_bounds = GRect(bounds.origin.x + 10, bounds.origin.y + bounds.size.h / 2 - 34,
+                              bounds.size.w - 20, 68);
+    graphics_draw_text(ctx, warning, fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD),
+      text_bounds, GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
+    return;
+  }
+#endif
 #ifdef PBL_MICROPHONE
   // When a voice rename is started while the phone is disconnected, show a
   // full-screen no-phone icon instead of the normal timer view.
@@ -799,12 +885,21 @@ void drawing_render(Layer *layer, GContext *ctx) {
   }
 }
 
+// Render everything to the screen
+void drawing_render(Layer *layer, GContext *ctx) {
+  uint8_t saved_slot = prv_apply_slot_override();
+  prv_render_internal(layer, ctx);
+  prv_restore_slot(saved_slot);
+}
+
 // Update the drawing states and recalculate everythings positions
 void drawing_update(void) {
+  uint8_t saved_slot = prv_apply_slot_override();
   // update drawing state
   prv_update_draw_state(drawing_data.layer);
   // update progress ring angle
   prv_progress_ring_update();
+  prv_restore_slot(saved_slot);
 }
 
 // Initialize the singleton drawing data

@@ -17,6 +17,16 @@ void drawing_start_bounce_animation(bool upward);
 //! Create reset animation for focus layer
 void drawing_start_reset_animation(void);
 
+//! Override which timer slot the render path reads (used by the lap flash).
+//! While set (>= 0) the render path draws that slot instead of the active
+//! slot; button handlers and all non-drawing code keep using the active slot.
+//! @param slot The slot index to render, or -1 to clear the override
+void drawing_set_slot_override(int8_t slot);
+
+//! Get the current render slot override
+//! @return The overridden slot index, or -1 when no override is set
+int8_t drawing_get_slot_override(void);
+
 //! Render everything to the screen
 //! @param layer The layer being rendered onto
 //! @param ctx The layer's drawing context

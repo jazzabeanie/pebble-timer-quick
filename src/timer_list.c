@@ -12,12 +12,22 @@
 #define LINE2_HEIGHT      20
 #define ROW_HEIGHT        (LINE1_HEIGHT + LINE2_HEIGHT)
 #define REFRESH_MS        500
+// Duration of the "hold Down to clear all timers" hint overlay
+#define HINT_FEEDBACK_MS  3000
+
+// Sentinel returned by prv_slot_for_row for the pinned "Delete all" row
+#define SLOT_DELETE_ALL   (-2)
 
 // State
 static Window   *s_window;
 static Layer    *s_layer;
 static AppTimer *s_idle_timer;
 static AppTimer *s_refresh_timer;
+#if LAP_FEATURE
+// "Hold Down to clear all timers" hint (shown by Select on the Delete all row)
+static AppTimer *s_hint_timer;
+static bool      s_show_hint;
+#endif
 
 // Index of the implicit new stopwatch slot (-1 if at capacity)
 static int8_t  s_implicit_idx;
@@ -81,8 +91,12 @@ static int64_t prv_slot_remaining(uint8_t idx) {
   return t->length_ms - prv_slot_elapsed(idx);
 }
 
-// Returns the slot index for a given display row
+// Returns the slot index for a given display row, or SLOT_DELETE_ALL for the
+// pinned bottom "Delete all" row (compiled out on aplite with the lap feature)
 static int8_t prv_slot_for_row(int16_t row) {
+#if LAP_FEATURE
+  if (row == (int16_t)(s_total_rows - 1)) return SLOT_DELETE_ALL;
+#endif
   if (s_implicit_idx >= 0) {
     if (row == 0) return s_implicit_idx;
     return (int8_t)s_sorted[row - 1];
@@ -123,6 +137,20 @@ static void prv_layer_update_proc(Layer *layer, GContext *ctx) {
 
   graphics_context_set_text_color(ctx, GColorBlack);
 
+  // Transient overlays: the Delete all hint, or the slot-limit warning fired
+  // by creating the implicit timer while this window is on top
+#if LAP_FEATURE
+  const char *overlay = s_show_hint ? "Hold Down to clear all timers"
+                                    : main_get_warning_message();
+  if (overlay) {
+    GRect text_bounds = GRect(bounds.origin.x + 10, bounds.origin.y + bounds.size.h / 2 - 34,
+                              bounds.size.w - 20, 68);
+    graphics_draw_text(ctx, overlay, fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD),
+      text_bounds, GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
+    return;
+  }
+#endif
+
   for (int16_t row = 0; row < s_total_rows; row++) {
     int16_t row_y = row * ROW_HEIGHT - s_scroll_y;
     if (row_y + ROW_HEIGHT <= 0 || row_y >= bounds.size.h) continue;
@@ -142,12 +170,16 @@ static void prv_layer_update_proc(Layer *layer, GContext *ctx) {
     GFont label_font = fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD);
     GFont value_font = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
 
-    char line1[20] = {0};
-    char line2[20] = {0};
+    // Sized so the enlarged timer names display without clipping
+    char line1[44] = {0};
+    char line2[24] = {0};
 
     int8_t slot = prv_slot_for_row(row);
 
-    if (s_implicit_idx >= 0 && row == 0) {
+    if (slot == SLOT_DELETE_ALL) {
+      // Pinned "Delete all" entry
+      snprintf(line1, sizeof(line1), "Delete all");
+    } else if (s_implicit_idx >= 0 && row == 0) {
       // "New Timer" entry
       snprintf(line1, sizeof(line1), "New Timer");
       int64_t elapsed = prv_slot_elapsed((uint8_t)s_implicit_idx);
@@ -209,6 +241,23 @@ static void prv_refresh_callback(void *data) {
   s_refresh_timer = app_timer_register(REFRESH_MS, prv_refresh_callback, NULL);
 }
 
+#if LAP_FEATURE
+// Hide the "hold Down to clear all timers" hint
+static void prv_hint_hide_callback(void *data) {
+  s_hint_timer = NULL;
+  s_show_hint = false;
+  if (s_layer) layer_mark_dirty(s_layer);
+}
+
+// Show the hint overlay for HINT_FEEDBACK_MS
+static void prv_show_hint(void) {
+  s_show_hint = true;
+  if (s_hint_timer) app_timer_cancel(s_hint_timer);
+  s_hint_timer = app_timer_register(HINT_FEEDBACK_MS, prv_hint_hide_callback, NULL);
+  if (s_layer) layer_mark_dirty(s_layer);
+}
+#endif  // LAP_FEATURE
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Button Handlers
@@ -234,6 +283,15 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 
 static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_restart_idle_timer();
+
+#if LAP_FEATURE
+  if (prv_slot_for_row(s_selected_row) == SLOT_DELETE_ALL) {
+    // Select on "Delete all" only shows the instruction hint; deletes nothing
+    prv_show_hint();
+    prv_log_list_state("timer_list_delete_all_hint");
+    return;
+  }
+#endif
 
   if (s_implicit_idx >= 0 && s_selected_row == 0) {
     // "New Timer" selected: keep implicit slot, set active, reveal main window in New mode
@@ -268,6 +326,23 @@ static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 static void prv_down_long_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_restart_idle_timer();
 
+#if LAP_FEATURE
+  if (prv_slot_for_row(s_selected_row) == SLOT_DELETE_ALL) {
+    // Hold Down on "Delete all": remove every timer and exit to the watchface
+    while (timer_count > 0) {
+      timer_slot_delete(timer_count - 1);
+    }
+    s_implicit_idx = -1;
+    s_sorted_count = 0;
+    s_total_rows = 1;  // only the Delete all row remains
+    s_selected_row = 0;
+    timer_persist_store();
+    prv_log_list_state("timer_list_delete_all");
+    window_stack_pop_all(true);
+    return;
+  }
+#endif
+
   if (s_implicit_idx >= 0 && s_selected_row == 0) {
     // Hold Down on "New Timer": discard implicit slot and quit
     timer_slot_delete((uint8_t)s_implicit_idx);
@@ -281,7 +356,6 @@ static void prv_down_long_click_handler(ClickRecognizerRef recognizer, void *ctx
   timer_slot_delete((uint8_t)slot_to_delete);
 
   // Rebuild sorted list (implicit slot may have shifted)
-  uint8_t preexisting_count = timer_count - (s_implicit_idx >= 0 ? 1 : 0);
   if (s_implicit_idx >= 0) {
     // implicit slot is now at timer_count - 1
     s_implicit_idx = (int8_t)(timer_count - 1);
@@ -296,14 +370,33 @@ static void prv_down_long_click_handler(ClickRecognizerRef recognizer, void *ctx
         s_sorted[s_sorted_count++] = all_sorted[i];
       }
     }
-    s_total_rows = 1 + s_sorted_count;
   } else {
     timer_get_sorted_slots(s_sorted, &s_sorted_count);
-    s_total_rows = s_sorted_count;
-    (void)preexisting_count;
   }
+  // LAP_FEATURE (0/1) accounts for the pinned Delete all row
+  s_total_rows = (s_implicit_idx >= 0 ? 1 : 0) + s_sorted_count + LAP_FEATURE;
 
-  // Clamp selection
+#if LAP_FEATURE
+  // Move the selection to the previous timer entry. Deleting the topmost
+  // timer keeps the position (the next timer shifts up); deleting the last
+  // timer selects the New Timer row. Never lands on Delete all.
+  int16_t first_real = (s_implicit_idx >= 0) ? 1 : 0;
+  if (s_sorted_count == 0) {
+    if (s_implicit_idx < 0) {
+      // No timers left and no New Timer row to select: exit like before
+      window_stack_pop_all(true);
+      return;
+    }
+    s_selected_row = 0;  // New Timer row
+  } else {
+    int16_t sel = s_selected_row - 1;
+    int16_t last_real = first_real + (int16_t)s_sorted_count - 1;
+    if (sel < first_real) sel = first_real;
+    if (sel > last_real) sel = last_real;
+    s_selected_row = sel;
+  }
+#else
+  // Clamp selection (previous behavior)
   if (s_total_rows == 0) {
     window_stack_pop_all(true);
     return;
@@ -311,6 +404,8 @@ static void prv_down_long_click_handler(ClickRecognizerRef recognizer, void *ctx
   if (s_selected_row >= (int16_t)s_total_rows) {
     s_selected_row = (int16_t)(s_total_rows - 1);
   }
+#endif
+  prv_update_scroll();
 
   // Log after list is rebuilt so list_count reflects the post-deletion state
   prv_log_list_state("timer_list_delete");
@@ -346,11 +441,16 @@ static void prv_window_load(Window *window) {
   // Create implicit new stopwatch (unless at capacity)
   if (preexisting_count < MAX_TIMERS) {
     s_implicit_idx = timer_slot_create();
+    if (s_implicit_idx >= 0) {
+      // Warn (message + three vibrations) when this creation leaves <= 3 free
+      main_notify_timer_created();
+    }
   } else {
     s_implicit_idx = -1;
   }
 
-  s_total_rows = s_sorted_count + (s_implicit_idx >= 0 ? 1 : 0);
+  // LAP_FEATURE (0/1) accounts for the pinned Delete all row
+  s_total_rows = s_sorted_count + (s_implicit_idx >= 0 ? 1 : 0) + LAP_FEATURE;
   s_selected_row = 0;
   s_screen_h = bounds.size.h;
   s_scroll_y = 0;
@@ -374,6 +474,13 @@ static void prv_window_unload(Window *window) {
     app_timer_cancel(s_refresh_timer);
     s_refresh_timer = NULL;
   }
+#if LAP_FEATURE
+  if (s_hint_timer) {
+    app_timer_cancel(s_hint_timer);
+    s_hint_timer = NULL;
+    s_show_hint = false;
+  }
+#endif
   layer_destroy(s_layer);
   s_layer = NULL;
   window_destroy(s_window);

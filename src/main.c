@@ -45,6 +45,15 @@ static struct {
     bool        timer_length_modified_in_edit_mode; //< True if the timer's length has been modified while in ControlModeNew
     bool        last_interaction_was_down; //< True if the last interaction was a down button press
     bool        is_reverse_direction; //< True if the timer should be decremented instead of incremented
+#if LAP_FEATURE
+    // Lap flash state: after a lap is recorded the display alternates between
+    // the paused lap slot and the original timer for FLASH_WINDOW_MS
+    AppTimer    *flash_timer;         //< 500ms toggle timer driving the lap flash
+    int8_t      flash_lap_slot;       //< Lap slot shown during "on" frames (-1 = no flash)
+    uint64_t    flash_deadline_ms;    //< Epoch (ms) at which the flash stops
+    bool        flash_showing_lap;    //< True while the lap slot is the rendered frame
+    bool        flash_show_limit_warning; //< Show the slots-left warning in the "original" frames
+#endif
   } main_data;
 
 static AppTimer *backlight_timer = NULL;
@@ -62,6 +71,18 @@ static DictationSession *s_dictation_session = NULL;
 #define NO_PHONE_FEEDBACK_MS 1000
 static bool s_show_no_phone = false;
 static AppTimer *s_no_phone_timer = NULL;
+#endif
+
+#if LAP_FEATURE
+// Lap flash timing: alternate lap/original every 500ms for 3 seconds
+#define FLASH_TICK_MS 500
+#define FLASH_WINDOW_MS 3000
+
+// Slot-limit warning overlay ("N slots left" / "No free slots"), held 3 seconds
+#define WARNING_FEEDBACK_MS 3000
+static char s_warning_text[32];
+static bool s_show_warning = false;
+static AppTimer *s_warning_timer = NULL;
 #endif
 
 // Function declarations
@@ -267,6 +288,161 @@ static void prv_reset_new_expire_timer(void) {
 
 
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Slot-Limit Warnings and Lap Flash
+//
+
+#if LAP_FEATURE
+// Three short pulses: durations alternate on/off, so five 100ms segments
+// produce on-off-on-off-on = three distinct buzzes.
+static void prv_three_pulse_vibe(void) {
+  static const uint32_t segments[] = {100, 100, 100, 100, 100};
+  VibePattern pattern = {
+    .durations = segments,
+    .num_segments = ARRAY_LENGTH(segments),
+  };
+  vibes_enqueue_custom_pattern(pattern);
+}
+
+// Build the approaching-limit message, e.g. "3 slots left"
+static void prv_format_slots_left(char *buf, size_t buf_size, uint8_t free_slots) {
+  snprintf(buf, buf_size, "%u slot%s left", (unsigned)free_slots,
+           free_slots == 1 ? "" : "s");
+}
+
+// Hide the warning overlay after WARNING_FEEDBACK_MS
+static void prv_warning_hide_callback(void *data) {
+  s_warning_timer = NULL;
+  s_show_warning = false;
+  main_force_redraw();
+  TEST_LOG(APP_LOG_LEVEL_DEBUG, "TEST_STATE:warning_dismiss,shown=0");
+}
+
+// Show a transient full-screen warning message with three short vibration pulses
+static void prv_show_warning_overlay(const char *msg) {
+  snprintf(s_warning_text, sizeof(s_warning_text), "%s", msg);
+  s_show_warning = true;
+  prv_three_pulse_vibe();
+  main_force_redraw();
+  if (s_warning_timer) {
+    app_timer_cancel(s_warning_timer);
+  }
+  s_warning_timer = app_timer_register(WARNING_FEEDBACK_MS, prv_warning_hide_callback, NULL);
+}
+#endif  // LAP_FEATURE
+
+// Get the warning message to draw instead of the timer view (NULL = none)
+const char *main_get_warning_message(void) {
+#if LAP_FEATURE
+  if (s_show_warning) {
+    return s_warning_text;
+  }
+  // During the lap flash near the slot limit, the "original" phase shows the
+  // warning while the "lap" phase keeps flashing the paused lap slot
+  if (main_data.flash_lap_slot >= 0 && main_data.flash_show_limit_warning &&
+      !main_data.flash_showing_lap) {
+    return s_warning_text;
+  }
+#endif
+  return NULL;
+}
+
+// Notify that a new timer slot was created: warn when the limit is approached
+void main_notify_timer_created(void) {
+#if LAP_FEATURE
+  uint8_t free_slots = MAX_TIMERS - timer_count;
+  if (free_slots > 3) {
+    return;
+  }
+  char msg[32];
+  prv_format_slots_left(msg, sizeof(msg), free_slots);
+  TEST_LOG(APP_LOG_LEVEL_DEBUG, "TEST_STATE:limit_warning,src=timer,free=%u",
+           (unsigned)free_slots);
+  prv_show_warning_overlay(msg);
+#endif
+}
+
+#if LAP_FEATURE
+// Stop the lap flash: clear the render override and all flash state
+static void prv_flash_cancel(void) {
+  if (main_data.flash_timer) {
+    app_timer_cancel(main_data.flash_timer);
+    main_data.flash_timer = NULL;
+  }
+  main_data.flash_lap_slot = -1;
+  main_data.flash_showing_lap = false;
+  main_data.flash_show_limit_warning = false;
+  drawing_set_slot_override(-1);
+}
+
+// Flip the flash between the lap slot and the original every FLASH_TICK_MS,
+// stopping at the deadline or if the app left Counting mode
+static void prv_flash_tick_callback(void *data) {
+  main_data.flash_timer = NULL;
+  if (main_data.flash_lap_slot < 0) {
+    return;
+  }
+  if (epoch() >= main_data.flash_deadline_ms ||
+      main_data.control_mode != ControlModeCounting) {
+    int8_t slot = main_data.flash_lap_slot;
+    prv_flash_cancel();
+    TEST_LOG(APP_LOG_LEVEL_DEBUG, "TEST_STATE:flash_end,slot=%d", (int)slot);
+    main_force_redraw();
+    return;
+  }
+  main_data.flash_showing_lap = !main_data.flash_showing_lap;
+  drawing_set_slot_override(main_data.flash_showing_lap ? main_data.flash_lap_slot : -1);
+  TEST_LOG(APP_LOG_LEVEL_DEBUG, "TEST_STATE:flash_phase,lap=%d,slot=%d",
+           main_data.flash_showing_lap ? 1 : 0, (int)main_data.flash_lap_slot);
+  main_force_redraw();
+  main_data.flash_timer = app_timer_register(FLASH_TICK_MS, prv_flash_tick_callback, NULL);
+}
+
+// Start (or restart) the lap flash for a freshly recorded lap slot
+static void prv_flash_start(int8_t lap_slot) {
+  main_data.flash_lap_slot = lap_slot;
+  main_data.flash_deadline_ms = epoch() + FLASH_WINDOW_MS;
+  main_data.flash_showing_lap = true;
+  drawing_set_slot_override(lap_slot);
+  main_force_redraw();
+  if (main_data.flash_timer) {
+    app_timer_cancel(main_data.flash_timer);
+  }
+  main_data.flash_timer = app_timer_register(FLASH_TICK_MS, prv_flash_tick_callback, NULL);
+}
+
+// Record a lap of the active timer and start the flash; at capacity, warn and
+// leave the original running with its play/pause state unchanged
+static void prv_record_lap(void) {
+  // A Select during the flash window cancels it and records the next lap
+  prv_flash_cancel();
+  int8_t lap_slot = timer_slot_lap(timer_get_active_slot());
+  if (lap_slot < 0) {
+    TEST_LOG(APP_LOG_LEVEL_DEBUG, "TEST_STATE:lap_full,free=0,p=%d",
+             timer_is_paused() ? 1 : 0);
+    prv_show_warning_overlay("No free slots");
+    return;
+  }
+  uint8_t free_slots = MAX_TIMERS - timer_count;
+  TEST_LOG(APP_LOG_LEVEL_DEBUG, "TEST_STATE:lap_recorded,slot=%d,name=%s,free=%u,p=%d",
+           (int)lap_slot, timer_slots[lap_slot].name, (unsigned)free_slots,
+           timer_is_paused() ? 1 : 0);
+  timer_persist_store();
+  prv_flash_start(lap_slot);
+  // Near the slot limit: vibrate and show the warning within the flash window
+  if (free_slots <= 3) {
+    prv_format_slots_left(s_warning_text, sizeof(s_warning_text), free_slots);
+    main_data.flash_show_limit_warning = true;
+    prv_three_pulse_vibe();
+    TEST_LOG(APP_LOG_LEVEL_DEBUG, "TEST_STATE:limit_warning,src=lap,free=%u",
+             (unsigned)free_slots);
+  }
+}
+#else
+// Without the lap feature there is never a flash to cancel
+#define prv_flash_cancel() ((void)0)
+#endif  // LAP_FEATURE
+
 // Rewind timer if button is clicked to stop vibration
 static bool prv_handle_alarm(void) {
   // check if timer is vibrating
@@ -317,6 +493,8 @@ bool main_is_backlight_on(void) {
 
 // Set the current control mode (called by Timer List window on selection)
 void main_set_control_mode(ControlMode mode) {
+  // The Timer List may switch the active slot; never leave a lap flash running
+  prv_flash_cancel();
   main_data.control_mode = mode;
 }
 
@@ -359,14 +537,7 @@ static void prv_no_phone_hide_callback(void *data) {
 // Show no-phone feedback: icon for ~1s plus three short vibration pulses
 static void prv_show_no_phone_feedback(void) {
   s_show_no_phone = true;
-  // Three short pulses: durations alternate on/off, so five 100ms segments
-  // produce on-off-on-off-on = three distinct buzzes.
-  static const uint32_t segments[] = {100, 100, 100, 100, 100};
-  VibePattern pattern = {
-    .durations = segments,
-    .num_segments = ARRAY_LENGTH(segments),
-  };
-  vibes_enqueue_custom_pattern(pattern);
+  prv_three_pulse_vibe();
   main_force_redraw();
   test_log_state("voice_no_phone");
   if (s_no_phone_timer) {
@@ -469,6 +640,7 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 
   // If timer is counting (but not vibrating), go to edit mode.
   if (main_data.control_mode == ControlModeCounting) {
+    prv_flash_cancel();
     main_data.is_reverse_direction = false;
     if (timer_get_value_ms() == 0 && timer_is_paused()) {
       main_data.control_mode = ControlModeEditSec;
@@ -606,6 +778,14 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
       prv_reset_new_expire_timer();
       break;
     case ControlModeCounting:
+#if LAP_FEATURE
+      // Lap Stopwatch: Select on a running timer records a lap instead of
+      // pausing (a Select during the flash window re-laps immediately)
+      if (settings_get_lap_stopwatch_enabled() && !timer_is_paused()) {
+        prv_record_lap();
+        break;
+      }
+#endif
       timer_toggle_play_pause();
       break;
     case ControlModeNew: {
@@ -689,6 +869,7 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
 
   main_data.is_reverse_direction = false;
   if (main_data.control_mode == ControlModeCounting) {
+    prv_flash_cancel();
     if (timer_data.is_paused) {
       // Paused: reset to 0:00 and enter EditSec
       timer_reset();
@@ -701,6 +882,16 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
     } else {
       // Running: restart as before
       timer_restart();
+#if LAP_FEATURE
+      if (settings_get_lap_stopwatch_enabled() && timer_is_chrono()) {
+        // Lap Stopwatch: restarting a stopwatch also resets the lap session
+        // (next lap is "Lap 1") and assigns a new name. Previously recorded
+        // lap slots are independent copies and stay untouched.
+        timer_data.last_lap_ms = 0;
+        timer_data.lap_count = 0;
+        timer_assign_name(timer_get_active_slot());
+      }
+#endif
       vibes_short_pulse();
       main_data.timer_length_modified_in_edit_mode = false;
     }
@@ -990,6 +1181,11 @@ static void prv_initialize(void) {
     }
   }
 
+#if LAP_FEATURE
+  // no lap flash active on launch
+  main_data.flash_lap_slot = -1;
+#endif
+
   settings_init(prv_settings_changed);
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Timer data: length_ms=%lld, start_ms=%lld, is_paused=%d, can_vibrate=%d",
           (long long)timer_data.length_ms, (long long)timer_data.start_ms, timer_data.is_paused, timer_data.can_vibrate);
@@ -1076,6 +1272,14 @@ static void prv_initialize(void) {
 static void prv_terminate(void) {
   // unsubscribe from timer service
   tick_timer_service_unsubscribe();
+  // stop any active lap flash and warning overlay
+  prv_flash_cancel();
+#if LAP_FEATURE
+  if (s_warning_timer) {
+    app_timer_cancel(s_warning_timer);
+    s_warning_timer = NULL;
+  }
+#endif
   // cancel backlight timer
   if (backlight_timer) {
     app_timer_cancel(backlight_timer);

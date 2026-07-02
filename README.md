@@ -1,5 +1,10 @@
 # pebble-timer-quick
 
+> **Warning:** Updating to this version will erase any previously saved timers.
+> The persisted timer format changed (larger names, more slots, lap data), so
+> the stored-data version was bumped and existing timers are reset on the first
+> launch after the update.
+
 QuickTimer is a timer app for the Pebble Smartwatch, intended to be the fastest
 way to start a timer or stopwatch. Made for people that think needing 5 seconds
 to set a countdown timer or stopwatch is far too long. With QuickTimer, rest

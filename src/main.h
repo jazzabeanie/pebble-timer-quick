@@ -63,3 +63,15 @@ void main_force_redraw(void);
 //! Get whether the no-phone-connected feedback icon is currently being shown
 //! @return True while the disconnected-rename feedback icon is on screen
 bool main_is_showing_no_phone(void);
+
+//! Get the warning message to draw instead of the timer view, if any.
+//! Non-NULL while the slot-limit/no-free-slot warning overlay is active, and
+//! during the "original" phase of the lap flash when the recorded lap left
+//! 3 or fewer slots free.
+//! @return The warning text, or NULL when no warning should be drawn
+const char *main_get_warning_message(void);
+
+//! Notify that a new timer slot was successfully created (not a lap).
+//! Shows the approaching-limit warning (message + three short vibrations)
+//! when 3 or fewer slots remain free.
+void main_notify_timer_created(void);

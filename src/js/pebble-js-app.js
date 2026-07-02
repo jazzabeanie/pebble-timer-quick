@@ -21,7 +21,8 @@ function sendSettingsToWatch(attempt) {
       '10': getOr('show_snooze_icon',        true)  ? 1 : 0,
       '12': getOr('swap_back_and_select_long', false) ? 1 : 0,
       '13': getOr('multiple_timers_enabled',   true)  ? 1 : 0,
-      '14': getOr('voice_naming_enabled',      false) ? 1 : 0
+      '14': getOr('voice_naming_enabled',      false) ? 1 : 0,
+      '15': getOr('lap_stopwatch_enabled',     false) ? 1 : 0
     },
     function() { console.log('QuickTimer: settings sent to watch'); },
     function(err) {
@@ -102,6 +103,7 @@ Pebble.addEventListener('showConfiguration', function() {
     section('General', [
       row('Multiple Timers', 'multiple_timers_enabled'),
       rowOff('Voice Naming (Pebble 2 only)', 'voice_naming_enabled'),
+      rowOff('Lap Stopwatch', 'lap_stopwatch_enabled'),
     ].join('')),
 
     section('Edit Mode', [
@@ -143,7 +145,8 @@ Pebble.addEventListener('showConfiguration', function() {
     '    show_snooze_icon:       val("show_snooze_icon"),',
     '    swap_back_and_select_long: val("swap_back_and_select_long"),',
     '    multiple_timers_enabled:   val("multiple_timers_enabled"),',
-    '    voice_naming_enabled:      val("voice_naming_enabled")',
+    '    voice_naming_enabled:      val("voice_naming_enabled"),',
+    '    lap_stopwatch_enabled:     val("lap_stopwatch_enabled")',
     '  };',
     '  location.href="pebblejs://close#"+encodeURIComponent(JSON.stringify(r));',
     '}',

@@ -97,6 +97,11 @@ static void prv_draw_text(GContext *ctx, char *buff, uint16_t font_size, GPoint 
     .points = (GPoint*)malloc(sizeof(LECO_CHARS[0]->points)),
     .offset = cur_origin,
   };
+  // Under heap exhaustion (seen on aplite) drawing nothing beats writing
+  // through a NULL path and hard-faulting
+  if (!path.points) {
+    return;
+  }
   // loop over characters in buff until NUL character is reached
   for (uint8_t ii = 0; ii < STRING_MAX_LENGTH && buff[ii] != '\0'; ii++) {
     // find that character in the array of data

@@ -49,6 +49,7 @@ typedef struct GBitmap GBitmap; // Opaque
 typedef enum {
     GTextOverflowModeFill,
     GTextOverflowModeTrailingEllipsis,
+    GTextOverflowModeWordWrap,
 } GTextOverflowMode;
 
 typedef enum {
@@ -269,6 +270,10 @@ bool settings_get_show_snooze_icon(void) { return true; }
 bool settings_get_swap_back_and_select_long(void) { return false; }
 bool settings_get_multiple_timers_enabled(void) { return false; }
 bool settings_get_voice_naming_enabled(void) { return false; }
+bool settings_get_lap_stopwatch_enabled(void) { return false; }
+
+// No warning overlay active in drawing unit tests
+const char *main_get_warning_message(void) { return NULL; }
 
 // Include source file
 #include "../src/drawing.c"

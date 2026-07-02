@@ -111,10 +111,13 @@ class TestHoldDownDelete:
             "Timer List did not appear on relaunch after hold-down delete. "
             "Expected 1 remaining timer to trigger timer list."
         )
-        # Should have: 1 existing timer + "New Timer" = 2 rows
+        # Should have: "New Timer" + 1 existing timer + pinned "Delete all" row
+        # (the Delete all row is compiled out on aplite)
+        expected_rows = 2 if platform == "aplite" else 3
         list_count = int(list_state.get("list_count", 0))
-        assert list_count == 2, (
-            f"Expected 2 list rows (New Timer + 1 remaining timer), got {list_count}"
+        assert list_count == expected_rows, (
+            f"Expected {expected_rows} list rows (New Timer + 1 remaining timer"
+            f"{'' if platform == 'aplite' else ' + Delete all'}), got {list_count}"
         )
 
     def test_hold_down_single_timer_exits_cleanly(self, emulator):

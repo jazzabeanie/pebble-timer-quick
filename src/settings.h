@@ -20,3 +20,4 @@ bool settings_get_show_snooze_icon(void);
 bool settings_get_swap_back_and_select_long(void);
 bool settings_get_multiple_timers_enabled(void);
 bool settings_get_voice_naming_enabled(void);
+bool settings_get_lap_stopwatch_enabled(void);

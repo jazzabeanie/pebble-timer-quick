@@ -30,12 +30,14 @@ When reverse direction is active (toggled via long-press Up), all increments bec
 
 Shown on app open when ≥1 existing timer is saved and the "Multiple Timers" setting is enabled. An implicit new stopwatch slot is created on entry; it becomes the active slot if the user selects "New Timer", and is discarded if the user selects an existing timer.
 
+Up to **32 timer slots** are supported (5 on aplite, where the additions below are compiled out for RAM). The list **scrolls** to keep the selected row visible, and a **"Delete all"** entry is pinned to the very bottom of the list regardless of the Lap Stopwatch setting. Creating a timer that leaves **3 or fewer slots free** shows an approaching-limit message ("N slots left") for 3 seconds with three short vibrations (`test_stopwatch_laps.py::TestSlotLimit::test_new_timer_near_limit_shows_warning`).
+
 | Button | Press | Action | Tests |
 |--------|-------|--------|-------|
-| Up | Short | Scroll selection up (clamped at top row) | `test_timer_list.py::TestTimerListNavigation::test_up_down_navigation` |
-| Down | Short | Scroll selection down (clamped at bottom row) | `test_timer_list.py::TestTimerListNavigation::test_up_down_navigation` |
-| Down | Long | If "New Timer" selected: discard implicit slot and exit app. If existing timer selected: delete that timer and refresh list (exits app if list becomes empty) | `test_timer_list.py::TestTimerListDelete::test_hold_down_deletes_timer` |
-| Select | Short | If "New Timer" selected: set implicit slot as active, open main window in New mode. If existing timer selected: discard implicit slot, set selected slot as active, open main window in Counting mode | `test_timer_list.py::TestTimerListSelect::test_select_new_timer`, `test_timer_list.py::TestTimerListSelect::test_select_existing_timer` |
+| Up | Short | Scroll selection up (clamped at top row; viewport scrolls to keep selection visible) | `test_timer_list.py::TestTimerListNavigation::test_up_down_navigation` |
+| Down | Short | Scroll selection down (clamped at the "Delete all" bottom row; viewport scrolls to keep selection visible) | `test_timer_list.py::TestTimerListNavigation::test_up_down_navigation`, `test_timer_list.py::TestListScrolling::test_scroll_reaches_delete_all` |
+| Down | Long | If "New Timer" selected: discard implicit slot and exit app. If existing timer selected: delete that timer and select the **previous** timer entry (deleting the topmost timer keeps the position so the next timer shifts up; deleting the last timer selects "New Timer"; the selection never lands on "Delete all"). If "Delete all" selected: delete **every** timer and exit to the watchface | `test_timer_list.py::TestTimerListDelete::test_hold_down_deletes_timer`, `test_timer_list.py::TestPostDeleteSelection::test_delete_selects_previous_then_new_timer`, `test_timer_list.py::TestPostDeleteSelection::test_delete_topmost_keeps_position`, `test_timer_list.py::TestDeleteAllRow::test_hold_down_clears_all_and_exits` |
+| Select | Short | If "New Timer" selected: set implicit slot as active, open main window in New mode. If existing timer selected: discard implicit slot, set selected slot as active, open main window in Counting mode. If "Delete all" selected: show a brief "Hold Down to clear all timers" hint and delete nothing | `test_timer_list.py::TestTimerListSelect::test_select_new_timer`, `test_timer_list.py::TestTimerListSelect::test_select_existing_timer`, `test_timer_list.py::TestDeleteAllRow::test_select_shows_hint_and_deletes_nothing` |
 | Back | Short | Exit app (implicit slot remains and is persisted on terminate) | *(no dedicated test)* |
 | *(auto)* | — | 30-second idle timeout: save implicit slot and background the app | `test_timer_list.py::TestTimerListIdle::test_idle_backgrounds_app` |
 
@@ -202,6 +204,39 @@ Chrono mode is a variant of Counting mode where the timer counts up from 0:00 in
 
 ---
 
+## Lap Stopwatch (`Lap Stopwatch` setting, default off)
+
+When the `Lap Stopwatch` setting is enabled, a running timer's Select button records **laps** instead of pausing. Compiled out on aplite (24KB app region); available on all other platforms.
+
+**Recording a lap (Select, Counting mode, timer running):**
+- A paused copy of the timer is created in a new slot, frozen at the current value, named `Lap [n]: <name>` with `n` starting at 1 and incrementing per originating timer. If the prefixed name would overflow the name field, the END of the original name is trimmed — the prefix is never dropped.
+- The original timer keeps running, stays the active/on-screen timer, and all buttons keep acting on it.
+- The display then **flashes** for ~3 seconds: 0.5 s showing the paused lap, 0.5 s showing the original. Pressing Select during the flash cancels it and immediately records the next lap.
+- At capacity (no free slot) nothing is recorded: a "No free slots" message is shown with three short vibrations and the original keeps running with its play/pause state unchanged.
+- When a lap (or new timer) leaves **3 or fewer slots free**, an approaching-limit "N slots left" message is shown with three short vibrations — for laps it replaces the original-timer phase of the flash; for new timers it is a 3-second overlay.
+
+**Split/total display (lapping enabled):**
+- The **main value** always shows the current **split** (time since the last lap; equals the total until the first lap).
+- The **header** shows the **total** elapsed since first start, prefixed with the count-up arrow (e.g. `-->12:34`), instead of the `00:00-->` base-length header.
+- A recorded lap slot shows its own split as the main value and its cumulative time in the header (`-->` prefixed).
+- With the setting off, the display is unchanged (`00:00-->` header, main value = total).
+
+| Test | Description |
+|------|-------------|
+| `test_stopwatch_laps.py::TestLapRecording::test_lap_creates_paused_copy_and_original_keeps_running` | Lap creates a paused copy; original keeps running and stays active |
+| `test_stopwatch_laps.py::TestLapRecording::test_lap_numbering_increments` | `Lap 1:` / `Lap 2:` / `Lap 3:` naming |
+| `test_stopwatch_laps.py::TestLapRecording::test_select_toggles_pause_when_setting_off` | Setting off: Select still toggles play/pause |
+| `test_stopwatch_laps.py::TestLapFlash::test_flash_alternates_then_ends` | Flash alternates lap/original and ends after ~3 s |
+| `test_stopwatch_laps.py::TestLapFlash::test_select_during_flash_records_next_lap` | Re-lap during the flash window |
+| `test_stopwatch_laps.py::TestSplitTotalDisplay::test_header_shows_total_after_lap` | Main = split, header = `-->` total; lap slot shows split + cumulative |
+| `test_stopwatch_laps.py::TestSplitTotalDisplay::test_header_unchanged_when_lapping_disabled` | Setting off keeps the `00:00-->` header |
+| `test_stopwatch_laps.py::TestSlotLimit::test_fill_to_capacity_warns_and_persists` | Warnings at ≤3 free, "no free slots" guard at capacity, 32 slots persist |
+| `test_stopwatch_laps.py::TestSlotLimit::test_new_timer_near_limit_shows_warning` | New-timer approaching-limit overlay (3 s) |
+| `test_stopwatch_laps.py::TestLongPressRestart::test_restart_resets_lap_numbering` | Long-press Select restarts and resets lap numbering |
+| `test/test_timer_multi.c::test_lap_*` | Unit tests: lap copy state, split/cumulative math, naming, trimming, capacity |
+
+---
+
 ## Zero-Crossing (Auto Direction Flip)
 
 When editing crosses from positive to negative (or vice versa), the timer type automatically converts between countdown and chrono, and the editing direction resets to forward. The countdown value after a chrono-to-countdown zero-crossing equals the button increment amount (chrono elapsed time is not subtracted).
@@ -312,6 +347,7 @@ Settings are configured via the Pebble mobile app (tap the gear icon next to the
 | Increment Icons | On | Shows/hides the +1, +5, +20 button indicator icons in edit modes |
 | Swap Back / Select-Hold Buttons | Off | When on, swaps the functions of Back (short press) and Select (long press) in New and EditSec modes only. Back becomes the New↔EditSec mode toggle; Select long press becomes the +1hr / +1min time increment. The back button icon is replaced with an **m/s** indicator: **m** bold in New mode, **s** bold in EditSec mode. |
 | Voice Naming (Pebble 2 only) | Off | When on (and running on an emery / microphone-capable watch), the Up + Back chord (Up pressed first) in New or EditSec mode launches voice dictation to rename the active timer. No effect on non-microphone platforms, where the feature is compiled out. |
+| Lap Stopwatch | Off | When on, pressing Select on a running timer in Counting mode records a lap (paused copy in a new slot named `Lap [n]: <name>`) instead of toggling play/pause, the main value shows the current split while the header shows the total (`-->12:34`), and long-press Select restarts the stopwatch with the lap session reset and a new name. See the Lap Stopwatch section. Compiled out on aplite. |
 
 ---
 
