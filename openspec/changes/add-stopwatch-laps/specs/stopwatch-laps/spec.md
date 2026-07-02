@@ -55,6 +55,8 @@ original active timer continues running and remains the on-screen, active timer.
 - **AND** the user presses Select to record a lap
 - **THEN** no new slot is created
 - **AND** the original timer continues running unaffected
+- **AND** the user is warned that no lap could be recorded (see the warning
+  requirement below)
 
 #### Scenario: Select still toggles play/pause when setting is off
 
@@ -64,11 +66,34 @@ original active timer continues running and remains the on-screen, active timer.
 
 ---
 
+### Requirement: Failing to record a lap at capacity warns the user
+
+When a lap cannot be recorded because all timer slots are already in use, the app
+SHALL alert the user with both a visible warning message and a haptic cue of
+three short vibrations. The original timer SHALL keep running and the play/pause
+state SHALL be unchanged.
+
+#### Scenario: Warning shown when lapping at capacity
+
+- **WHEN** the maximum number of timer slots are already in use
+- **AND** the user presses Select to record a lap
+- **THEN** a warning message is shown indicating that no lap could be recorded
+  because all timer slots are full
+- **AND** the watch emits three short vibrations
+- **AND** the original timer continues running with its play/pause state unchanged
+
+---
+
 ### Requirement: Lap slots are named with an incrementing prefix
 
 A recorded lap slot SHALL be named by prepending `Lap [n]: ` to the original
 timer's name, where `n` is the lap number starting at 1 and incrementing for each
 successive lap recorded from the same originating timer.
+
+If prepending the prefix would make the resulting name exceed the name buffer,
+the END of the original name SHALL be trimmed (dropped) so the combined
+`Lap [n]: ` prefix plus the trimmed name plus the terminating null fits exactly
+within the buffer. The prefix SHALL never be truncated.
 
 #### Scenario: First lap is numbered 1
 
@@ -79,6 +104,14 @@ successive lap recorded from the same originating timer.
 
 - **WHEN** a second lap is recorded from the same originating timer
 - **THEN** the new lap slot is named `Lap 2: awesome honeybee`
+
+#### Scenario: Long original name is trimmed at the end to fit the prefix
+
+- **WHEN** a lap is recorded from a timer whose name is long enough that
+  `Lap [n]: <name>` would exceed the name buffer
+- **THEN** the lap slot is named `Lap [n]: ` followed by the original name with
+  its end trimmed so the full string plus its null terminator fits the buffer
+- **AND** the `Lap [n]: ` prefix is preserved in full
 
 #### Scenario: Renaming a lap timer replaces the whole name
 
@@ -116,3 +149,133 @@ throughout.
 - **THEN** the flash is cancelled
 - **AND** a new lap is recorded from the original timer with the next lap number
 - **AND** the flash restarts for the new lap
+
+---
+
+### Requirement: Approaching the slot limit during a lap warns within the flash
+
+When recording a lap leaves 3 or fewer free timer slots remaining, the
+approaching-limit warning defined in the `multi-timer-management` capability
+(message conveying the number of free slots remaining, plus three short
+vibrations) SHALL be presented within the lap flash window rather than as a
+separate 3-second overlay. During the flash, the phase that would show the
+original running timer SHALL instead show the warning message, while the phase
+that shows the paused lap copy SHALL continue to flash as normal. After the flash
+window ends, only the original running timer is shown.
+
+#### Scenario: Lap near the limit shows the warning in place of the original
+
+- **WHEN** a lap is recorded that leaves 3 or fewer free slots remaining
+- **THEN** the watch emits three short vibrations
+- **AND** during the flash window the display alternates between the paused lap
+  copy (0.5 s) and the warning message shown in place of the original running
+  timer (0.5 s)
+- **AND** after the flash window ends only the original running timer is shown
+
+#### Scenario: Lap with ample slots free flashes normally
+
+- **WHEN** a lap is recorded that leaves more than 3 free slots remaining
+- **THEN** the flash alternates between the paused lap copy and the original
+  running timer as usual, with no warning message and no extra vibration
+
+---
+
+### Requirement: Stopwatch main value shows the current split; header shows total elapsed when lapping is enabled
+
+A stopwatch's **main value** SHALL always show the time elapsed since the most
+recent lap was recorded (the current split). Because a lap can only be recorded
+when `Lap Stopwatch` is enabled, a stopwatch that has recorded no laps — which
+includes every stopwatch while `Lap Stopwatch` is disabled, and any stopwatch
+before its first lap — has a split equal to the total elapsed since it started.
+Its main value is therefore unchanged from existing behavior in those cases; no
+`Lap Stopwatch` check is needed on the main-value path.
+
+The **header** SHALL differ only according to the `Lap Stopwatch` setting:
+
+- **Enabled:** the total elapsed time since the stopwatch was first started,
+  prefixed with the count-up arrow (e.g. `-->12:34`).
+- **Disabled:** the `00:00-->` base-length header shown today.
+
+Both values update live while the stopwatch runs and hold while it is paused.
+Before the first lap, the main value and the header (when lapping is enabled) show
+the same time.
+
+Conceptually, a stopwatch with lapping disabled behaves exactly like a stopwatch
+with lapping enabled that is still on its first lap, except that the header shows
+`00:00-->` instead of the total. This keeps the only lapping-dependent code to the
+Select handler and the header rendering.
+
+#### Scenario: Before the first lap the split equals the total
+
+- **WHEN** a stopwatch is started with `Lap Stopwatch` enabled and no lap has been
+  recorded
+- **THEN** the main value and the header both show the total elapsed time since
+  the stopwatch was started
+- **AND** the header is prefixed with the count-up arrow (e.g. `-->00:07`)
+
+#### Scenario: After a lap the main value counts the new split
+
+- **WHEN** a lap is recorded on a running stopwatch with `Lap Stopwatch` enabled
+- **THEN** the main value restarts from zero and counts the time since that lap
+- **AND** the header continues to show the total elapsed time since the stopwatch
+  was first started
+
+#### Scenario: Lapping disabled keeps the existing stopwatch display
+
+- **WHEN** a stopwatch is running with `Lap Stopwatch` disabled
+- **THEN** the main value shows the total elapsed time (no lap has been recorded)
+- **AND** the header shows the `00:00-->` base-length header as today
+
+---
+
+### Requirement: A recorded lap slot shows its own split and cumulative time
+
+A recorded lap slot (the paused `Lap [n]: ` snapshot) SHALL show its own split as
+the main value and its cumulative time as the header, using the same computation
+as the active stopwatch:
+
+- The **main value** SHALL show that lap's split — the time between the previous
+  lap and this lap (or between the stopwatch start and this lap, for the first
+  lap).
+- The **header** SHALL show the cumulative total elapsed at the moment the lap was
+  recorded, prefixed with the count-up arrow (e.g. `-->12:34`).
+
+#### Scenario: Lap slot shows split and cumulative
+
+- **WHEN** the third lap is recorded 41 seconds after the second, at a cumulative
+  total of 12:34
+- **THEN** the `Lap 3:` slot shows `00:41` as its main value
+- **AND** its header shows `-->12:34`
+
+#### Scenario: First lap slot split is measured from the start
+
+- **WHEN** the first lap is recorded
+- **THEN** the `Lap 1:` slot's main value equals the cumulative total at that lap
+  (its split is measured from the stopwatch start)
+- **AND** its header shows the same time prefixed with the count-up arrow
+
+---
+
+### Requirement: Long press Select restarts and renames the stopwatch when lapping is enabled
+
+When `Lap Stopwatch` is enabled, a long press of Select on a stopwatch in Counting
+mode SHALL restart it from the first lap — resetting the total and current split
+to zero and resetting the lap numbering so the next recorded lap is `Lap 1` — and
+SHALL assign the stopwatch a new name. Previously recorded lap slots are not
+affected. When `Lap Stopwatch` is disabled, long press Select restarts the
+stopwatch without changing its name (existing behavior).
+
+#### Scenario: Long press Select while lapping restarts and renames
+
+- **WHEN** `Lap Stopwatch` is enabled and a stopwatch is running in Counting mode
+- **AND** the user long-presses Select
+- **THEN** the stopwatch restarts from zero with its lap numbering reset so the
+  next lap is `Lap 1`
+- **AND** the stopwatch is given a new name
+- **AND** any previously recorded lap slots remain unchanged
+
+#### Scenario: Long press Select without lapping keeps the name
+
+- **WHEN** `Lap Stopwatch` is disabled and a stopwatch is running in Counting mode
+- **AND** the user long-presses Select
+- **THEN** the stopwatch restarts without changing its name (existing behavior)

@@ -17,9 +17,27 @@ everything" affordance.
   showing the lap, 0.5 s showing the original) for 3 seconds, then only the
   original is shown. Pressing **Select** again during the flash window cancels
   the flash and immediately records another lap (incrementing `n`).
-- Increase the maximum number of timer slots from 5 to a higher reasonable
-  limit, and add **scrolling** support to the Timer List so all slots are
-  reachable. **BREAKING**: persistence layout / version changes.
+- Change the stopwatch **display** when lapping is enabled: the main value shows
+  the current **split** (time since the last lap) and the header shows the
+  **total** elapsed since first start, prefixed with the count-up arrow
+  (`-->12:34`). Conceptually a lapping stopwatch on its first lap is identical to
+  a non-lapping stopwatch except for the header, so the main value is always the
+  split (equal to the total until a lap is recorded) and only the Select handler
+  and header rendering depend on the setting. A recorded lap slot shows that lap's
+  split as its main value and its cumulative time in the header.
+- When lapping is enabled, a **long press of Select** restarts the stopwatch from
+  the first lap and gives it a new name (previously recorded lap slots are kept);
+  with lapping disabled, long-press Select restarts without renaming, as today.
+- Increase the maximum number of timer slots from 5 to 32, and add **scrolling**
+  support to the Timer List so all slots are reachable. **BREAKING**: persistence
+  layout / version changes.
+- **Warn as the slot limit is approached:** when creating a timer or lap leaves 3
+  or fewer free slots, show an on-screen message (with the number of slots
+  remaining) and three short vibrations, repeating for each subsequent creation.
+  A normal timer shows the message for 3 seconds on creation; a lap shows it
+  during the flash window in place of the original view while the paused lap keeps
+  flashing. Attempting to lap with no free slots left instead shows a "no free
+  slots" message with three vibrations and records nothing.
 - Increase the stored timer **name length** (applies regardless of whether the
   lap feature is enabled). **BREAKING**: persisted `Timer` struct grows.
 - A lap timer is a normal timer once recorded: re-opening and renaming it
@@ -38,11 +56,15 @@ everything" affordance.
 
 ### New Capabilities
 - `stopwatch-laps`: Recording lap snapshots of a running timer into new slots,
-  the lap naming scheme, and the post-lap flash behavior with its re-lap window.
+  the lap naming scheme, the post-lap flash behavior with its re-lap window, the
+  in-flash presentation of the approaching-limit warning, the split/total display
+  model (main = split, header = total with `-->` prefix), and the
+  restart-and-rename long-press Select behavior.
 
 ### Modified Capabilities
 - `multi-timer-management`: Maximum slot count increased beyond 5; stored timer
-  name field lengthened.
+  name field lengthened; approaching-limit warning (message + three vibrations)
+  when a creation leaves ≤ 3 free slots.
 - `timer-list-view`: Adds scrolling for off-screen rows, a pinned "Delete all"
   row with its hold-Down / Select behaviors, and changes post-delete selection
   to favor the previous row.
@@ -50,11 +72,13 @@ everything" affordance.
 ## Impact
 
 - Source: `src/timer.h`, `src/timer.c` (MAX_TIMERS, name length, persist version,
-  lap copy helper), `src/timer_list.c` (scrolling, Delete all row, post-delete
-  selection), `src/main.c` (Select-as-lap in Counting mode, flash state machine),
-  `src/drawing.c` (render an overridden slot during flash), `src/settings.c`,
-  `src/settings.h`, `src/js/pebble-js-app.js` (new `lap_stopwatch_enabled`
-  setting).
+  `lap_count`/`last_lap_ms` fields, lap copy helper, `timer_get_split_ms`),
+  `src/timer_list.c` (scrolling, Delete all row, post-delete selection),
+  `src/main.c` (Select-as-lap in Counting mode, flash state machine, long-press
+  restart-and-rename), `src/drawing.c` (render an overridden slot during flash,
+  split main value, total/`-->`-prefixed header when lapping is enabled),
+  `src/settings.c`, `src/settings.h`, `src/js/pebble-js-app.js` (new
+  `lap_stopwatch_enabled` setting).
 - Persistence: `PERSIST_VERSION` bump for the enlarged `Timer` struct and higher
   slot count; settings version bump for the new toggle. Existing timers are
   discarded on upgrade per the current version-mismatch reset behavior.
