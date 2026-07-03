@@ -10,6 +10,8 @@ directly above the deleted entry). If the previous entry is the "New Timer" row
 at that row position so the next timer below shifts up into the selection. If no
 timers remain after the deletion, the "New Timer" row SHALL become selected. The
 selection SHALL never land on the "Delete all" entry as a result of a deletion.
+(On aplite the previous post-delete selection behavior is kept; the feature set
+is compiled out there.)
 
 #### Scenario: Hold Down deletes selected timer
 
@@ -74,7 +76,9 @@ visible.
 ### Requirement: Timer List includes a pinned "Delete all" entry
 
 The Timer List SHALL always display a "Delete all" entry pinned at the very
-bottom of the list, regardless of whether the lap feature is enabled.
+bottom of the list, regardless of whether the lap feature is enabled. (Not on
+aplite, where the feature set is compiled out and the previous list behavior is
+unchanged; see the design's aplite section.)
 
 #### Scenario: Delete all entry is present at the bottom
 

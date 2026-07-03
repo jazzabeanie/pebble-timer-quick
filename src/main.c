@@ -48,7 +48,7 @@ static struct {
 #if LAP_FEATURE
     // Lap flash state: after a lap is recorded the display alternates between
     // the paused lap slot and the original timer for FLASH_WINDOW_MS
-    AppTimer    *flash_timer;         //< 500ms toggle timer driving the lap flash
+    AppTimer    *flash_timer;         //< 1s toggle timer driving the lap flash
     int8_t      flash_lap_slot;       //< Lap slot shown during "on" frames (-1 = no flash)
     uint64_t    flash_deadline_ms;    //< Epoch (ms) at which the flash stops
     bool        flash_showing_lap;    //< True while the lap slot is the rendered frame
@@ -74,9 +74,9 @@ static AppTimer *s_no_phone_timer = NULL;
 #endif
 
 #if LAP_FEATURE
-// Lap flash timing: alternate lap/original every 500ms for 3 seconds
-#define FLASH_TICK_MS 500
-#define FLASH_WINDOW_MS 3000
+// Lap flash timing: alternate lap/original every 1s for 5 seconds
+#define FLASH_TICK_MS 1000
+#define FLASH_WINDOW_MS 5000
 
 // Slot-limit warning overlay ("N slots left" / "No free slots"), held 3 seconds
 #define WARNING_FEEDBACK_MS 3000

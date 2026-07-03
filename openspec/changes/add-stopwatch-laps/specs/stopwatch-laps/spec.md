@@ -6,6 +6,12 @@ The app SHALL expose a `Lap Stopwatch` setting in the settings page that is
 disabled (off) by default. The lap behavior on the Select button is active only
 when this setting is enabled.
 
+The lap feature is **not available on aplite** (the original Pebble / Pebble
+Steel), where it is compiled out for RAM. The settings page SHALL make this
+limitation clear on the `Lap Stopwatch` row (e.g. a label suffix such as
+`(not on original Pebble)`, mirroring the Voice Naming row's
+`(Pebble 2 only)`).
+
 #### Scenario: Setting defaults to off
 
 - **WHEN** the app is launched for the first time with no stored settings
@@ -22,6 +28,18 @@ when this setting is enabled.
 
 - **WHEN** the user enables `Lap Stopwatch` and the app is closed and relaunched
 - **THEN** the setting remains enabled
+
+#### Scenario: Settings page states the aplite limitation
+
+- **WHEN** the user opens the settings page
+- **THEN** the `Lap Stopwatch` row indicates that the feature is not available
+  on aplite (the original Pebble / Pebble Steel)
+
+#### Scenario: No lap behavior on aplite
+
+- **WHEN** the app runs on aplite
+- **THEN** pressing Select on a running timer toggles play/pause regardless of
+  the `Lap Stopwatch` setting (the feature is compiled out)
 
 ---
 
@@ -124,17 +142,18 @@ within the buffer. The prefix SHALL never be truncated.
 ### Requirement: Recorded lap flashes on screen before settling on the original
 
 Immediately after a lap is recorded the display SHALL alternate between the
-paused lap copy and the original running timer — 0.5 s showing the lap, 0.5 s
-showing the original — for 3 seconds, after which only the original timer is
-shown. The active timer and all button context remain the original timer
-throughout.
+paused lap copy and the original running timer — 1 s showing the lap, 1 s
+showing the original — for 5 seconds, after which the flash auto-dismisses and
+only the original timer is shown. The active timer and all button context
+remain the original timer throughout.
 
-#### Scenario: Flash alternates for three seconds
+#### Scenario: Flash alternates for five seconds
 
 - **WHEN** a lap is recorded
-- **THEN** the screen shows the paused lap copy for 0.5 s, then the original for
-  0.5 s, repeating for a total of 3 seconds
-- **AND** after 3 seconds only the original timer is shown
+- **THEN** the screen shows the paused lap copy for 1 s, then the original for
+  1 s, repeating for a total of 5 seconds
+- **AND** after 5 seconds the flash auto-dismisses and only the original timer
+  is shown
 
 #### Scenario: Buttons during the flash act on the original timer
 
@@ -168,8 +187,8 @@ window ends, only the original running timer is shown.
 - **WHEN** a lap is recorded that leaves 3 or fewer free slots remaining
 - **THEN** the watch emits three short vibrations
 - **AND** during the flash window the display alternates between the paused lap
-  copy (0.5 s) and the warning message shown in place of the original running
-  timer (0.5 s)
+  copy (1 s) and the warning message shown in place of the original running
+  timer (1 s)
 - **AND** after the flash window ends only the original running timer is shown
 
 #### Scenario: Lap with ample slots free flashes normally
@@ -194,16 +213,32 @@ The **header** SHALL differ only according to the `Lap Stopwatch` setting:
 
 - **Enabled:** the total elapsed time since the stopwatch was first started,
   prefixed with the count-up arrow (e.g. `-->12:34`).
-- **Disabled:** the `00:00-->` base-length header shown today.
+- **Disabled:** the time of day the timer was started, prefixed with `@` and
+  followed by the count-up arrow (e.g. `@12:45-->`), formatted per the watch's
+  12/24-hour clock style. The `@` prefix distinguishes this from an overtime
+  countdown's header, which also shows a bare `NN:NN-->` (its original base
+  length, e.g. `05:00-->`) and would otherwise be visually indistinguishable.
+  This replaces the `00:00-->` base-length header shown previously for a
+  genuine stopwatch (a timer with no original countdown length). (On aplite,
+  where the feature set is compiled out, the previous `00:00-->` header is
+  kept.)
 
-Both values update live while the stopwatch runs and hold while it is paused.
-Before the first lap, the main value and the header (when lapping is enabled) show
-the same time.
+This header change applies only to a genuine stopwatch (created with no
+countdown length). An ordinary countdown timer that runs past zero into
+overtime keeps showing its unchanged base-length header (`05:00-->`)
+regardless of the `Lap Stopwatch` setting when disabled — only the
+lapping-*enabled* header (above) treats an overtime countdown like a
+stopwatch, consistent with Select already recording laps for any running
+counting-mode timer once the setting is on.
+
+The main value updates live while the stopwatch runs and holds while it is
+paused. Before the first lap, the main value and the header (when lapping is
+enabled) show the same time.
 
 Conceptually, a stopwatch with lapping disabled behaves exactly like a stopwatch
 with lapping enabled that is still on its first lap, except that the header shows
-`00:00-->` instead of the total. This keeps the only lapping-dependent code to the
-Select handler and the header rendering.
+the start time instead of the total. This keeps the only lapping-dependent code
+to the Select handler and the header rendering.
 
 #### Scenario: Before the first lap the split equals the total
 
@@ -220,11 +255,22 @@ Select handler and the header rendering.
 - **AND** the header continues to show the total elapsed time since the stopwatch
   was first started
 
-#### Scenario: Lapping disabled keeps the existing stopwatch display
+#### Scenario: Lapping disabled shows the start time in the header
 
 - **WHEN** a stopwatch is running with `Lap Stopwatch` disabled
 - **THEN** the main value shows the total elapsed time (no lap has been recorded)
-- **AND** the header shows the `00:00-->` base-length header as today
+- **AND** the header shows the time of day the stopwatch was started, prefixed
+  with `@` and followed by the count-up arrow (e.g. a stopwatch started at
+  12:45 shows `@12:45-->`)
+
+#### Scenario: An overtime countdown keeps its base-length header regardless of the setting
+
+- **WHEN** an ordinary countdown timer (started with a nonzero length) runs
+  past zero into overtime
+- **AND** `Lap Stopwatch` is disabled
+- **THEN** the header shows the countdown's original base length followed by
+  the count-up arrow (e.g. `05:00-->`), unchanged from existing behavior
+- **AND** it is not prefixed with `@` and does not show a time of day
 
 ---
 

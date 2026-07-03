@@ -6,6 +6,10 @@ The app SHALL support a maximum of 32 concurrent timer or stopwatch instances
 (increased from the previous limit of 5). Attempting to create a timer beyond the
 maximum when all slots are in use SHALL be prevented.
 
+**Aplite exception:** aplite keeps the previous limit of 5 slots. Its 24 KB app
+region cannot hold the enlarged slot array alongside the existing app (measured;
+see the design's aplite section).
+
 #### Scenario: Creating a timer when below the maximum
 
 - **WHEN** the user creates a new timer
@@ -35,7 +39,8 @@ Each timer slot SHALL store a name up to a fixed buffer capacity. The capacity
 SHALL be large enough that a lap-prefixed name (`Lap [n]: <original name>`) formed
 from any name the app assigns by default fits without losing any of the original
 name. The enlarged name length SHALL apply regardless of whether the lap feature
-is enabled.
+is enabled, on every platform except aplite (which keeps the previous 20-byte
+name field for RAM; see the design's aplite section).
 
 A user MAY rename a timer to a name that occupies up to the full buffer capacity
 (any name longer than the buffer is itself truncated to fit when set). When such a
@@ -69,7 +74,8 @@ never dropped.
 
 When a new timer or lap is created that leaves 3 or fewer free timer slots
 remaining, the app SHALL warn the user with both an on-screen message and three
-short vibrations. The message SHALL convey that the slot limit is being
+short vibrations. (Not on aplite, where the feature set is compiled out and the
+previous 5-slot behavior is unchanged.) The message SHALL convey that the slot limit is being
 approached, including the number of free slots remaining. This warning SHALL fire
 for every such creation from the point 3 slots remain onward (i.e. when the
 creation leaves 3, 2, 1, or 0 free slots), not only the first time. Creating a

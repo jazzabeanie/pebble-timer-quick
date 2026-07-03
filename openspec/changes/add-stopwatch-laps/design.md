@@ -24,8 +24,8 @@ set, a pinned "Delete all" row, and a post-delete selection change.
 - Record a paused copy of a running timer into a new slot on Select, keeping the
   original running and active, gated by a new off-by-default setting.
 - Name lap copies `Lap [n]: <name>` with `n` incrementing per originating timer.
-- Flash the lap copy vs. the original (0.5 s / 0.5 s) for 3 s, cancelable by a
-  re-lap Select.
+- Flash the lap copy vs. the original (1 s / 1 s) for 5 s before
+  auto-dismissing, cancelable by a re-lap Select.
 - Raise the slot limit to a high-but-reasonable value with list scrolling.
 - Lengthen the stored name field unconditionally.
 - Add a pinned "Delete all" row (hold Down clears all; Select shows a hint).
@@ -100,10 +100,54 @@ at the most recent lap (0 = no lap yet). Two quantities derive from it:
 value (identical output until a lap is recorded). `prv_render_header_text` is the
 only display that branches on `settings_get_lap_stopwatch_enabled()`: when enabled
 and the timer is a chrono, show the **total** prefixed with the count-up arrow
-(`-->%02d:%02d` / `-->%02d:%02d:%02d`); otherwise keep the current
-`00:00-->`/base-length header. (Note the arrow moves to a prefix in the
-lapping-enabled header.) Callers of `timer_get_value_ms()` used for non-display
-purposes (footer end-time, vibration threshold) keep using the total.
+(`-->%02d:%02d` / `-->%02d:%02d:%02d`); when disabled, show the **time of day
+the stopwatch was started**, prefixed with `@` and followed by the arrow (e.g.
+`@12:45-->`, formatted per the watch's 12/24-hour clock style like the footer),
+replacing the previous `00:00-->` base-length header. (Note the arrow is a
+prefix in the lapping-enabled header and a suffix in the disabled one.) For a
+running stopwatch the start time is `epoch() - elapsed`; for a paused stopwatch
+the same reconstruction shifts by the time spent paused (see Open Questions).
+Callers of `timer_get_value_ms()` used for non-display purposes (footer
+end-time, vibration threshold) keep using the total.
+
+The `@` prefix disambiguates this header from an overtime countdown's header,
+which keeps showing its base length suffixed with the arrow (e.g. `05:00-->`)
+— without a marker the two would be visually identical in shape
+(`NN:NN-->`), and a user could easily mistake an overtime countdown's original
+length for a stopwatch start time. `@` was chosen over the originally proposed
+⏱ (U+23F1) because Pebble's system fonts (this app already renders the
+count-up arrow as ASCII `-->` rather than `→`, evidence the glyph set is
+limited) very likely don't include Miscellaneous Technical characters like
+⏱, and over a bitmap icon because it needs no new resource and no header
+layout changes — a single guaranteed-safe ASCII character prepended to the
+existing format string.
+
+**Scoping the disabled-header change to genuine stopwatches, not overtime
+countdowns:** `timer_is_chrono()` returns true whenever elapsed time exceeds
+`length_ms` — this is true both for a genuine stopwatch (created with
+`length_ms == 0`, so it's immediately "past due") and for an ordinary
+countdown once it runs past zero into overtime (`length_ms > 0` but exceeded).
+The lapping-*enabled* header change (above) deliberately does not
+distinguish these — turning `Lap Stopwatch` on is an opt-in that already
+repurposes Select on *any* running counting-mode timer (see "Select-as-lap in
+main.c": the gate is `!timer_is_paused()`, with no chrono check), so treating
+an overtime countdown as stopwatch-like once the toggle is on is consistent
+with that existing, already-implemented, already-tested behavior.
+
+The lapping-*disabled* header change must **not** make the same
+generalization: `Lap Stopwatch` defaults to off, so this is the header path
+every ordinary countdown-timer user hits when a timer runs into overtime,
+whether or not they've ever touched the new setting. Applying the start-time
+header there would replace a meaningful, unchanged-since-before-this-feature
+`05:00-->` (the countdown's original length) with a fabricated "start time"
+(actually the moment the countdown crossed zero) for the majority of users.
+`prv_format_header_text` therefore adds `timer_get_length_ms() == 0` as an
+additional condition (alongside `timer_is_chrono()` and lapping disabled) to
+select the new `@HH:MM-->` header — mirroring the existing stopwatch/countdown
+distinction `timer_restart()` already makes via `base_length_ms > 0`. An
+overtime countdown (`length_ms > 0`) falls through to the existing
+base-length `MM:SS-->` branch, unchanged, regardless of the `Lap Stopwatch`
+setting.
 
 ### Lap recording (`timer.c`)
 Add `int8_t timer_slot_lap(uint8_t src_idx)`: allocate the next free slot
@@ -153,7 +197,7 @@ with its play/pause state unchanged throughout.
 
 ### Flash state machine
 Add flash state to `main_data`: the lap slot index to show during "on" frames, a
-flash deadline (`epoch() + 3000`), and an `AppTimer` toggling every 500 ms. A
+flash deadline (`epoch() + 5000`), and an `AppTimer` toggling every 1000 ms. A
 `bool s_flash_showing_lap` flips each tick. Rendering: add a drawing override
 `drawing_set_slot_override(int8_t slot)` (−1 = none). During "on" frames the
 override is the lap slot and `drawing_render` reads that slot as a paused
@@ -186,7 +230,7 @@ Presentation differs by path:
   the just-recorded lap left ≤ 3 free. In the flash tick, the "off"/original
   phase renders the warning message instead of the original timer, while the
   "on" phase keeps flashing the paused lap slot via the draw override. When the
-  3 s flash window ends, clear the flag and the override so only the original
+  5 s flash window ends, clear the flag and the override so only the original
   timer remains. The three vibrations fire once when the lap is recorded.
 
 Both paths share one helper to build the "N slots left" string and enqueue the
@@ -220,7 +264,37 @@ creation, lap creation, and the at-capacity failure.
 Add `lap_stopwatch_enabled` (default false) to `AppSettings`, a new AppMessage
 key (`15`), a getter `settings_get_lap_stopwatch_enabled()`, bump
 `PERSIST_SETTINGS_VERSION`, and add the toggle row + payload entry in
-`pebble-js-app.js`.
+`pebble-js-app.js`. The settings page must make the aplite limitation clear:
+label the toggle so users know Lap Stopwatch is **not available on aplite**
+(the original Pebble / Pebble Steel), e.g. `Lap Stopwatch (not on original
+Pebble)`, mirroring how the Voice Naming row is labelled `(Pebble 2 only)`.
+
+### Aplite: feature compiled out (measured, not assumed)
+The original assumption ("RAM is a non-issue... negligible even on aplite") was
+wrong for this app. Measured on the SDK 4.17 toolchain:
+
+- Baseline (pre-feature) aplite footprint: **22804 / 24576 bytes** — only
+  ~1.7 KB of headroom, and the app already runs degraded there (every icon PNG
+  fails to load at runtime; `app_message_open(inbox_max)` needs ~8.2 KB of heap
+  so phone settings sync silently never worked on aplite — meaning the
+  `Lap Stopwatch` toggle could never take effect there anyway).
+- The feature adds ~2.8 KB of code+data on aplite; with it included the link
+  overflows the `APP` region, and even reduced variants exhaust the runtime
+  heap (crash in `text_render.c`, whose unchecked `malloc` was also fixed).
+
+Decision: gate the entire feature set behind a `LAP_FEATURE` macro defined in
+`src/timer.h` (`1` everywhere, `0` on aplite). Only the feature roots are
+gated; `-ffunction-sections`/`--gc-sections` drops unreachable helpers.
+`MAX_TIMERS`/`TIMER_NAME_LEN` are platform-conditional (5 / 20 on aplite,
+32 / 40 elsewhere). Aplite keeps the previous behavior throughout: Select
+toggles play/pause, `00:00-->` header (and it keeps that header even after the
+disabled-header change below — no new display code on aplite), no Delete all
+row, no warnings, previous post-delete selection. Aplite heap after gating:
+1636 bytes free (baseline 1772) — verify any future change keeps aplite
+≥ ~1.6 KB and boots on the aplite emulator.
+
+*Alternative:* dropping aplite from `targetPlatforms` — rejected for now; the
+platform still works with the previous feature set.
 
 ## Risks / Trade-offs
 
@@ -251,14 +325,29 @@ key (`15`), a getter `settings_get_lap_stopwatch_enabled()`, bump
 
 ## Open Questions
 
-- Final values: `MAX_TIMERS` (32) and `name` length (proposed 40).
-  Fits the 4 KB total persist / 256 B per-field budget on all targets (aplite
-  included) with headroom; the exact per-app slot ceiling is not `4096 / 80`
-  (per-field overhead plus shared settings/version keys lower it) and has not been
-  measured, so 32 is a margin-based choice, not the hardware maximum.
 - Exact wording and presentation of the "hold Down to clear all" hint message.
-
+  (Implemented as "Hold Down to clear all timers"; confirm wording.)
 Resolved:
+- Start-time header while **paused** (lapping disabled): accept the drift.
+  `epoch() - elapsed` is reused for both running and paused stopwatches, so a
+  long pause shifts the displayed start time forward by the pause duration.
+  Persisting a real start epoch was rejected as unwarranted complexity for a
+  minor, rarely-visible edge case (only affects a paused, lapping-disabled,
+  genuine stopwatch's header) and would need another struct/persist-version
+  change on top of the ones this change already makes.
+- Disabled-header ambiguity with overtime countdowns: prefix the start-time
+  header with `@` (`@12:45-->`) rather than the originally proposed ⏱
+  character, which Pebble's system font very likely can't render. See the
+  split/total display model decision above.
+- Disabled-header scope: gate the new start-time header on
+  `timer_get_length_ms() == 0` (genuine stopwatch) in addition to
+  `timer_is_chrono()`, so an overtime countdown keeps its unchanged
+  `05:00-->` base-length header regardless of the `Lap Stopwatch` setting.
+  See the split/total display model decision above.
+- Final values: `MAX_TIMERS` (32) and `name` length (40). Verified by test:
+  all 32 slots persist and reload at capacity on basalt and emery
+  (`test_stopwatch_laps.py::TestSlotLimit::test_fill_to_capacity_warns_and_persists`).
+  Aplite keeps 5 slots / 20-char names (see the aplite section).
 - "Delete all" via hold Down deletes every slot and exits the app to the
   watchface (matching delete-to-empty behavior today).
 - Post-delete selection moves to the previous timer entry; if the deleted timer

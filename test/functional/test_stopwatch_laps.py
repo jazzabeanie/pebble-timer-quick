@@ -5,7 +5,7 @@ Covered behaviors:
 - Select on a running stopwatch records a lap (paused copy in a new slot,
   original keeps running and stays active) when `Lap Stopwatch` is enabled.
 - Lap slots are named "Lap [n]: <name>" with n incrementing per source.
-- The recorded lap flashes (0.5s lap / 0.5s original) for ~3 seconds; Select
+- The recorded lap flashes (1s lap / 1s original) for ~5 seconds; Select
   during the flash cancels it and records the next lap.
 - Split/total display: main value shows the current split, header shows the
   total prefixed with "-->" while lapping is enabled.
@@ -156,7 +156,7 @@ class TestLapRecording:
 
 
 class TestLapFlash:
-    """7.2: the 3-second lap/original flash and the re-lap window."""
+    """7.2: the 5-second lap/original flash and the re-lap window."""
 
     def test_flash_alternates_then_ends(self, emulator):
         _skip_if_no_lap_feature(emulator)
@@ -170,10 +170,10 @@ class TestLapFlash:
         lap = capture.wait_for_state(event="lap_recorded", timeout=5.0)
         assert lap is not None
 
-        # Collect flash phases until the flash ends (~3s window)
+        # Collect flash phases until the flash ends (~5s window)
         phases = []
         end = None
-        deadline = time.time() + 6.0
+        deadline = time.time() + 8.0
         while time.time() < deadline:
             state = capture.wait_for_state(timeout=1.0)
             if state is None:
@@ -272,7 +272,7 @@ class TestSplitTotalDisplay:
             f"Main value should show the split (< total) after a lap: {orig}"
         )
 
-    def test_header_unchanged_when_lapping_disabled(self, emulator):
+    def test_header_shows_start_time_when_lapping_disabled(self, emulator):
         _skip_if_no_lap_feature(emulator)
         capture = LogCapture(emulator.platform)
         capture.start()
@@ -286,13 +286,62 @@ class TestSplitTotalDisplay:
         states = [s for s in capture.get_state_logs() if s["event"] == "display"]
         capture.stop()
         assert states, "No display logs captured"
-        # The stopwatch header keeps the base-length "00:00-->" form
+        # A genuine stopwatch's header now shows the time of day it was
+        # started, prefixed with "@" (disambiguates from an overtime
+        # countdown's unchanged base-length header, see
+        # test_overtime_countdown_header_unchanged_when_lapping_disabled)
+        # and suffixed with the count-up arrow, e.g. "@14:07-->".
         last = states[-1]
-        assert last.get("hdr", "").endswith("-->"), (
-            f"Expected trailing --> header with lapping disabled: {last}"
-        )
-        assert not last.get("hdr", "").startswith("-->"), (
-            f"Got lapping-style header while disabled: {last}"
+        hdr = last.get("hdr", "")
+        assert hdr.startswith("@"), f"Expected '@'-prefixed start-time header: {last}"
+        assert hdr.endswith("-->"), f"Expected trailing --> header: {last}"
+        assert hdr != "@00:00-->", f"Header still shows the old placeholder: {last}"
+
+    def test_overtime_countdown_header_unchanged_when_lapping_disabled(self, persistent_emulator):
+        """An ordinary countdown that runs into overtime keeps its base-length
+        header (e.g. "00:01-->") -- not the new stopwatch start-time header --
+        since it was never a genuine (0-length) stopwatch. Regression test for
+        `timer_is_chrono()` also being true for overtime countdowns.
+
+        Uses persistent_emulator (like test_base_length.py) rather than the
+        plain emulator fixture: the emulator fixture's per-test warm-up sleeps
+        3s before the test body runs, which already consumes the New-mode
+        window this test needs to catch with a long-press Select.
+        """
+        emulator = persistent_emulator
+        _skip_if_no_lap_feature(emulator)
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        time.sleep(1.0)
+
+        # Long press Select to enter EditSec mode from New mode (must happen
+        # before the 3s new-expire timer fires).
+        emulator.hold_button(Button.SELECT)
+        time.sleep(1.0)
+        emulator.release_buttons()
+        time.sleep(0.3)
+        state = capture.wait_for_state(event="long_press_select", timeout=5.0)
+        assert state is not None, "Did not receive long_press_select event"
+        assert_mode(state, "EditSec")
+
+        # Set a 1-second countdown (Down in EditSec adds 1s) so it reaches
+        # overtime quickly.
+        capture.clear_state_queue()
+        emulator.press_down()
+        state = capture.wait_for_state(event="button_down", timeout=5.0)
+        assert state is not None, "Did not receive button_down state"
+
+        # Let EditSec expire into Counting (3s), then let the 1s countdown
+        # run past zero into overtime.
+        capture.clear_state_queue()
+        time.sleep(5.0)
+
+        states = [s for s in capture.get_state_logs() if s["event"] == "display"]
+        capture.stop()
+        assert states, "No display logs captured"
+        last = states[-1]
+        assert last.get("hdr", "") == "00:01-->", (
+            f"Expected unchanged base-length header for an overtime countdown: {last}"
         )
 
 
@@ -383,7 +432,7 @@ class TestLongPressRestart:
 
         laps = _record_laps(emulator, capture, 2, delay=0.5)
         assert laps[1].get("name", "").startswith("Lap 2: ")
-        time.sleep(3.5)  # let the flash window end
+        time.sleep(5.5)  # let the flash window end
 
         # Long-press Select: restart from zero with the lap session reset
         capture.clear_state_queue()

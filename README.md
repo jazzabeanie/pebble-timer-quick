@@ -105,6 +105,14 @@ so you can read off a precise split. Milliseconds are hidden while the stopwatch
 is running, hidden once it reaches an hour (the display stays `H:MM:SS`), and are
 never shown for countdown timers.
 
+**Lap Stopwatch** (setting, off by default; not available on the original Pebble /
+Pebble Steel): when enabled, Select on a running timer records a lap — a paused
+snapshot in a new slot, named `Lap [n]: <name>` — instead of pausing, and flashes
+between the lap and the original for 5 seconds. A genuine stopwatch's header shows
+its `@`-prefixed start time (e.g. `@12:45-->`) instead of `00:00-->` when the
+setting is off; an overtime countdown always keeps its original base-length header
+regardless of the setting. See `docs/button-functions.md` for the full reference.
+
 ### Alarm mode
 
 When a countdown timer expires, it enters alarm mode (vibrating).

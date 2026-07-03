@@ -185,11 +185,27 @@ static void prv_format_header_text(char *buf, size_t buf_size) {
       } else {
           snprintf(buf, buf_size, "-->%02d:%02d", minutes, seconds);
       }
+    } else if (timer_get_length_ms() == 0) {
+      // Genuine stopwatch (length_ms == 0), not an overtime countdown (which
+      // keeps length_ms > 0 and falls through to the base-length branch
+      // below): show the time of day it was started, prefixed with "@"
+      // (disambiguates from the overtime countdown's base-length header,
+      // which also ends in "-->") and suffixed with the count-up arrow.
+      // Paused stopwatches reuse the same epoch()-minus-elapsed formula, so
+      // the shown start time drifts forward for however long they've been
+      // paused (accepted trade-off; see design.md Open Questions).
+      time_t start_time = epoch() / MSEC_IN_SEC - timer_get_value_ms() / MSEC_IN_SEC;
+      struct tm start_tm = *localtime(&start_time);
+      char time_buf[8];
+      strftime(time_buf, sizeof(time_buf), clock_is_24h_style() ? "%k:%M" : "%l:%M", &start_tm);
+      snprintf(buf, buf_size, "@%s-->", time_buf);
     } else {
 #else
     {
 #endif
-      // Calculate and format the total timer length
+      // Calculate and format the total timer length (also the header for an
+      // overtime countdown, unchanged regardless of the Lap Stopwatch
+      // setting since it was never a genuine 0-length stopwatch)
       int64_t total_ms = timer_get_length_ms();
       int64_t total_seconds = total_ms / 1000;
       int hours = total_seconds / 3600;

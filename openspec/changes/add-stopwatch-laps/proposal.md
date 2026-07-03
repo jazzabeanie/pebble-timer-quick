@@ -13,10 +13,11 @@ everything" affordance.
   setting). When enabled, pressing **Select** on a running timer in Counting
   mode pauses a copy of that timer into a new slot, named `Lap [n]: <name>`,
   while the original timer keeps running and remains the active/on-screen timer.
-- After a lap is recorded the paused lap copy **flashes** on screen (0.5 s
-  showing the lap, 0.5 s showing the original) for 3 seconds, then only the
-  original is shown. Pressing **Select** again during the flash window cancels
-  the flash and immediately records another lap (incrementing `n`).
+- After a lap is recorded the paused lap copy **flashes** on screen (1 s
+  showing the lap, 1 s showing the original) for 5 seconds before
+  auto-dismissing, then only the original is shown. Pressing **Select** again
+  during the flash window cancels the flash and immediately records another lap
+  (incrementing `n`).
 - Change the stopwatch **display** when lapping is enabled: the main value shows
   the current **split** (time since the last lap) and the header shows the
   **total** elapsed since first start, prefixed with the count-up arrow
@@ -25,6 +26,12 @@ everything" affordance.
   split (equal to the total until a lap is recorded) and only the Select handler
   and header rendering depend on the setting. A recorded lap slot shows that lap's
   split as its main value and its cumulative time in the header.
+- Change the stopwatch **header when lapping is not enabled**: show the time of
+  day the timer was started, prefixed with `@` and followed by the count-up
+  arrow (e.g. `@12:45-->`), replacing the `00:00-->` base-length header shown
+  today. The `@` prefix distinguishes this from an overtime countdown's header,
+  which keeps showing its original base length the same way (e.g. `05:00-->`)
+  and would otherwise look identical.
 - When lapping is enabled, a **long press of Select** restarts the stopwatch from
   the first lap and gives it a new name (previously recorded lap slots are kept);
   with lapping disabled, long-press Select restarts without renaming, as today.
@@ -51,6 +58,16 @@ everything" affordance.
   the deleted timer was the topmost, the position is kept so the next timer shifts
   up; if no timers remain, the "New Timer" row is selected. The selection never
   lands on "Delete all", so users never reach it without navigating there.
+- **Aplite exception:** the whole feature set above is **compiled out on
+  aplite**. Aplite's 24 KB app region had only ~1.7 KB of headroom before this
+  change, which cannot hold the ~2.8 KB of new code and data (and phone
+  settings sync already cannot work there — `app_message_open` needs ~8.2 KB of
+  heap — so the `Lap Stopwatch` toggle could never take effect on aplite
+  anyway). Aplite keeps the previous limits and behavior: 5 slots, 20-character
+  names, Select toggles play/pause, no "Delete all" row, no slot-limit
+  warnings, and the previous post-delete selection. The **settings page** must
+  clearly state that Lap Stopwatch is not available on aplite (the original
+  Pebble / Pebble Steel).
 
 ## Capabilities
 
@@ -64,10 +81,11 @@ everything" affordance.
 ### Modified Capabilities
 - `multi-timer-management`: Maximum slot count increased beyond 5; stored timer
   name field lengthened; approaching-limit warning (message + three vibrations)
-  when a creation leaves ≤ 3 free slots.
+  when a creation leaves ≤ 3 free slots. (Aplite keeps the previous 5-slot /
+  20-character limits; see the aplite exception above.)
 - `timer-list-view`: Adds scrolling for off-screen rows, a pinned "Delete all"
   row with its hold-Down / Select behaviors, and changes post-delete selection
-  to favor the previous row.
+  to favor the previous row. (Not on aplite; see the aplite exception above.)
 
 ## Impact
 
@@ -76,9 +94,11 @@ everything" affordance.
   `src/timer_list.c` (scrolling, Delete all row, post-delete selection),
   `src/main.c` (Select-as-lap in Counting mode, flash state machine, long-press
   restart-and-rename), `src/drawing.c` (render an overridden slot during flash,
-  split main value, total/`-->`-prefixed header when lapping is enabled),
-  `src/settings.c`, `src/settings.h`, `src/js/pebble-js-app.js` (new
-  `lap_stopwatch_enabled` setting).
+  split main value, total/`-->`-prefixed header when lapping is enabled,
+  start-time/`-->` header when lapping is disabled), `src/settings.c`,
+  `src/settings.h`, `src/js/pebble-js-app.js` (new `lap_stopwatch_enabled`
+  setting, labelled as unavailable on aplite). The `LAP_FEATURE` gate in
+  `src/timer.h` compiles the feature set out on aplite.
 - Persistence: `PERSIST_VERSION` bump for the enlarged `Timer` struct and higher
   slot count; settings version bump for the new toggle. Existing timers are
   discarded on upgrade per the current version-mismatch reset behavior.

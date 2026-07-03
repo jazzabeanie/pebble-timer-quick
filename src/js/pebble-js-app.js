@@ -103,7 +103,7 @@ Pebble.addEventListener('showConfiguration', function() {
     section('General', [
       row('Multiple Timers', 'multiple_timers_enabled'),
       rowOff('Voice Naming (Pebble 2 only)', 'voice_naming_enabled'),
-      rowOff('Lap Stopwatch', 'lap_stopwatch_enabled'),
+      rowOff('Lap Stopwatch (not on original Pebble)', 'lap_stopwatch_enabled'),
     ].join('')),
 
     section('Edit Mode', [
