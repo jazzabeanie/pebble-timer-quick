@@ -367,7 +367,7 @@ class TestRepeatCompletedTimer:
         logger.info(f"After repeat state: {state_repeat}")
         
         # Should show ~0:04 counting down
-        # (It actually adds base_length_ms to length_ms, so it's 8s total, 4s elapsed)
+        # (The cycle restarts at base_length_ms with the alarm overshoot deducted)
         assert_time_approximately(state_repeat, minutes=0, seconds=4, tolerance=2)
         assert_mode(state_repeat, "Counting")
         assert_paused(state_repeat, False)

@@ -19,6 +19,7 @@ typedef int32_t status_t;
 #define APP_LOG(level, fmt, args...) printf(fmt "\n", ## args)
 
 // Persistence
+int32_t persist_read_int(const uint32_t key);
 status_t persist_write_int(const uint32_t key, const int32_t value);
 int persist_write_data(const uint32_t key, const void *data, const size_t size);
 bool persist_exists(const uint32_t key);
@@ -100,3 +101,12 @@ void tick_timer_service_subscribe(TimeUnits tick_units, void* handler);
 void tick_timer_service_unsubscribe(void);
 void wakeup_cancel_all(void);
 void wakeup_schedule(time_t timestamp, uint32_t cookie, bool notify_if_missed);
+
+// Launch reason / wakeup events
+typedef enum {
+  APP_LAUNCH_SYSTEM = 0,
+  APP_LAUNCH_WAKEUP,
+} AppLaunchReason;
+AppLaunchReason launch_reason(void);
+typedef int32_t WakeupId;
+bool wakeup_get_launch_event(WakeupId *wakeup_id, int32_t *cookie);

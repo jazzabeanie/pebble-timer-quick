@@ -518,13 +518,15 @@ static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) 
   timer_reset_auto_snooze();
 
   if (timer_is_vibrating()) {
-    // Check if we have a "base" duration to add
+    // Check if we have a "base" duration to restart from
     if (timer_data.base_length_ms > 0) {
-      APP_LOG(APP_LOG_LEVEL_DEBUG, "Up long press: Extending timer by %lld ms.", (long long)timer_data.base_length_ms);
+      APP_LOG(APP_LOG_LEVEL_DEBUG, "Up long press: Restarting %lld ms timer.", (long long)timer_data.base_length_ms);
       vibes_cancel(); // Stop the alarm vibration
-      timer_data.is_repeating = false;
-      timer_data.repeat_count = 0;
-      timer_increment(timer_data.base_length_ms); // Add the base duration
+      if (timer_data.is_repeating) {
+        // Restart the full repeating timer, repeats included
+        timer_data.repeat_count = timer_data.base_repeat_count;
+      }
+      timer_repeat_restart();
       test_log_state("alarm_stop");
     }
     drawing_update();
@@ -760,7 +762,7 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     if (timer_data.is_repeating && timer_data.repeat_count > 1) {
       // Intermediate alarm: just restart the timer (no snooze)
       timer_data.repeat_count--;
-      timer_increment(timer_data.base_length_ms);
+      timer_repeat_restart();
       test_log_state("alarm_stop");
     } else {
       // Final alarm or non-repeating: normal snooze

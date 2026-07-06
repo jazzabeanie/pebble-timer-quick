@@ -98,6 +98,15 @@ bool settings_get_show_alarm_reset_icon(void)   { return true; }
 bool settings_get_show_silence_icon(void)       { return true; }
 bool settings_get_show_snooze_icon(void)        { return true; }
 bool settings_get_swap_back_and_select_long(void) { return s_mock_swap_back_and_select_long; }
+bool settings_get_multiple_timers_enabled(void) { return false; }
+bool settings_get_voice_naming_enabled(void) { return false; }
+
+// --- Timer List stub ---
+void timer_list_window_push(void) {}
+
+// --- Launch reason / wakeup event stubs ---
+AppLaunchReason launch_reason(void) { return APP_LAUNCH_SYSTEM; }
+bool wakeup_get_launch_event(WakeupId *wakeup_id, int32_t *cookie) { return false; }
 
 // --- Include main.c logic ---
 // We redefine main to avoid conflict, and to allow us to test static functions
@@ -185,12 +194,131 @@ static void test_swap_select_long_adds_time_in_new(void **state) {
     s_mock_swap_back_and_select_long = false;
 }
 
+// Hold Up at the final alarm of a repeating timer: the original timer must
+// restart in full — base length AND base repeat count — not the accumulated total.
+static void test_up_long_restarts_repeating_timer_after_final_alarm(void **state) {
+    memset(&timer_data, 0, sizeof(Timer));
+    timer_reset();
+    memset(&main_data, 0, sizeof(main_data));
+    main_data.control_mode = ControlModeCounting;
+
+    // 1-min timer set to repeat 10 times, now at its final alarm:
+    // running, vibrating, 2s past the elapse point
+    s_mock_epoch = 1000000;
+    timer_data.length_ms = 60000;
+    timer_data.base_length_ms = 60000;
+    timer_data.is_repeating = true;
+    timer_data.repeat_count = 1; // final alarm
+    timer_data.base_repeat_count = 10;
+    timer_data.can_vibrate = true;
+    timer_data.is_paused = false;
+    timer_data.start_ms = s_mock_epoch - 62000;
+
+    prv_up_long_click_handler(NULL, NULL);
+
+    // The original 1-min timer restarts, repeats included
+    assert_int_equal(timer_data.length_ms, 60000);
+    assert_true(timer_data.is_repeating);
+    assert_int_equal(timer_data.repeat_count, 10);
+    assert_false(timer_is_chrono());
+    // 2s overshoot past the alarm is deducted from the fresh cycle
+    assert_int_equal(timer_get_value_ms(), 58000);
+}
+
+// Hold Up at the alarm of a non-repeating timer: restart at the base length,
+// not base added on top of the old length (2x).
+static void test_up_long_restarts_nonrepeating_timer_at_base_length(void **state) {
+    memset(&timer_data, 0, sizeof(Timer));
+    timer_reset();
+    memset(&main_data, 0, sizeof(main_data));
+    main_data.control_mode = ControlModeCounting;
+
+    // 1-min non-repeating timer, alarm ringing for 2s
+    s_mock_epoch = 2000000;
+    timer_data.length_ms = 60000;
+    timer_data.base_length_ms = 60000;
+    timer_data.can_vibrate = true;
+    timer_data.is_paused = false;
+    timer_data.start_ms = s_mock_epoch - 62000;
+
+    prv_up_long_click_handler(NULL, NULL);
+
+    assert_int_equal(timer_data.length_ms, 60000);
+    assert_false(timer_data.is_repeating);
+    assert_int_equal(timer_get_value_ms(), 58000);
+}
+
+// After a repeat has fired, turning repeats off (hold Up while counting) must
+// leave the timer at its original length, not the accumulated total.
+static void test_toggle_repeat_off_after_repeat_keeps_original_length(void **state) {
+    memset(&timer_data, 0, sizeof(Timer));
+    timer_reset();
+    memset(&main_data, 0, sizeof(main_data));
+    main_data.control_mode = ControlModeCounting;
+
+    // 1-min timer repeating 2 times, running from t0
+    s_mock_epoch = 3000000;
+    timer_data.length_ms = 60000;
+    timer_data.base_length_ms = 60000;
+    timer_data.is_repeating = true;
+    timer_data.repeat_count = 2;
+    timer_data.base_repeat_count = 2;
+    timer_data.can_vibrate = true;
+    timer_data.is_paused = false;
+    timer_data.start_ms = s_mock_epoch;
+
+    // First cycle elapses (1s past the alarm) and auto-repeats
+    s_mock_epoch += 61000;
+    timer_check_elapsed();
+    assert_int_equal(timer_data.repeat_count, 1);
+
+    // User turns repeats off with a long Up press while counting
+    prv_up_long_click_handler(NULL, NULL);
+
+    assert_false(timer_data.is_repeating);
+    assert_int_equal(timer_data.repeat_count, 0);
+    // Original 1-min length, not 2 minutes
+    assert_int_equal(timer_data.length_ms, 60000);
+    // Second cycle keeps counting down (1s overshoot deducted)
+    assert_int_equal(timer_get_value_ms(), 59000);
+}
+
+// Pressing Down during an intermediate repeat alarm restarts the cycle at the
+// base length instead of accumulating onto length_ms.
+static void test_down_click_intermediate_repeat_keeps_base_length(void **state) {
+    memset(&timer_data, 0, sizeof(Timer));
+    timer_reset();
+    memset(&main_data, 0, sizeof(main_data));
+    main_data.control_mode = ControlModeCounting;
+
+    // 1-min timer with repeats remaining, alarm ringing for 1s
+    s_mock_epoch = 4000000;
+    timer_data.length_ms = 60000;
+    timer_data.base_length_ms = 60000;
+    timer_data.is_repeating = true;
+    timer_data.repeat_count = 3;
+    timer_data.base_repeat_count = 3;
+    timer_data.can_vibrate = true;
+    timer_data.is_paused = false;
+    timer_data.start_ms = s_mock_epoch - 61000;
+
+    prv_down_click_handler(NULL, NULL);
+
+    assert_int_equal(timer_data.repeat_count, 2);
+    assert_int_equal(timer_data.length_ms, 60000);
+    assert_int_equal(timer_get_value_ms(), 59000);
+}
+
 int main(void) {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_seconds_timer_bug),
         cmocka_unit_test(test_first_launch_starts_in_new_mode),
         cmocka_unit_test(test_swap_back_toggles_to_editsec_from_new),
         cmocka_unit_test(test_swap_select_long_adds_time_in_new),
+        cmocka_unit_test(test_up_long_restarts_repeating_timer_after_final_alarm),
+        cmocka_unit_test(test_up_long_restarts_nonrepeating_timer_at_base_length),
+        cmocka_unit_test(test_toggle_repeat_off_after_repeat_keeps_original_length),
+        cmocka_unit_test(test_down_click_intermediate_repeat_keeps_base_length),
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }

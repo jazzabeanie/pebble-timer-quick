@@ -80,6 +80,10 @@ void timer_increment(int64_t increment);
 //! @param increment The amount to increment by
 void timer_increment_chrono(int64_t increment);
 
+//! Restart the current cycle at the base length, deducting the overshoot past
+//! the alarm so repeated cycles stay aligned with the original schedule
+void timer_repeat_restart(void);
+
 //! Toggle play pause state for timer
 void timer_toggle_play_pause(void);
 

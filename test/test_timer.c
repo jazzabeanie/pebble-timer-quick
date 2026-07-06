@@ -476,6 +476,51 @@ static void test_timer_check_elapsed_repeat(void **state) {
     assert_int_equal(timer_data.repeat_count, 2);
 }
 
+// 15b. test_timer_check_elapsed_repeat_keeps_base_length
+// Purpose: Verify that a repeat restarts the cycle at the base length instead of
+// accumulating onto length_ms. Previously length_ms grew by base_length_ms on every
+// repeat (2x, 3x, ...), corrupting the timer's total length.
+static void test_timer_check_elapsed_repeat_keeps_base_length(void **state) {
+    // Setup: reset timer at T=10000
+    timer_reset();
+
+    // Start timer
+    will_return(epoch, 10000);
+    timer_toggle_play_pause();
+
+    // Increment to 5000 ms
+    will_return(epoch, 10000);
+    timer_increment(5000);
+
+    // Set up repeating timer
+    timer_data.base_length_ms = 5000;
+    timer_data.is_repeating = true;
+    timer_data.repeat_count = 3;
+    timer_data.can_vibrate = true;
+
+    // Simulate delay of 7 seconds (2s past the alarm)
+    // timer_check_elapsed calls:
+    // 1. timer_is_chrono (1 epoch call)
+    // 2. cycle restart (1 epoch call)
+    will_return(epoch, 17000);
+    will_return(epoch, 17000);
+
+    expect_function_call(vibes_long_pulse);
+
+    timer_check_elapsed();
+
+    // Length must stay at one cycle, not accumulate to 10000
+    assert_int_equal(timer_get_length_ms(), 5000);
+
+    // Remaining value: base minus the 2s overshoot past the alarm
+    will_return(epoch, 17000);
+    assert_int_equal(timer_get_value_ms(), 3000);
+
+    // No longer in chrono mode
+    will_return(epoch, 17000);
+    assert_false(timer_is_chrono());
+}
+
 // 16. test_timer_sub_minute_valid
 // Purpose: Verify that timers with values between 1-59 seconds work correctly.
 static void test_timer_sub_minute_valid(void **state) {
@@ -893,6 +938,7 @@ int main(void) {
         cmocka_unit_test_setup_teardown(test_timer_check_elapsed_vibrates, setup, teardown),
         cmocka_unit_test_setup_teardown(test_timer_check_elapsed_auto_snooze, setup, teardown),
         cmocka_unit_test_setup_teardown(test_timer_check_elapsed_repeat, setup, teardown),
+        cmocka_unit_test_setup_teardown(test_timer_check_elapsed_repeat_keeps_base_length, setup, teardown),
         cmocka_unit_test_setup_teardown(test_timer_sub_minute_valid, setup, teardown),
         cmocka_unit_test_setup_teardown(test_timer_sub_second_resets, setup, teardown),
         cmocka_unit_test_setup_teardown(test_timer_crosses_sub_second_resets, setup, teardown),

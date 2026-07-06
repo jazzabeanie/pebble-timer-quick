@@ -133,7 +133,7 @@ void timer_check_elapsed(void) {
     timer_data.elapsed = true;
     if (timer_data.is_repeating && timer_data.repeat_count > 1) {
       timer_data.repeat_count--;
-      timer_increment(timer_data.base_length_ms);
+      timer_repeat_restart();
       vibes_long_pulse(); // Vibrate briefly on repeat
       test_log_state("timer_repeat");
       return;
@@ -150,6 +150,34 @@ void timer_check_elapsed(void) {
       vibes_enqueue_custom_pattern(vibe_pattern);
     }
   }
+}
+
+// Restart the current cycle at the base length, deducting the overshoot past
+// the alarm so repeated cycles stay aligned with the original schedule
+void timer_repeat_restart(void) {
+  int64_t now = 0;
+  int64_t elapsed;
+  if (!timer_data.is_paused) {
+    now = epoch();
+    elapsed = now - timer_data.start_ms;
+  } else {
+    elapsed = timer_data.start_ms;
+  }
+  int64_t overshoot = elapsed - timer_data.length_ms;
+  if (overshoot < 0) {
+    overshoot = 0;
+  }
+  timer_data.length_ms = timer_data.base_length_ms;
+  if (!timer_data.is_paused) {
+    timer_data.start_ms = now - overshoot;
+  } else {
+    timer_data.start_ms = overshoot;
+  }
+  // enable vibration
+  if (timer_data.length_ms > 0) {
+    timer_data.can_vibrate = true;
+  }
+  timer_data.elapsed = false;
 }
 
 // Increment timer value currently being edited

@@ -135,7 +135,7 @@ Shown on app open when ≥1 existing timer is saved and the "Multiple Timers" se
 | Button | Press | Action | Tests |
 |--------|-------|--------|-------|
 | Up | Short | Enter edit mode (New if timer > 0:00, EditSec if at 0:00) | `test_timer_workflows.py::TestEditRunningTimer::test_edit_running_timer`, `test_timer_workflows.py::TestEditCompletedTimer::test_edit_completed_timer_add_minute` |
-| Up | Long | Toggle repeat mode on/off (countdown only; no-op for chrono) | `test_timer_workflows.py::TestEnableRepeatingTimer::test_enable_repeating_timer` |
+| Up | Long | Toggle repeat mode on/off (countdown only; no-op for chrono). Repeats never inflate the timer length: each repeat restarts the cycle at base_length_ms, so toggling repeats off leaves the original timer length. | `test_timer_workflows.py::TestEnableRepeatingTimer::test_enable_repeating_timer`, `test_main_logic.c::test_toggle_repeat_off_after_repeat_keeps_original_length`, `test_timer.c::test_timer_check_elapsed_repeat_keeps_base_length` |
 | Select | Short | Toggle play/pause | `test_create_timer.py::TestPlayPause::test_select_toggles_play_pause_in_counting_mode`, `test_timer_workflows.py::TestPauseCompletedTimer::test_pause_completed_timer` |
 | Select | Long (running) | Restart timer to original base_length_ms (preserves running state) | `test_hold_select_restart.py::test_restart_running_countdown_preserves_running`, `test_hold_select_restart.py::test_restart_running_chrono_preserves_running`, `test_hold_select_restart.py::test_restart_repeating_timer_restores_count`, `test_create_timer.py::TestLongPressReset::test_long_press_select_resets_timer` |
 | Select | Long (paused) | Reset to 0:00 and enter EditSec mode | `test_hold_select_restart.py::test_long_press_select_paused_countdown_resets_to_editsec`, `test_hold_select_restart.py::test_long_press_select_paused_chrono_resets_to_editsec` |
@@ -157,10 +157,10 @@ Shown on app open when ≥1 existing timer is saved and the "Multiple Timers" se
 | Button | Press | Action | Tests |
 |--------|-------|--------|-------|
 | Up | Short | Silence alarm and enter edit mode | `test_backlight.py::test_backlight_stays_on_when_silencing_to_edit_mode` |
-| Up | Long | Repeat timer (add base_length_ms and restart; countdown only) | `test_timer_workflows.py::TestRepeatCompletedTimer::test_repeat_completed_timer`, `test_timer_workflows.py::TestRepeatTimerDuringAlarm::test_hold_up_during_alarm_repeats_timer`, `test_timer_workflows.py::TestRepeatTimerDuringAlarm::test_hold_up_during_longer_alarm_repeats_timer`, `test_timer_workflows.py::TestRepeatTimerDuringAlarm::test_hold_up_during_longer_alarm_repeats_timer_old_method` |
+| Up | Long | Restart the original timer (length back to base_length_ms; if repeating, repeat count restored to base_repeat_count; countdown only) | `test_timer_workflows.py::TestRepeatCompletedTimer::test_repeat_completed_timer`, `test_timer_workflows.py::TestRepeatTimerDuringAlarm::test_hold_up_during_alarm_repeats_timer`, `test_timer_workflows.py::TestRepeatTimerDuringAlarm::test_hold_up_during_longer_alarm_repeats_timer`, `test_timer_workflows.py::TestRepeatTimerDuringAlarm::test_hold_up_during_longer_alarm_repeats_timer_old_method`, `test_main_logic.c::test_up_long_restarts_repeating_timer_after_final_alarm`, `test_main_logic.c::test_up_long_restarts_nonrepeating_timer_at_base_length` |
 | Select | Short | Silence alarm and toggle play/pause | `test_backlight.py::test_backlight_on_during_alarm`, `test_timer_workflows.py::TestPauseCompletedTimer::test_pause_completed_timer` |
 | Select | Long | Restart timer from base_length_ms (running) | `test_hold_select_restart.py::test_restart_during_alarm` |
-| Down | Short | Snooze: if repeating with count > 1, advance repeat; otherwise add 5 minutes | `test_timer_workflows.py::TestSnoozeCompletedTimer::test_snooze_completed_timer` |
+| Down | Short | Snooze: if repeating with count > 1, advance repeat (cycle restarts at base_length_ms); otherwise add 5 minutes | `test_timer_workflows.py::TestSnoozeCompletedTimer::test_snooze_completed_timer`, `test_main_logic.c::test_down_click_intermediate_repeat_keeps_base_length` |
 | Down | Long | Quit app | *(no dedicated test)* |
 | Back | Short | Silence alarm (timer continues as chrono) | `test_timer_workflows.py::TestQuietAlarmBackButton::test_quiet_alarm_with_back_button` |
 
