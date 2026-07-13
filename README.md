@@ -239,7 +239,7 @@ Functional tests run on the Pebble emulator to verify UI behavior and button int
 
 Note: The tests use EasyOCR (deep learning-based) for text recognition, which provides better accuracy for the custom LECO 7-segment style font compared to traditional OCR engines like Tesseract. EasyOCR downloads its models (~100MB) on first run.
 
-Test are moving to inspecting logs instead of relying on OCR. The `pebble logs` command needs ~1 second to connect. See `test_log_based.py`.
+Tests are moving to inspecting logs instead of relying on OCR. App logs are read directly from the emulator's pypkjs WebSocket (see `_LogStream` in `test/functional/conftest.py`); every `install()` blocks until the app's `TEST_STATE:init` line is observed, so a test only starts once the app is confirmed running with logs flowing. See `test_log_based.py`.
 
 To run functional tests (runs on basalt by default):
 

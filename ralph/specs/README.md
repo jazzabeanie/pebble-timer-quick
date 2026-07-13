@@ -335,6 +335,21 @@ This README acts as a **lookup table** for AI search tools. Use the generative k
 
 ---
 
+### 23. Test Isolation Robustness
+**File:** [test-isolation-robustness.md](test-isolation-robustness.md)
+
+**Keywords:** test isolation, flaky tests, order-dependent failures, pebble logs, log capture, pypkjs, websocket, LogCapture, _LogStream, pebble kill, wipe, emulator fixture, persistent_emulator, install barrier, TEST_STATE init, leaked state recovery, conftest
+
+**Summary:** Fixes tests that passed in isolation but failed in full-suite runs. Replaces the fragile `pebble logs` subprocess with a WebSocket log stream read directly from pypkjs, scopes emulator kill/wipe to a single platform, makes `install()` block until the app's `TEST_STATE:init` line confirms launch + log flow, and detects/recovers leaked persisted state before each test.
+
+**Status:** Completed
+
+**Tests:** Passing (verified via previously order-dependent module combinations on basalt)
+
+**Dependencies:** test-logging.md (spec for TEST_STATE lines)
+
+---
+
 ## Adding New Specifications
 
 When creating a new spec file:

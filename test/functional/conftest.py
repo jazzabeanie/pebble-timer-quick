@@ -6,10 +6,14 @@ Provides emulator setup, screenshot helpers, and button simulation.
 
 import logging
 import os
+import shutil
+import signal
+import struct
 import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import Optional
 
 import pytest
 from PIL import Image
@@ -22,6 +26,9 @@ CONDA_ENV = Path(__file__).parent.parent.parent / "conda-env"
 PEBBLE_CMD = CONDA_ENV / "bin" / "pebble"
 if not PEBBLE_CMD.exists():
     PEBBLE_CMD = Path("pebble")
+
+# Make pebble_tool/libpebble2 importable in-process (emulator info, persist dirs)
+sys.path.insert(0, str(CONDA_ENV / "lib" / "python3.10" / "site-packages"))
 
 PYTHON_CMD = CONDA_ENV / "bin" / "python"
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -65,20 +72,12 @@ def pytest_generate_tests(metafunc):
 
 
 def pytest_sessionfinish(session, exitstatus):
-    """Kill all emulators and pebble logs subprocesses at end of session."""
-    for platform, reader in list(_PlatformReader._instances.items()):
-        reader.shutdown()
-        env = os.environ.copy()
-        env["PEBBLE_EMULATOR"] = platform
-        subprocess.run(
-            [str(PEBBLE_CMD), "kill", "--force"],
-            capture_output=True, text=True,
-            cwd=str(PROJECT_ROOT), env=env, timeout=30,
-        )
-    # pkill any orphaned emulator processes the pebble tool may not know about
+    """Stop log streams and kill all emulators at end of session."""
+    for platform, stream in list(_LogStream._instances.items()):
+        stream.shutdown()
+    # pkill any emulator processes (ours or orphaned)
     subprocess.run(["pkill", "-f", "qemu-pebble"], capture_output=True)
     subprocess.run(["pkill", "-f", "pypkjs"], capture_output=True)
-    subprocess.run(["pkill", "-f", "pebble logs"], capture_output=True)
 
 
 class EmulatorHelper:
@@ -93,6 +92,7 @@ class EmulatorHelper:
         self._pypkjs_port = None
         self._ws = None  # WebSocket connection to pypkjs for button presses
         self._current_test_name = None  # Current test name for screenshot prefixing
+        self.last_init_state = None  # TEST_STATE:init dict captured by the last install()
 
     def set_test_name(self, test_name: str):
         """Set the current test name for screenshot prefixing."""
@@ -115,19 +115,52 @@ class EmulatorHelper:
             raise RuntimeError(f"Command failed: {' '.join(cmd)}\n{result.stderr}")
         return result
 
+    def _kill_platform_emulator(self):
+        """Kill the qemu/pypkjs processes for THIS platform only.
+
+        `pebble kill` kills every emulator of every platform, which breaks
+        emulators other fixtures are still using. Kill by pid instead.
+        """
+        try:
+            from pebble_tool.sdk.emulator import get_all_emulator_info
+            info = get_all_emulator_info().get(self.platform, {})
+        except Exception:
+            info = {}
+        for version in info.values():
+            for proc in ("qemu", "pypkjs", "websockify"):
+                pid = version.get(proc, {}).get("pid")
+                if pid:
+                    try:
+                        os.kill(pid, signal.SIGKILL)
+                    except OSError:
+                        pass
+        # Drop our dead connections
+        if self._ws is not None:
+            try:
+                self._ws.close()
+            except Exception:
+                pass
+            self._ws = None
+        self._pypkjs_port = None
+
     def wipe(self):
-        """Wipe emulator state for a fresh start."""
+        """Wipe THIS platform's emulator state for a fresh start.
+
+        `pebble wipe` deletes the persist directories of every platform, so
+        wipe only our own platform's directory instead.
+        """
         logger.debug(f"[{self.platform}] Wiping emulator state")
         # Kill any existing emulator first - this is required so the wipe takes effect
+        self._kill_platform_emulator()
+        time.sleep(1)  # Give processes time to fully exit
         try:
-            self._run_pebble("kill", "--force", check=False)
-            time.sleep(2)  # Give processes time to fully exit
-        except Exception:
-            pass
-        # Wipe storage (deletes persist directory for all platforms)
-        self._run_pebble("wipe", check=False)
-        # Reset port info since emulator was killed
-        self._pypkjs_port = None
+            from pebble_tool.sdk import get_sdk_persist_dir
+            persist_dir = get_sdk_persist_dir(self.platform)
+            shutil.rmtree(persist_dir, ignore_errors=True)
+            get_sdk_persist_dir(self.platform)  # recreate empty dir
+        except Exception as e:
+            logger.warning(f"[{self.platform}] Scoped wipe failed ({e}); falling back to pebble wipe")
+            self._run_pebble("wipe", check=False)
         logger.debug(f"[{self.platform}] Wipe complete")
 
     def build(self):
@@ -137,31 +170,87 @@ class EmulatorHelper:
             raise RuntimeError(f"Build failed:\n{result.stderr}")
 
     def install(self):
-        """Install and launch the app on the emulator."""
+        """Install and launch the app on the emulator.
+
+        Blocks until the app's launch is *observed* in the logs (the app emits
+        a TEST_STATE:init line from prv_initialize). This both confirms the
+        app is actually running and that the log pipeline is delivering lines,
+        so tests fail fast with a clear error instead of timing out later on
+        empty log captures. The captured init state is stored in
+        self.last_init_state so fixtures can detect leaked state.
+        """
         logger.info(f"[{self.platform}] Installing app on emulator")
-        # Install will start the emulator if needed
-        result = self._run_pebble(
-            "install",
-            f"--emulator={self.platform}",
-            timeout=120,
+        # Capture from before the install so the launch's init line isn't missed
+        barrier = LogCapture(self.platform)
+        barrier.start()
+        try:
+            # Install will start the emulator if needed
+            self._run_install_with_retry()
+            if self._ws is None:
+                self._connect_transport()
+
+            init = barrier.wait_for_state(event="init", timeout=8.0)
+            if init is None:
+                # The log stream may have connected after the app launched
+                # (first boot) and missed the init line. Force a reconnect and
+                # relaunch the app once, which re-emits init.
+                logger.warning(
+                    f"[{self.platform}] App launch not seen in logs; "
+                    f"reconnecting log stream and relaunching"
+                )
+                _LogStream.get(self.platform).force_reconnect()
+                self._run_install_with_retry()
+                init = barrier.wait_for_state(event="init", timeout=10.0)
+            self.last_init_state = init
+            if init is None:
+                # Kill the emulator so the next install cold-boots instead of
+                # inheriting a broken instance.
+                lines = len(barrier.get_all_logs())
+                self.kill()
+                raise RuntimeError(
+                    f"[{self.platform}] App launch not observed in logs after "
+                    f"reinstall ({lines} log lines captured). Emulator killed "
+                    f"for a cold boot on the next install."
+                )
+        finally:
+            barrier.stop()
+        logger.info(f"[{self.platform}] App installed and launch confirmed (init: {self.last_init_state})")
+
+    def _run_install_with_retry(self, attempts: int = 3):
+        """Run `pebble install`, retrying after a scoped kill on failure.
+
+        A cold emulator boot can take longer than the pebble tool's hard-coded
+        5s connect window (10 x 0.5s in ManagedEmulatorTransport.connect),
+        which surfaces as "Connection refused". Kill this platform's emulator
+        and retry so a slow boot doesn't error a whole module's fixture.
+        """
+        last_error = None
+        for attempt in range(attempts):
+            try:
+                result = self._run_pebble(
+                    "install",
+                    f"--emulator={self.platform}",
+                    timeout=120,
+                )
+            except (RuntimeError, subprocess.TimeoutExpired) as e:
+                last_error = e
+            else:
+                if result.returncode == 0:
+                    return
+                last_error = RuntimeError(f"Install failed:\n{result.stderr}")
+            if attempt < attempts - 1:
+                logger.warning(
+                    f"[{self.platform}] Install attempt {attempt + 1} failed "
+                    f"({last_error}); killing emulator and retrying"
+                )
+                self._kill_platform_emulator()
+                time.sleep(2)
+        raise RuntimeError(
+            f"Install failed after {attempts} attempts: {last_error}"
         )
-        if result.returncode != 0:
-            raise RuntimeError(f"Install failed:\n{result.stderr}")
-        if self._ws is not None:
-            # Transport already connected from a previous install; the pypkjs
-            # WebSocket survives app reinstalls. Use a shorter wait to stay
-            # within the app's 3-second inactivity timer.
-            time.sleep(0.5)
-        else:
-            # First install: give app time to fully load, then connect transport
-            time.sleep(1)
-            self._connect_transport()
-        logger.info(f"[{self.platform}] App installed and transport connected")
 
     def _connect_transport(self):
         """Connect to pypkjs WebSocket for button presses."""
-        # Import here to avoid issues when pytest collects tests
-        sys.path.insert(0, str(CONDA_ENV / "lib" / "python3.10" / "site-packages"))
         from pebble_tool.sdk.emulator import get_emulator_info
 
         info = get_emulator_info(self.platform)
@@ -173,6 +262,10 @@ class EmulatorHelper:
 
         # Establish WebSocket connection to pypkjs
         self._ensure_websocket()
+
+        # Make sure the log stream for this platform is running; it maintains
+        # its own connection and reconnects as emulators come and go.
+        _LogStream.get(self.platform)
 
     def _ensure_websocket(self):
         """Ensure we have an open WebSocket connection to pypkjs."""
@@ -422,20 +515,9 @@ class EmulatorHelper:
         return img
 
     def kill(self):
-        """Kill the emulator."""
+        """Kill this platform's emulator (other platforms are left running)."""
         logger.debug(f"[{self.platform}] Killing emulator")
-        # Close WebSocket connection first
-        if self._ws is not None:
-            try:
-                self._ws.close()
-            except Exception:
-                pass
-            self._ws = None
-        try:
-            self._run_pebble("kill", "--force", check=False)
-        except Exception:
-            pass
-        self._pypkjs_port = None
+        self._kill_platform_emulator()
         logger.debug(f"[{self.platform}] Emulator killed")
 
 
@@ -447,23 +529,14 @@ def build_app():
     return True
 
 
-@pytest.fixture
-def emulator(request, platform, build_app):
-    """Fixture that provides a configured emulator helper with fresh state."""
-    save_screenshots = request.config.getoption("--save-screenshots")
-    helper = EmulatorHelper(platform, save_screenshots)
+def _fresh_start_cycle(helper: "EmulatorHelper"):
+    """Wipe and reinstall so the app starts in a fresh ControlModeNew.
 
-    # Keep a LogCapture active throughout wipe+install so the _PlatformReader uses
-    # a 0.3s reconnect back-off (instead of 2.0s) and can quickly recover when
-    # wipe() kills the emulator.  pebble logs may also hang silently if it spawns
-    # before the new emulator is ready; the stuck-process detection in _read() will
-    # restart it within 5s.
-    _fixture_capture = LogCapture(platform)
-    _fixture_capture.start()
-
-    # First install: fresh start. The app immediately claims slot 0 (timer_count=1),
-    # which would cause the Timer List to appear on re-launch. Hold Down to delete
-    # slot 0 and exit, leaving timer_count=0 persisted.
+    First install: fresh start. The app immediately claims slot 0
+    (timer_count=1), which would cause the Timer List to appear on re-launch.
+    Hold Down to delete slot 0 and exit, leaving timer_count=0 persisted.
+    Second install: persisted_count=0 → no Timer List, fresh ControlModeNew.
+    """
     helper.wipe()
     helper.install()
     time.sleep(1)
@@ -471,11 +544,24 @@ def emulator(request, platform, build_app):
     time.sleep(1)
     helper.release_buttons()
     time.sleep(0.5)
-
-    # Second install: persisted_count=0 → no Timer List, fresh ControlModeNew.
     helper.install()
 
-    _fixture_capture.stop()
+
+def _init_state_is_fresh(init: Optional[dict]) -> bool:
+    """True if a TEST_STATE:init dict looks like a fresh ControlModeNew start."""
+    if init is None:
+        # Launch was confirmed some other way; don't second-guess it.
+        return True
+    return init.get("m") == "New" and init.get("t") == "0:00"
+
+
+@pytest.fixture
+def emulator(request, platform, build_app):
+    """Fixture that provides a configured emulator helper with fresh state."""
+    save_screenshots = request.config.getoption("--save-screenshots")
+    helper = EmulatorHelper(platform, save_screenshots)
+
+    _fresh_start_cycle(helper)
 
     yield helper
 
@@ -559,16 +645,27 @@ def _setup_test_environment(request):
             # to re-open it before the next test.
             emulator_helper.open_app_via_menu()
             time.sleep(0.5)
-        else:
-            # emulator fixture handled the warm-up cycle (two installs).
-            # Warm up the platform log reader so pebble logs is connected
-            # before the test body starts. Attaching the LogCapture wakes the
-            # _PlatformReader immediately if it was sleeping between tests,
-            # and the 2.5s gives pebble logs time to spawn and connect.
-            _warmup = LogCapture(emulator_helper.platform)
-            _warmup.start()
-            time.sleep(3.0)
-            _warmup.stop()
+        # (emulator fixture already opened the app via its fresh-start cycle;
+        # install() confirmed the launch in the logs, so no warm-up sleep is
+        # needed and the test body gets the full 3s ControlModeNew window.)
+
+        # A previous test may have leaked persisted state (e.g. its teardown
+        # quit failed in an unexpected control mode). If the app didn't come
+        # up in a fresh ControlModeNew, recover with a full wipe cycle rather
+        # than letting the leak cascade through the rest of the module.
+        if not _init_state_is_fresh(emulator_helper.last_init_state):
+            logger.warning(
+                f"[{emulator_helper.platform}] App started with leaked state "
+                f"(init: {emulator_helper.last_init_state}); recovering with a "
+                f"fresh wipe cycle before test: {test_name}"
+            )
+            _fresh_start_cycle(emulator_helper)
+            if not _init_state_is_fresh(emulator_helper.last_init_state):
+                pytest.fail(
+                    f"[{emulator_helper.platform}] Could not reach a fresh app "
+                    f"state even after a wipe cycle "
+                    f"(init: {emulator_helper.last_init_state})"
+                )
 
     yield
 
@@ -594,152 +691,194 @@ def _setup_test_environment(request):
 #
 
 import re
-import select
 import threading
 import queue
-from typing import Optional
 
 
-class _PlatformReader:
-    """Persistent pebble logs subprocess for one emulator platform.
+class _LogStream:
+    """Reads app logs for one emulator platform directly from pypkjs.
 
-    One instance per platform, shared across all LogCapture instances for that
-    platform.  The subprocess is NEVER killed between tests — killing it
-    permanently breaks the emulator's log socket for the session.  Instead,
-    each LogCapture instance attaches/detaches as the active sink; while no
-    capture is active, lines are silently discarded.
+    Replaces the old `pebble logs` subprocess reader, which broke whenever an
+    emulator was killed/restarted mid-session (and could even boot stray
+    emulators of its own via the pebble tool's managed transport).
+
+    This connects a dedicated WebSocket to the platform's pypkjs — the same
+    transport the button-press helper uses — enables app log shipping, and
+    decodes AppLogMessage packets (endpoint 2006) itself. The connection is
+    re-established automatically whenever the emulator restarts, and it never
+    spawns processes. Decoded lines are fanned out to every attached
+    LogCapture sink.
     """
 
     _instances: dict = {}
     _class_lock = threading.Lock()
 
+    APP_LOG_ENDPOINT = 2006  # AppLogMessage / AppLogShippingControl
+    RELAY_FROM_WATCH = 0x00
+    RELAY_TO_WATCH = 0x01
+    CONNECTION_STATUS = 0x07
+
     @classmethod
-    def get(cls, platform: str) -> '_PlatformReader':
+    def get(cls, platform: str) -> '_LogStream':
         with cls._class_lock:
             if platform not in cls._instances:
-                reader = cls(platform)
-                reader._start()
-                cls._instances[platform] = reader
+                stream = cls(platform)
+                stream._start()
+                cls._instances[platform] = stream
             return cls._instances[platform]
 
     def __init__(self, platform: str):
         self.platform = platform
-        self._process: Optional[subprocess.Popen] = None
+        self._ws = None
+        self._buf = b""  # partial pebble-protocol packet spanning relay frames
         self._thread: Optional[threading.Thread] = None
-        self._active: Optional['LogCapture'] = None  # current sink
+        self._sinks: list = []
         self._sink_lock = threading.Lock()
         self._running = False
-        self._wake = threading.Event()  # set when a capture attaches
-
-    def _spawn(self):
-        if self._process is not None:
-            try:
-                self._process.terminate()
-                self._process.wait(timeout=1)
-            except Exception:
-                pass
-        env = os.environ.copy()
-        env["PEBBLE_EMULATOR"] = self.platform
-        self._process = subprocess.Popen(
-            [str(PEBBLE_CMD), "logs", f"--emulator={self.platform}"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            cwd=str(PROJECT_ROOT),
-            env=env,
-        )
+        self._wake = threading.Event()
 
     def _start(self):
         self._running = True
-        self._spawn()
-        self._thread = threading.Thread(target=self._read, daemon=True)
+        self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
-        logger.debug(f"[{self.platform}] Platform log reader started")
+        logger.debug(f"[{self.platform}] Log stream started")
 
     def shutdown(self):
         self._running = False
         self._wake.set()
-        if self._process is not None:
-            try:
-                self._process.terminate()
-                self._process.wait(timeout=2)
-            except Exception:
-                try:
-                    self._process.kill()
-                except Exception:
-                    pass
-            self._process = None
+        self._close_ws()
 
-    def _read(self):
-        _spawn_time = time.time()
-        _ever_had_output = False  # True once pebble logs emits any line
-        while self._running:
-            if self._process is None or self._process.poll() is not None:
-                if not self._running:
-                    break
-                # Back off longer when no active capture (emulator may be between tests).
-                # Use an interruptible wait so attaching a capture wakes us immediately.
-                with self._sink_lock:
-                    has_sink = self._active is not None
-                self._wake.wait(timeout=0.3 if has_sink else 2.0)
-                self._wake.clear()
-                try:
-                    self._spawn()
-                    _spawn_time = time.time()
-                    _ever_had_output = False
-                    logger.debug(f"[{self.platform}] Platform log reader restarted")
-                except Exception as e:
-                    logger.warning(f"[{self.platform}] Failed to restart log reader: {e}")
-                    time.sleep(1.0)
-                continue
-            try:
-                # Use select with 1s timeout so we don't block forever on a hung pebble logs.
-                # pebble logs can hang silently when the emulator is restarting (after wipe).
-                ready, _, _ = select.select([self._process.stdout], [], [], 1.0)
-                if not ready:
-                    # No data available in 1s.  If pebble logs has never output a line
-                    # since it was spawned, it is probably stuck waiting for an emulator
-                    # that is not yet running.  Kill it so the respawn cycle can try again.
-                    if not _ever_had_output and (time.time() - _spawn_time) > 5.0:
-                        logger.debug(
-                            f"[{self.platform}] pebble logs stuck (no output after "
-                            f"{time.time() - _spawn_time:.1f}s), restarting"
-                        )
-                        try:
-                            self._process.terminate()
-                        except Exception:
-                            pass
-                    continue
-                line = self._process.stdout.readline()
-                if not line:
-                    time.sleep(0.05)
-                    continue
-                _ever_had_output = True
-                line = line.strip()
-                with self._sink_lock:
-                    sink = self._active
-                if sink is not None:
-                    sink._on_line(line)
-            except Exception:
-                time.sleep(0.05)
+    def force_reconnect(self):
+        """Drop the current connection; the reader thread reconnects promptly."""
+        self._close_ws()
+        self._wake.set()
 
     def attach(self, capture: 'LogCapture'):
         with self._sink_lock:
-            self._active = capture
-        self._wake.set()  # interrupt any back-off sleep so pebble logs spawns sooner
+            if capture not in self._sinks:
+                self._sinks.append(capture)
+        self._wake.set()
 
     def detach(self, capture: 'LogCapture'):
         with self._sink_lock:
-            if self._active is capture:
-                self._active = None
+            if capture in self._sinks:
+                self._sinks.remove(capture)
+
+    def _close_ws(self):
+        ws = self._ws
+        self._ws = None
+        if ws is not None:
+            try:
+                ws.close()
+            except Exception:
+                pass
+
+    def _send_shipping_control(self, enable: bool = True):
+        """Ask the watch to ship app logs (endpoint 2006, 1-byte payload)."""
+        payload = bytes([1 if enable else 0])
+        packet = struct.pack(">HH", len(payload), self.APP_LOG_ENDPOINT) + payload
+        self._ws.send_binary(bytes([self.RELAY_TO_WATCH]) + packet)
+
+    def _try_connect(self) -> bool:
+        """Connect to the platform's current pypkjs, if one is running."""
+        try:
+            from pebble_tool.sdk.emulator import get_emulator_info
+            info = get_emulator_info(self.platform)
+        except Exception:
+            info = None
+        if not info:
+            return False
+        port = info["pypkjs"]["port"]
+        try:
+            from websocket import create_connection
+            ws = create_connection(f"ws://localhost:{port}/", timeout=5)
+            ws.settimeout(1.0)
+        except Exception:
+            return False
+        self._ws = ws
+        self._buf = b""  # partial pebble-protocol packet spanning relay frames
+        try:
+            self._send_shipping_control(True)
+        except Exception:
+            self._close_ws()
+            return False
+        logger.info(f"[{self.platform}] Log stream connected to pypkjs port {port}")
+        return True
+
+    def _run(self):
+        from websocket import WebSocketTimeoutException
+
+        while self._running:
+            if self._ws is None:
+                if not self._try_connect():
+                    # No emulator (or not ready yet); retry shortly. attach()
+                    # and force_reconnect() wake us immediately.
+                    self._wake.wait(timeout=0.5)
+                    self._wake.clear()
+                    continue
+            try:
+                data = self._ws.recv()
+            except WebSocketTimeoutException:
+                continue  # quiet connection is normal between tests
+            except Exception:
+                self._close_ws()
+                continue
+            if not isinstance(data, bytes) or len(data) < 2:
+                continue
+            opcode = data[0]
+            if opcode == self.CONNECTION_STATUS:
+                # Watch (re)connected to pypkjs: re-enable log shipping
+                if data[1] == 0xFF:
+                    try:
+                        self._send_shipping_control(True)
+                    except Exception:
+                        self._close_ws()
+                continue
+            if opcode != self.RELAY_FROM_WATCH:
+                continue
+            # A relay frame can contain several pebble-protocol packets, and a
+            # packet can span frames — accumulate and split like libpebble2's
+            # PebbleConnection does.
+            self._buf += data[1:]
+            while len(self._buf) >= 4:
+                length, endpoint = struct.unpack_from(">HH", self._buf, 0)
+                if length > 8192:
+                    # Desynced; drop the buffer rather than stalling forever.
+                    logger.warning(f"[{self.platform}] Log stream desync (len={length}); resetting buffer")
+                    self._buf = b""
+                    break
+                if len(self._buf) < 4 + length:
+                    break  # partial packet; wait for the next frame
+                body = self._buf[4:4 + length]
+                self._buf = self._buf[4 + length:]
+                if endpoint == self.APP_LOG_ENDPOINT:
+                    self._handle_app_log(body)
+
+    def _handle_app_log(self, body: bytes):
+        """Decode an AppLogMessage body and fan the line out to sinks."""
+        # AppLogMessage: uuid[16], timestamp u32, level u8, message_length u8,
+        #                line_number u16, filename char[16], message
+        if len(body) < 40:
+            return
+        _ts, _level, msg_len, line_no = struct.unpack_from(">IBBH", body, 16)
+        filename = body[24:40].split(b"\0")[0].decode("utf-8", "replace")
+        message = body[40:40 + msg_len].decode("utf-8", "replace")
+        line = f"[{filename}:{line_no}] {message}"
+        with self._sink_lock:
+            sinks = list(self._sinks)
+        for sink in sinks:
+            try:
+                sink._on_line(line)
+            except Exception:
+                pass
 
 
 class LogCapture:
     """
-    Captures pebble logs in background and provides parsing for TEST_STATE lines.
+    Captures app logs in background and provides parsing for TEST_STATE lines.
 
-    Uses a shared persistent subprocess per platform so that stopping one
-    LogCapture instance does not break subsequent instances.
+    Attaches to the shared per-platform _LogStream. Multiple captures can be
+    attached at once; each receives every line while it is attached.
 
     Usage:
         capture = LogCapture(platform="basalt")
@@ -754,16 +893,16 @@ class LogCapture:
 
     def __init__(self, platform: str):
         self.platform = platform
-        self._reader: Optional[_PlatformReader] = None
+        self._reader: Optional[_LogStream] = None
         self._state_queue: queue.Queue = queue.Queue()
         self._all_logs: list[str] = []
         self._running = False
 
     def start(self):
-        """Attach to the shared platform reader and start capturing."""
+        """Attach to the shared platform log stream and start capturing."""
         if self._running:
             return
-        self._reader = _PlatformReader.get(self.platform)
+        self._reader = _LogStream.get(self.platform)
         self._reader.attach(self)
         self._running = True
         logger.debug(f"[{self.platform}] Log capture started")
@@ -796,14 +935,14 @@ class LogCapture:
         return state
 
     def stop(self):
-        """Detach from the platform reader (subprocess stays alive)."""
+        """Detach from the platform log stream (the stream stays alive)."""
         if not self._running:
             return
         self._running = False
         if self._reader:
             self._reader.detach(self)
             self._reader = None
-        logger.debug(f"[{self.platform}] Log capture stopped (subprocess alive)")
+        logger.debug(f"[{self.platform}] Log capture stopped")
 
     def get_all_logs(self) -> list[str]:
         """Return all log lines captured during this instance's active period."""
