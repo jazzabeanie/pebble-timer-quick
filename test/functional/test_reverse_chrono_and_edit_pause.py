@@ -57,10 +57,15 @@ class TestReverseChrono:
         """
         emulator = persistent_emulator
 
-        # Start log capture - wait for log stream to connect
+        # Start log capture. The shared per-platform log stream is already
+        # connected (install() blocked on the app's init line over it), so a
+        # short settle is enough. A longer wait here would push the first
+        # button press past the app's documented 3s New->Counting
+        # auto-transition, landing it in the chrono/Counting branch (which is
+        # what historically made this test fail).
         capture = LogCapture(emulator.platform)
         capture.start()
-        time.sleep(2.0)
+        time.sleep(1.0)
         capture.clear_state_queue()
 
         # Step 2: Hold Up to toggle reverse direction
@@ -138,10 +143,15 @@ class TestPausedTimerStaysPausedAfterEdit:
         """
         emulator = persistent_emulator
 
-        # Start log capture - wait for log stream to connect
+        # Start log capture. The shared per-platform log stream is already
+        # connected (install() blocked on the app's init line over it), so a
+        # short settle is enough. A longer wait here would push the first
+        # button press past the app's documented 3s New->Counting
+        # auto-transition, so Select would pause the chrono instead of adding
+        # 5 minutes in New mode (which is what historically made this fail).
         capture = LogCapture(emulator.platform)
         capture.start()
-        time.sleep(2.0)
+        time.sleep(1.0)
         capture.clear_state_queue()
 
         # Step 1: Press Select to add 5 minutes

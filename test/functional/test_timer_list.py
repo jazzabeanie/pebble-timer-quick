@@ -349,6 +349,9 @@ def _create_second_timer(emulator, platform):
     emulator.open_app_via_menu()
     show = capture.wait_for_state(event="timer_list_show", timeout=10.0)
     assert show is not None, "Timer List did not appear while creating 2nd timer"
+    # timer_list_show is logged at the start of the animated window push; a
+    # press sent before the transition settles is swallowed, so wait it out
+    time.sleep(1.0)
     emulator.press_select()  # row 0 = New Timer -> main window, New mode
     assert capture.wait_for_state(event="timer_list_select_new", timeout=5.0) is not None
     capture.stop()
@@ -368,10 +371,15 @@ def _relaunch_to_list(emulator, platform, expected_count=None):
         assert int(show.get("list_count", -1)) == expected_count, (
             f"Unexpected row count: {show}"
         )
+    # timer_list_show is logged at the start of the animated window push; a
+    # press sent before the transition settles is swallowed, so wait it out
+    time.sleep(1.0)
     return capture, show
 
 
 def _hold_down(emulator):
+    # Settle after any preceding press so the hold isn't coalesced with it
+    time.sleep(0.3)
     emulator.hold_button(Button.DOWN)
     time.sleep(1.0)
     emulator.release_buttons()

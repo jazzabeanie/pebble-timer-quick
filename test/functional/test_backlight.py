@@ -60,17 +60,32 @@ class TestBacklight:
 
         mode_change_time = time.time()
 
-        # 0.5s after mode change, backlight should still be on
-        time.sleep(0.5)
-        assert capture.wait_for_state(event="backlight_change", timeout=0.05) is None, \
-            "Backlight should not have turned off 0.5s after mode change"
-
-        # Backlight should turn off within the next 1s (linger expires ~1s after mode change)
-        state = capture.wait_for_state(event="backlight_change", timeout=2.0)
+        # The backlight lingers ~1s (BACKLIGHT_EDIT_LINGER_MS, a fixed app timer)
+        # after entering Counting, then turns off. Wait for that turn-off.
+        state = capture.wait_for_state(event="backlight_change", timeout=3.0)
         assert state is not None, "Backlight should turn off after linger period"
         assert_backlight(state, False)
+
+        # Assert only a LOOSE lower bound on the linger. We measure it as the
+        # wall-clock gap between receiving the mode_change log and the
+        # backlight_change log, which systematically underestimates the true 1s
+        # linger: the mode_change log can be delivered late under load, so the
+        # gap reads short (this historically flaked at ~0.64s against a >=0.8s
+        # bound). A tight bound is not recoverable from these two log arrivals —
+        # the AppLogMessage timestamp is only second-resolution, too coarse for
+        # a 1s interval. The bound below only needs to distinguish a real linger
+        # from an immediate turn-off. That stronger guarantee is already made by
+        # the assert_backlight(True) on the Counting mode_change above: if the
+        # linger were removed, prv_update_backlight() would run synchronously and
+        # emit backlight_change *before* mode_change (so mode_change would show
+        # l=0), and the two logs would arrive within a few tens of ms of each
+        # other. 0.3s is comfortably above that delivery skew and below the
+        # observed worst-case linger measurement.
         elapsed = time.time() - mode_change_time
-        assert elapsed >= 0.8, f"Backlight turned off too early ({elapsed:.2f}s after mode change)"
+        assert elapsed >= 0.3, (
+            f"Backlight turned off too early ({elapsed:.2f}s after mode change); "
+            f"expected a ~1s linger, not an immediate turn-off"
+        )
 
         capture.stop()
 

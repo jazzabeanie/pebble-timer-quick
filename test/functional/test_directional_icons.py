@@ -21,7 +21,7 @@ from PIL import Image
 import numpy as np
 import time
 
-from .conftest import Button, EmulatorHelper, PLATFORMS
+from .conftest import Button, EmulatorHelper, PLATFORMS, LogCapture
 from .test_button_icons import (
     get_region,
     has_icon_content,
@@ -123,32 +123,60 @@ def enter_new_mode_forward(emulator):
 
 
 def toggle_to_reverse_mode(emulator):
-    """Toggle to reverse direction mode by long-pressing Up button.
+    """Toggle New mode to reverse direction and return a screenshot, robustly.
 
-    Includes a retry if the app exited (e.g. expire timer race with
-    ControlModeCounting Back-press quit).
+    The app auto-transitions New->Counting after 3s of inactivity, and
+    pebble-tool screenshots take ~1-2s, so the old "hold Up, then screenshot"
+    raced that transition (and long-press Up in Counting toggles repeat, not
+    direction, so it silently produced a Counting-mode screenshot). Instead,
+    each attempt:
 
-    Returns screenshot after toggle.
+    1. Quits (long Down sets reset_on_init) and reopens for a guaranteed-fresh
+       New 0:00 -- reaching New-reverse from whatever a prior helper left behind
+       proved unreliable, because a large forward timer auto-transitions to
+       Counting during its own slow screenshot and Up-from-Counting clears the
+       reverse flag.
+    2. Adds value with Back (ring toward full, clear of the icon corners) and
+       long-presses Up to toggle reverse -- with NO log-waits between presses,
+       since a blocking wait would spend the 3s New-mode window on log delivery
+       and let the app slip into Counting -- then screenshots immediately.
+    3. Verifies New + reverse from the log after the screenshot; retries if not.
     """
-    emulator.hold_button(Button.UP)
-    time.sleep(1.0)
-    emulator.release_buttons()
-    time.sleep(0.5)
-    screenshot = emulator.screenshot("new_mode_reverse")
-    if not _is_app_screenshot(screenshot):
-        logger.warning("App not running after toggle, retrying full sequence")
-        emulator.open_app_via_menu()
-        time.sleep(0.5)
-        emulator.press_back()  # +1hr, resets expire timer
-        emulator.press_back()  # +1hr more
-        emulator.press_back()  # +1hr more (3hr total)
-        time.sleep(0.3)
-        emulator.hold_button(Button.UP)
-        time.sleep(1.0)
-        emulator.release_buttons()
-        time.sleep(0.5)
-        screenshot = emulator.screenshot("new_mode_reverse_retry")
-    return screenshot
+    cap = LogCapture(emulator.platform)
+    cap.start()
+    try:
+        screenshot = None
+        for _ in range(3):
+            # Start from a guaranteed-fresh New 0:00. Reaching New-reverse from
+            # whatever state a prior helper left behind proved unreliable (a
+            # large forward timer auto-transitions to Counting during its own
+            # slow screenshot, and Up-from-Counting clears the reverse flag), so
+            # quit (sets reset_on_init) and reopen for a clean New 0:00.
+            emulator.hold_button(Button.DOWN)
+            time.sleep(1.0)
+            emulator.release_buttons()
+            time.sleep(0.3)
+            emulator.open_app_via_menu()
+            time.sleep(0.3)
+            cap.clear_state_queue()
+            # Build a large value with Back so the progress ring sits toward
+            # full and clear of the icon corners, then toggle reverse. No
+            # log-waits between presses: a blocking wait would spend the 3s
+            # New-mode window on log delivery and let the app slip to Counting.
+            emulator.press_back()            # +1hr (New, forward)
+            emulator.press_back()            # +2hr
+            emulator.hold_button(Button.UP)  # long Up -> toggle reverse
+            time.sleep(1.0)
+            emulator.release_buttons()
+            screenshot = emulator.screenshot("new_mode_reverse")
+            # Verify only AFTER the screenshot, so log-delivery lag can't cost
+            # us the edit-mode window.
+            st = cap.wait_for_state(event="long_press_up", timeout=3.0)
+            if st and st.get("m") == "New" and st.get("d") == "-1":
+                return screenshot
+        return screenshot
+    finally:
+        cap.stop()
 
 
 def enter_editsec_mode(emulator):
@@ -170,15 +198,43 @@ def enter_editsec_mode(emulator):
 
 
 def toggle_editsec_to_reverse(emulator):
-    """Toggle EditSec mode to reverse direction.
+    """Toggle EditSec mode to reverse direction and return a screenshot.
 
-    Assumes already in EditSec mode.
+    Robust against the 3s edit-mode -> Counting auto-transition and slow
+    screenshots, the same way toggle_to_reverse_mode is: quit and reopen for a
+    fresh New 0:00, long-press Select to switch New -> EditSec, long-press Up to
+    toggle reverse -- all with no log-waits between presses -- screenshot
+    immediately, then verify EditSec + reverse from the log and retry if not.
     """
-    emulator.hold_button(Button.UP)
-    time.sleep(2.0)
-    emulator.release_buttons()
-    time.sleep(0.5)
-    return emulator.screenshot("editsec_mode_reverse")
+    cap = LogCapture(emulator.platform)
+    cap.start()
+    try:
+        screenshot = None
+        for _ in range(3):
+            # Guaranteed-fresh New 0:00 (see toggle_to_reverse_mode), then long
+            # Select to switch New -> EditSec (value stays 0:00), then long Up to
+            # toggle reverse. No log-waits between presses so the 3s edit window
+            # isn't spent on log delivery.
+            emulator.hold_button(Button.DOWN)
+            time.sleep(1.0)
+            emulator.release_buttons()
+            time.sleep(0.3)
+            emulator.open_app_via_menu()
+            time.sleep(0.3)
+            cap.clear_state_queue()
+            emulator.hold_button(Button.SELECT)  # long Select: New -> EditSec
+            time.sleep(1.0)
+            emulator.release_buttons()
+            emulator.hold_button(Button.UP)      # long Up -> toggle reverse
+            time.sleep(1.0)
+            emulator.release_buttons()
+            screenshot = emulator.screenshot("editsec_mode_reverse")
+            st = cap.wait_for_state(event="long_press_up", timeout=3.0)
+            if st and st.get("m") == "EditSec" and st.get("d") == "-1":
+                return screenshot
+        return screenshot
+    finally:
+        cap.stop()
 
 
 # ============================================================
@@ -227,7 +283,6 @@ class TestNewModeReverseIcons:
         """Verify -1hr icon for Back button in New mode (reverse direction)."""
         emulator = persistent_emulator
         platform = emulator.platform
-        enter_new_mode_forward(emulator)
         screenshot = toggle_to_reverse_mode(emulator)
         region = get_region(platform, "BACK")
         assert has_icon_content(screenshot, region, threshold=50), (
@@ -241,7 +296,6 @@ class TestNewModeReverseIcons:
         """Verify -20min icon for Up button in New mode (reverse direction)."""
         emulator = persistent_emulator
         platform = emulator.platform
-        enter_new_mode_forward(emulator)
         screenshot = toggle_to_reverse_mode(emulator)
         region = get_region(platform, "UP")
         assert has_icon_content(screenshot, region, threshold=50), (
@@ -255,7 +309,6 @@ class TestNewModeReverseIcons:
         """Verify -5min icon for Select button in New mode (reverse direction)."""
         emulator = persistent_emulator
         platform = emulator.platform
-        enter_new_mode_forward(emulator)
         screenshot = toggle_to_reverse_mode(emulator)
         region = get_region(platform, "SELECT")
         assert has_icon_content(screenshot, region, threshold=50), (
@@ -269,7 +322,6 @@ class TestNewModeReverseIcons:
         """Verify -1min icon for Down button in New mode (reverse direction)."""
         emulator = persistent_emulator
         platform = emulator.platform
-        enter_new_mode_forward(emulator)
         screenshot = toggle_to_reverse_mode(emulator)
         region = get_region(platform, "DOWN")
         assert has_icon_content(screenshot, region, threshold=50), (
@@ -332,7 +384,6 @@ class TestEditSecModeReverseIcons:
         """Verify -60s icon for Back button in EditSec mode (reverse direction)."""
         emulator = persistent_emulator
         platform = emulator.platform
-        enter_editsec_mode(emulator)
         screenshot = toggle_editsec_to_reverse(emulator)
         region = get_region(platform, "BACK")
         assert has_icon_content(screenshot, region), (
@@ -346,7 +397,6 @@ class TestEditSecModeReverseIcons:
         """Verify -20s icon for Up button in EditSec mode (reverse direction)."""
         emulator = persistent_emulator
         platform = emulator.platform
-        enter_editsec_mode(emulator)
         screenshot = toggle_editsec_to_reverse(emulator)
         region = get_region(platform, "UP")
         assert has_icon_content(screenshot, region), (
@@ -360,7 +410,6 @@ class TestEditSecModeReverseIcons:
         """Verify -5s icon for Select button in EditSec mode (reverse direction)."""
         emulator = persistent_emulator
         platform = emulator.platform
-        enter_editsec_mode(emulator)
         screenshot = toggle_editsec_to_reverse(emulator)
         region = get_region(platform, "SELECT")
         assert has_icon_content(screenshot, region, threshold=50), (
@@ -374,7 +423,6 @@ class TestEditSecModeReverseIcons:
         """Verify -1s icon for Down button in EditSec mode (reverse direction)."""
         emulator = persistent_emulator
         platform = emulator.platform
-        enter_editsec_mode(emulator)
         screenshot = toggle_editsec_to_reverse(emulator)
         region = get_region(platform, "DOWN")
         assert matches_icon_reference(

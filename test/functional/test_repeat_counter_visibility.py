@@ -48,6 +48,39 @@ def count_non_bg_pixels(img, region):
     return int(np.sum(mask))
 
 
+def _capture_editrepeat_up(emulator, capture, region, name, delay):
+    """Screenshot the UP region in EditRepeat at `delay` into the flash cycle.
+
+    EditRepeat auto-exits to Counting after 3s of inactivity, and pebble-tool
+    screenshots take ~2-3s under load (comparable to that window), so the mode
+    must be re-established for every screenshot. Crucially the confirming Down
+    press is followed IMMEDIATELY by the delay+screenshot (no blocking log-wait
+    in between - that would let the 3s window lapse before the framebuffer is
+    sampled); the mode is verified AFTER the screenshot from the press's
+    button_down log. In EditRepeat, Down adds a repeat and resets the expire
+    timer at input time; if the press landed in Counting instead, long-press Up
+    toggles the repeat mode and the sample is retried (from a repeating countdown
+    it can take two toggles: off then on).
+
+    Returns the UP-region non-background pixel count, or None if EditRepeat could
+    not be captured.
+    """
+    for _ in range(5):
+        capture.clear_state_queue()
+        emulator.press_down()  # EditRepeat: +1 repeat + reset expire at input time
+        time.sleep(delay)      # advance into the 1000ms flash cycle
+        screenshot = emulator.screenshot(name)
+        st = capture.wait_for_state(event="button_down", timeout=2.0)
+        if st and st.get("m") == "EditRepeat":
+            return count_non_bg_pixels(screenshot, region)
+        # The press landed in Counting; toggle repeat mode and retry this sample.
+        emulator.hold_button(Button.UP)
+        time.sleep(1.0)
+        emulator.release_buttons()
+        capture.wait_for_state(event="long_press_up", timeout=3.0)
+    return None
+
+
 class TestRepeatCounterVisibility:
     """Tests for repeat_counter_visible behavior in drawing.c.
 
@@ -492,47 +525,25 @@ class TestIconOverlapPrevention:
         time.sleep(1.5)  # Wait for pebble logs to connect
         capture.clear_state_queue()
 
-        # Step 3: Enter EditRepeat mode via long press Up
-        emulator.hold_button(Button.UP)
-        time.sleep(1)
-        emulator.release_buttons()
-        state = capture.wait_for_state(event="long_press_up", timeout=5.0)
-        assert state is not None, (
-            f"Did not receive long_press_up log. "
-            f"All logs: {capture.get_all_logs()[-5:]}"
-        )
-        assert_mode(state, "EditRepeat")
-
-        # Step 4: Take screenshots, pressing Down before each one to keep
-        # the 3-second expire timer alive.
-        #
-        # Each Down press resets both the expire timer and the flash timer
-        # (last_interaction_time). A single screenshot takes ~1-1.5s, well
-        # within the 3s window. We vary the delay between the Down press
-        # and the screenshot to sample different offsets in the 1000ms flash
-        # cycle (0-499ms = ON, 500-999ms = OFF).
+        # Step 3-4: For each flash-phase delay, re-establish EditRepeat (a prior
+        # slow screenshot may have let it auto-exit to Counting), then screenshot
+        # the UP region. _ensure_editrepeat's final Down press resets the expire
+        # timer at input time, so each screenshot samples the framebuffer while
+        # EditRepeat is still on screen even though the screenshot itself takes
+        # ~2-3s. The delay after that press selects the offset into the 1000ms
+        # flash cycle sampled (0-499ms = counter ON, 500-999ms = counter OFF).
         region = get_region(platform, "UP")
         pixel_counts = []
-        # Delays between Down press and screenshot, chosen to sample
-        # different phases of the 1000ms flash cycle.
-        # Keep list short - each iteration takes ~2s and EditRepeat
-        # expires after 3s without a button press.
         pre_screenshot_delays = [0.0, 0.5, 0.2, 0.6, 0.0, 0.5]
         for i, delay in enumerate(pre_screenshot_delays):
-            # Press Down to add +1 repeat and reset expire timer
-            emulator.press_down()
-            state = capture.wait_for_state(event="button_down", timeout=1.0)
-            if state is None or state.get('m') != 'EditRepeat':
-                logger.warning(
-                    f"Left EditRepeat at iteration {i}: {state}. "
-                    f"Recent logs: {capture.get_all_logs()[-5:]}"
-                )
-                break
-
-            time.sleep(delay)
-
-            screenshot = emulator.screenshot(f"editrepeat_burst_{i}")
-            pixel_counts.append(count_non_bg_pixels(screenshot, region))
+            count = _capture_editrepeat_up(
+                emulator, capture, region, f"editrepeat_burst_{i}", delay
+            )
+            assert count is not None, (
+                f"Could not capture EditRepeat for sample {i}. "
+                f"Recent logs: {capture.get_all_logs()[-5:]}"
+            )
+            pixel_counts.append(count)
 
         capture.stop()
 

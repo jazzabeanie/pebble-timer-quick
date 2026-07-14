@@ -368,8 +368,14 @@ class TestAlarmIcons:
         screenshot = self._enter_alarm(emulator)
 
         region = get_region(platform, "LONG_UP")
+        # The reset (restart) icon itself matches the reference exactly; the
+        # LONG_UP crop (top-centre) also overlaps the progress ring, whose edge
+        # shifts a few pixels with the alarm's overtime value, contributing
+        # ~30 differing pixels. Use a tolerance that absorbs that ring bleed
+        # (consistent with the other corner-region icon tests) rather than a
+        # tight bound that flags dynamic ring pixels as an icon change.
         assert matches_icon_reference(
-            screenshot, region, "alarm_long_up", platform=platform
+            screenshot, region, "alarm_long_up", platform=platform, tolerance=45
         ), "Alarm long-press Up icon does not match reference mask"
 
     def test_alarm_select_icon_pause(self, persistent_emulator):
@@ -829,21 +835,44 @@ class TestEditRepeatIcons:
     """
 
     def _enter_editrepeat(self, emulator):
-        """Enter EditRepeat mode: set timer, wait for counting, long press Up.
+        """Enter EditRepeat mode and hold it for a screenshot.
+
+        Long-press Up from Counting enters EditRepeat, which itself auto-exits
+        to Counting after 3s of inactivity. Slow pebble-tool screenshots (~1-2s)
+        raced that window, so the screenshot often captured Counting instead.
+        Reach EditRepeat with log verification, then reset the expire timer with
+        a +1 repeat Down press sent immediately before the screenshot (an
+        input-time reset, not gated on log delivery), so EditRepeat is still on
+        screen when the framebuffer is sampled.
 
         Returns screenshot in EditRepeat mode.
         """
-        emulator.press_down()  # Add 1 minute
-        time.sleep(4)  # Wait for counting mode
-
-        # Long press Up to enter EditRepeat
-        emulator.hold_button(Button.UP)
-        time.sleep(1)
-        emulator.release_buttons()
-
-        # Wait 0.5s to shift flash phase for consistent screenshots
-        time.sleep(0.5)
-        return emulator.screenshot("editrepeat_mode")
+        cap = LogCapture(emulator.platform)
+        cap.start()
+        try:
+            screenshot = None
+            for _ in range(3):
+                cap.clear_state_queue()
+                emulator.press_down()  # +1 min (New)
+                cap.wait_for_state(event="mode_change", timeout=6.0)  # -> Counting
+                emulator.hold_button(Button.UP)  # long Up -> EditRepeat
+                time.sleep(1)
+                emulator.release_buttons()
+                # Reset the expire timer (+1 repeat) and screenshot BEFORE the
+                # verifying log-wait: waiting first would block on log delivery
+                # and let EditRepeat auto-exit to Counting before the capture.
+                emulator.press_down()  # +1 repeat: keeps EditRepeat, resets expire
+                screenshot = emulator.screenshot("editrepeat_mode")
+                st = cap.wait_for_state(event="long_press_up", timeout=3.0)
+                if st and st.get("m") == "EditRepeat":
+                    return screenshot
+                # Long Up toggled repeat back off (or we drifted); reopen for a
+                # clean is_repeating=false state and retry.
+                emulator.open_app_via_menu()
+                time.sleep(0.3)
+            return screenshot
+        finally:
+            cap.stop()
 
     def test_editrepeat_back_icon(self, persistent_emulator):
         """Verify reset count indicator for Back button in EditRepeat mode.

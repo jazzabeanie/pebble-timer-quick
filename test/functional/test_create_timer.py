@@ -25,6 +25,7 @@ from .conftest import (
     assert_mode,
     assert_paused,
     assert_time_approximately,
+    assert_is_chrono,
     parse_time,
 )
 
@@ -534,61 +535,56 @@ class TestChronoMode:
         """
         Test that in chrono mode (no timer set), the stopwatch counts up.
 
-        When the app starts fresh with no timer value set (0:00),
-        after the 3-second timeout it begins counting up as a stopwatch.
+        When the app starts fresh with no timer value set (0:00), the 3-second
+        inactivity timeout transitions from New to Counting mode as a running
+        chrono, which counts up.
 
-        Note: The app auto-backgrounds chrono mode after 7 seconds
-        (AUTO_BACKGROUND_CHRONO in main.c), so both screenshots must be
-        captured within that window. All OCR text extraction + assertions
-        are deferred to the end, since OCR is slow and the elapsed time
-        would interfere with the app's timing behavior.
+        This uses TEST_STATE log events rather than OCR: OCR on the small
+        7-segment display was unreliable here (it could pick up the watchface
+        clock in the status bar and misses the app's own value under load).
+        In Counting mode, pressing Down refreshes the display and emits a state
+        log without changing the timer value, so we read the elapsed time from
+        two such logs and assert the second is greater than the first.
         """
         emulator = persistent_emulator
 
-        # --- Capture all screenshots first (OCR is deferred to avoid timing issues) ---
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        time.sleep(1.0)
+        capture.clear_state_queue()
 
-        # Wait for the app to enter chrono mode (timer at 0:00 with no value set)
-        # The 3-second inactivity timeout transitions from New to Counting/Chrono mode.
-        # After that, a 7-second auto-quit timer starts (AUTO_BACKGROUND_CHRONO in
-        # main.c), so both screenshots must be captured within ~7 seconds of the
-        # mode transition. Total time from app open must stay under ~10 seconds.
-        time.sleep(3.5)  # Wait for transition to chrono mode (3s timeout + buffer)
+        # Wait for the app to auto-transition from New (0:00) to Counting as a
+        # running chrono (3s inactivity timeout).
+        state_counting = capture.wait_for_state(event="mode_change", timeout=8.0)
+        assert state_counting is not None, "App did not transition to Counting mode"
+        assert_mode(state_counting, "Counting")
+        assert_is_chrono(state_counting, is_chrono=True)
+        assert_paused(state_counting, False)  # chrono should be running
 
-        screenshot1 = emulator.screenshot("chrono_start")
-
-        # Wait 2 seconds (staying within the 7s auto-quit window) and verify counting up
-        time.sleep(2)
-        screenshot2 = emulator.screenshot("chrono_after_2s")
-
-        # Press Down to cancel the auto-quit timer (keeps the app alive for
-        # the teardown to properly quit via long-press Down + reset_on_init).
-        # In counting/chrono mode, Down just refreshes the display and cancels
-        # the quit timer without changing the timer value.
+        # Read the current elapsed time. Down in Counting mode refreshes the
+        # display (emitting a button_down state log) without changing the value.
         emulator.press_down()
+        state_first = capture.wait_for_state(event="button_down", timeout=5.0)
+        assert state_first is not None, "Did not get first button_down state"
+        first_min, first_sec = parse_time(state_first.get('t', '0:00'))
+        first_total = first_min * 60 + first_sec
+        logger.info(f"Chrono first reading: {state_first.get('t', '?')}")
 
-        # --- Now perform OCR and assertions (after all screenshots captured) ---
+        # Let the chrono run, then read again; it should have counted up.
+        time.sleep(2.5)
+        emulator.press_down()
+        state_second = capture.wait_for_state(event="button_down", timeout=5.0)
+        assert state_second is not None, "Did not get second button_down state"
+        second_min, second_sec = parse_time(state_second.get('t', '0:00'))
+        second_total = second_min * 60 + second_sec
+        logger.info(f"Chrono second reading: {state_second.get('t', '?')}")
 
-        text1 = extract_text(screenshot1)
-        logger.info(f"Chrono mode start: {text1}")
+        capture.stop()
 
-        # Should show small time value (0:0x) - stopwatch just started
-        normalized1 = normalize_time_text(text1)
-        time_patterns_start = ["0:0"]
-        has_start_time = any(pattern in normalized1 for pattern in time_patterns_start)
-        assert has_start_time, f"Expected chrono to show '0:0x' at start, got: {text1}"
-
-        text2 = extract_text(screenshot2)
-        logger.info(f"Chrono after 3s: {text2}")
-
-        # Should now show higher time (0:0x where x > start)
-        normalized2 = normalize_time_text(text2)
-        time_patterns_later = ["0:0", "0:1"]
-        has_later_time = any(pattern in normalized2 for pattern in time_patterns_later)
-        assert has_later_time, f"Expected chrono to have counted up, got: {text2}"
-
-        # Verify the time actually increased by checking screenshots differ
-        assert screenshot1.tobytes() != screenshot2.tobytes(), (
-            "Display should change as chrono counts up"
+        assert_is_chrono(state_second, is_chrono=True)
+        assert second_total > first_total, (
+            f"Chrono should count up: first={state_first.get('t', '?')}, "
+            f"second={state_second.get('t', '?')}"
         )
 
 
