@@ -599,6 +599,21 @@ static void prv_draw_icon(GContext *ctx, GBitmap *icon, int16_t x, int16_t y, in
   }
 }
 
+// Whether the repeat counter ("<n>x") is currently shown. In EditRepeat it
+// flashes on a 1-second cycle (visible for the first half); elsewhere it shows
+// only while more than one repeat remains. Both the counter itself and the
+// icon-overlap avoidance depend on this, so they share one definition.
+static bool prv_is_repeat_counter_visible(void) {
+  if (!timer_data.is_repeating) {
+    return false;
+  }
+  if (main_get_control_mode() == ControlModeEditRepeat) {
+    uint64_t delta = epoch() - main_get_last_interaction_time();
+    return (delta % 1000) < 500;
+  }
+  return timer_data.repeat_count > 1;
+}
+
 // Draw action icons based on the current app state
 static void prv_draw_action_icons(GContext *ctx, GRect bounds) {
   graphics_context_set_compositing_mode(ctx, GCompOpSet);
@@ -633,18 +648,7 @@ static void prv_draw_action_icons(GContext *ctx, GRect bounds) {
   const int16_t long_down_y = pos.long_down_y;
 
   // Determine if repeat counter is visible
-  bool repeat_counter_visible = false;
-  if (timer_data.is_repeating) {
-    if (mode == ControlModeEditRepeat) {
-      repeat_counter_visible = true;
-      uint64_t delta = epoch() - main_get_last_interaction_time();
-      if ((delta % 1000) >= 500) {
-        repeat_counter_visible = false;
-      }
-    } else if (timer_data.repeat_count > 1) {
-      repeat_counter_visible = true;
-    }
-  }
+  bool repeat_counter_visible = prv_is_repeat_counter_visible();
 
   if (mode == ControlModeNew || mode == ControlModeEditSec) {
     // New/EditSec mode: show increment or decrement icons based on direction
@@ -832,39 +836,25 @@ static void prv_render_internal(Layer *layer, GContext *ctx) {
   prv_draw_action_icons(ctx, bounds);
 
   // Draw repeat counter
-  if (timer_data.is_repeating) {
-    bool show = false;
-    if (main_get_control_mode() == ControlModeEditRepeat) {
-      show = true;
-      // flash the indicator
-      uint64_t delta = epoch() - main_get_last_interaction_time();
-      if ((delta % 1000) >= 500) {
-        show = false;
-      }
-    } else if (timer_data.repeat_count > 1) {
-      show = true;
+  if (prv_is_repeat_counter_visible()) {
+    char s_repeat_buffer[8];
+    if (timer_data.repeat_count == 0) {
+      snprintf(s_repeat_buffer, sizeof(s_repeat_buffer), "_x");
+    } else {
+      snprintf(s_repeat_buffer, sizeof(s_repeat_buffer), "%dx", timer_data.repeat_count);
     }
-
-    if (show) {
-      char s_repeat_buffer[8];
-      if (timer_data.repeat_count == 0) {
-        snprintf(s_repeat_buffer, sizeof(s_repeat_buffer), "_x");
-      } else {
-        snprintf(s_repeat_buffer, sizeof(s_repeat_buffer), "%dx", timer_data.repeat_count);
-      }
 #ifdef PBL_ROUND
-      GRect repeat_bounds = GRect(bounds.size.w - 65, 15, 50, 30);
+    GRect repeat_bounds = GRect(bounds.size.w - 65, 15, 50, 30);
 #else
-      GRect repeat_bounds = GRect(bounds.size.w - 50, 0, 50, 30);
+    GRect repeat_bounds = GRect(bounds.size.w - 50, 0, 50, 30);
 #endif
-      // Draw the repeat counter in black to match the other (black) icons on
-      // color displays. On black-and-white displays the corner background is
-      // dark, so keep it white there to stay visible.
-      graphics_context_set_text_color(ctx, PBL_IF_COLOR_ELSE(GColorBlack, GColorWhite));
-      graphics_draw_text(ctx, s_repeat_buffer, fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD),
-        repeat_bounds, GTextOverflowModeFill, GTextAlignmentRight, NULL);
-      graphics_context_set_text_color(ctx, drawing_data.fore_color);
-    }
+    // Draw the repeat counter in black to match the other (black) icons on
+    // color displays. On black-and-white displays the corner background is
+    // dark, so keep it white there to stay visible.
+    graphics_context_set_text_color(ctx, PBL_IF_COLOR_ELSE(GColorBlack, GColorWhite));
+    graphics_draw_text(ctx, s_repeat_buffer, fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD),
+      repeat_bounds, GTextOverflowModeFill, GTextAlignmentRight, NULL);
+    graphics_context_set_text_color(ctx, drawing_data.fore_color);
   }
 
   if (timer_is_vibrating()) {

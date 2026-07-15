@@ -249,7 +249,8 @@ void gbitmap_destroy(GBitmap *bitmap) {}
 // Math
 int32_t sin_lookup(int32_t angle) { return TRIG_MAX_RATIO; }
 int32_t atan2_lookup(int16_t y, int16_t x) { return 0; }
-uint64_t epoch(void) { return 0; }
+uint64_t mock_epoch = 0;
+uint64_t epoch(void) { return mock_epoch; }
 
 GPoint grect_center_point(const GRect *rect) { return (GPoint){0,0}; }
 GRect grect_inset(GRect rect, GEdgeInsets insets) { return rect; }
@@ -326,6 +327,8 @@ static void reset_ms_mocks(void) {
     mock_is_vibrating = false;
     mock_is_chrono = false;
     mock_is_paused = true;
+    mock_epoch = 0;
+    mock_last_interaction_time = 0;
 }
 
 // 1.1: paused chrono under one hour shows milliseconds as M:SS.mmm
@@ -387,8 +390,67 @@ static void test_repeat_counter_drawn_black(void **state) {
     assert_int_equal(g_repeat_text_color, GColorBlack);
 }
 
+// #1: prv_is_repeat_counter_visible centralizes the repeat-counter visibility
+// rule that was duplicated in prv_draw_action_icons (to hide overlapping icons)
+// and prv_render_internal (to draw the counter). The two copies must agree, so
+// the shared predicate is exercised directly here.
+
+// Never visible when the timer is not repeating, regardless of count.
+static void test_repeat_counter_hidden_when_not_repeating(void **state) {
+    reset_ms_mocks();
+    timer_data.is_repeating = false;
+    timer_data.repeat_count = 5;
+    mock_control_mode = ControlModeCounting;
+    assert_false(prv_is_repeat_counter_visible());
+}
+
+// Counting mode: visible only when more than one repeat remains.
+static void test_repeat_counter_visible_counting_multiple(void **state) {
+    reset_ms_mocks();
+    timer_data.is_repeating = true;
+    timer_data.repeat_count = 2;
+    mock_control_mode = ControlModeCounting;
+    assert_true(prv_is_repeat_counter_visible());
+}
+
+static void test_repeat_counter_hidden_counting_single(void **state) {
+    reset_ms_mocks();
+    timer_data.is_repeating = true;
+    timer_data.repeat_count = 1;
+    mock_control_mode = ControlModeCounting;
+    assert_false(prv_is_repeat_counter_visible());
+}
+
+// EditRepeat mode: the counter flashes on a 1s cycle regardless of count.
+// delta = epoch() - last_interaction is the time since the last press; it is
+// visible for the first 500ms of each second and hidden for the rest.
+static void test_repeat_counter_flash_on_phase_in_edit_repeat(void **state) {
+    reset_ms_mocks();
+    timer_data.is_repeating = true;
+    timer_data.repeat_count = 0;
+    mock_control_mode = ControlModeEditRepeat;
+    mock_last_interaction_time = 10000;
+    mock_epoch = 10200;  // 200ms since interaction -> on phase
+    assert_true(prv_is_repeat_counter_visible());
+}
+
+static void test_repeat_counter_flash_off_phase_in_edit_repeat(void **state) {
+    reset_ms_mocks();
+    timer_data.is_repeating = true;
+    timer_data.repeat_count = 0;
+    mock_control_mode = ControlModeEditRepeat;
+    mock_last_interaction_time = 10000;
+    mock_epoch = 10700;  // 700ms since interaction -> off phase
+    assert_false(prv_is_repeat_counter_visible());
+}
+
 int main(void) {
     const struct CMUnitTest tests[] = {
+        cmocka_unit_test(test_repeat_counter_hidden_when_not_repeating),
+        cmocka_unit_test(test_repeat_counter_visible_counting_multiple),
+        cmocka_unit_test(test_repeat_counter_hidden_counting_single),
+        cmocka_unit_test(test_repeat_counter_flash_on_phase_in_edit_repeat),
+        cmocka_unit_test(test_repeat_counter_flash_off_phase_in_edit_repeat),
         cmocka_unit_test(test_icon_overlap),
         cmocka_unit_test(test_paused_chrono_under_hour_shows_ms),
         cmocka_unit_test(test_paused_chrono_ms_zero_padded),
