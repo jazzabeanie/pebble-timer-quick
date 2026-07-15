@@ -136,6 +136,15 @@ static void prv_update_backlight(void) {
   prv_set_backlight(prv_is_edit_mode() || timer_is_vibrating());
 }
 
+// Common epilogue for interaction handlers: redraw, refresh the backlight to
+// match the resulting mode, and log the new state for functional tests.
+static void prv_finish_interaction(const char *log_tag) {
+  drawing_update();
+  layer_mark_dirty(main_data.layer);
+  prv_update_backlight();
+  test_log_state(log_tag);
+}
+
 // Helper to record interaction time
 static void prv_record_interaction(void) {
   main_data.last_interaction_time = epoch();
@@ -203,6 +212,16 @@ static void prv_check_zero_crossing_direction_flip(bool was_chrono, int64_t incr
       timer_data.base_length_ms = timer_data.length_ms;
     }
   }
+}
+
+// Apply an edit-mode increment: adjust the timer, auto-flip direction to
+// forward on a zero crossing, and flag the length as modified so the new
+// duration is committed when the edit expires (prv_new_expire_callback).
+static void prv_apply_edit_increment(int64_t increment_ms) {
+  bool was_chrono = timer_is_chrono();
+  prv_update_timer(increment_ms);
+  prv_check_zero_crossing_direction_flip(was_chrono, increment_ms);
+  main_data.timer_length_modified_in_edit_mode = true;
 }
 
 // Callback to quit the app
@@ -595,19 +614,13 @@ static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     if (settings_get_swap_back_and_select_long()) {
       main_data.control_mode = ControlModeEditSec;
     } else {
-      bool was_chrono = timer_is_chrono();
-      prv_update_timer(BACK_BUTTON_INCREMENT_MS);
-      prv_check_zero_crossing_direction_flip(was_chrono, BACK_BUTTON_INCREMENT_MS);
-      main_data.timer_length_modified_in_edit_mode = true;
+      prv_apply_edit_increment(BACK_BUTTON_INCREMENT_MS);
     }
   } else if (main_data.control_mode == ControlModeEditSec) {
     if (settings_get_swap_back_and_select_long()) {
       main_data.control_mode = ControlModeNew;
     } else {
-      bool was_chrono = timer_is_chrono();
-      prv_update_timer(BACK_BUTTON_INCREMENT_SEC_MS);
-      prv_check_zero_crossing_direction_flip(was_chrono, BACK_BUTTON_INCREMENT_SEC_MS);
-      main_data.timer_length_modified_in_edit_mode = true;
+      prv_apply_edit_increment(BACK_BUTTON_INCREMENT_SEC_MS);
     }
   } else if (main_data.control_mode == ControlModeEditRepeat) {
     timer_data.repeat_count = 0;
@@ -618,10 +631,7 @@ static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
       window_stack_pop(true);
     }
   }
-  drawing_update();
-  layer_mark_dirty(main_data.layer);
-  prv_update_backlight();
-  test_log_state("button_back");
+  prv_finish_interaction("button_back");
 }
 
 // Up click handler
@@ -650,20 +660,14 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     }
     main_data.is_editing_existing_timer = true;
     main_data.timer_length_modified_in_edit_mode = false;
-    drawing_update();
-    layer_mark_dirty(main_data.layer);
-    prv_update_backlight();
-    test_log_state("button_up");
+    prv_finish_interaction("button_up");
     return;
   }
   // increment repeats
   if (main_data.control_mode == ControlModeEditRepeat) {
     timer_data.repeat_count += 20;
     prv_reset_new_expire_timer();
-    drawing_update();
-    layer_mark_dirty(main_data.layer);
-    prv_update_backlight();
-    test_log_state("button_up");
+    prv_finish_interaction("button_up");
     return;
   }
   // increment timer
@@ -672,14 +676,8 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     increment = UP_BUTTON_INCREMENT_SEC_MS;
   }
   // increment timer
-  bool was_chrono = timer_is_chrono();
-  prv_update_timer(increment);
-  prv_check_zero_crossing_direction_flip(was_chrono, increment);
-  main_data.timer_length_modified_in_edit_mode = true;
-  drawing_update();
-  layer_mark_dirty(main_data.layer);
-  prv_update_backlight();
-  test_log_state("button_up");
+  prv_apply_edit_increment(increment);
+  prv_finish_interaction("button_up");
 }
 
 // Up long click handler
@@ -701,10 +699,7 @@ static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) 
       timer_repeat_restart();
       test_log_state("alarm_stop");
     }
-    drawing_update();
-    layer_mark_dirty(main_data.layer);
-    prv_update_backlight();
-    test_log_state("long_press_up");
+    prv_finish_interaction("long_press_up");
     return;
   }
 
@@ -726,10 +721,7 @@ static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) 
       main_data.control_mode = ControlModeCounting;
     }
     vibes_short_pulse();
-    drawing_update();
-    layer_mark_dirty(main_data.layer);
-    prv_update_backlight();
-    test_log_state("long_press_up");
+    prv_finish_interaction("long_press_up");
     return;
   }
 
@@ -739,10 +731,7 @@ static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) 
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Reverse direction: %d", main_data.is_reverse_direction);
 
   prv_reset_new_expire_timer();
-  drawing_update();
-  layer_mark_dirty(main_data.layer);
-  prv_update_backlight();
-  test_log_state("long_press_up");
+  prv_finish_interaction("long_press_up");
 }
 
 // Select click handler
@@ -767,10 +756,7 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     case ControlModeEditMin:
       break;
     case ControlModeEditSec: {
-      bool was_chrono = timer_is_chrono();
-      prv_update_timer(SELECT_BUTTON_INCREMENT_SEC_MS);
-      prv_check_zero_crossing_direction_flip(was_chrono, SELECT_BUTTON_INCREMENT_SEC_MS);
-      main_data.timer_length_modified_in_edit_mode = true;
+      prv_apply_edit_increment(SELECT_BUTTON_INCREMENT_SEC_MS);
       break;
     }
     case ControlModeEditRepeat:
@@ -789,18 +775,12 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
       timer_toggle_play_pause();
       break;
     case ControlModeNew: {
-      bool was_chrono = timer_is_chrono();
-      prv_update_timer(increment);
-      prv_check_zero_crossing_direction_flip(was_chrono, increment);
-      main_data.timer_length_modified_in_edit_mode = true;
+      prv_apply_edit_increment(increment);
       break;
     }
   }
   // refresh
-  drawing_update();
-  layer_mark_dirty(main_data.layer);
-  prv_update_backlight();
-  test_log_state("button_select");
+  prv_finish_interaction("button_select");
 }
 
 // Select raw click handler
@@ -826,44 +806,29 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
   // EditSec: toggle to New mode (or add time if swap is on)
   if (main_data.control_mode == ControlModeEditSec) {
     if (settings_get_swap_back_and_select_long()) {
-      bool was_chrono = timer_is_chrono();
-      prv_update_timer(BACK_BUTTON_INCREMENT_SEC_MS);
-      prv_check_zero_crossing_direction_flip(was_chrono, BACK_BUTTON_INCREMENT_SEC_MS);
-      main_data.timer_length_modified_in_edit_mode = true;
+      prv_apply_edit_increment(BACK_BUTTON_INCREMENT_SEC_MS);
     } else {
       main_data.control_mode = ControlModeNew;
     }
-    drawing_update();
-    layer_mark_dirty(main_data.layer);
-    prv_update_backlight();
-    test_log_state("long_press_select");
+    prv_finish_interaction("long_press_select");
     return;
   }
 
   // EditRepeat: no-op
   if (main_data.control_mode == ControlModeEditRepeat) {
     main_data.is_reverse_direction = false;
-    drawing_update();
-    layer_mark_dirty(main_data.layer);
-    prv_update_backlight();
-    test_log_state("long_press_select");
+    prv_finish_interaction("long_press_select");
     return;
   }
 
   // New: toggle to EditSec mode (or add time if swap is on)
   if (main_get_control_mode() == ControlModeNew) {
     if (settings_get_swap_back_and_select_long()) {
-      bool was_chrono = timer_is_chrono();
-      prv_update_timer(BACK_BUTTON_INCREMENT_MS);
-      prv_check_zero_crossing_direction_flip(was_chrono, BACK_BUTTON_INCREMENT_MS);
-      main_data.timer_length_modified_in_edit_mode = true;
+      prv_apply_edit_increment(BACK_BUTTON_INCREMENT_MS);
     } else {
       main_data.control_mode = ControlModeEditSec;
     }
-    drawing_update();
-    layer_mark_dirty(main_data.layer);
-    prv_update_backlight();
-    test_log_state("long_press_select");
+    prv_finish_interaction("long_press_select");
     return;
   }
 
@@ -902,10 +867,7 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
     main_data.timer_length_modified_in_edit_mode = false;
   }
   // animate and refresh
-  drawing_update();
-  layer_mark_dirty(main_data.layer);
-  prv_update_backlight();
-  test_log_state("long_press_select");
+  prv_finish_interaction("long_press_select");
 }
 
 // Helper to check if we should extend high refresh rate for down button
@@ -960,10 +922,7 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
       timer_increment(SNOOZE_INCREMENT_MS);
       test_log_state("alarm_stop");
     }
-    drawing_update();
-    layer_mark_dirty(main_data.layer);
-    prv_update_backlight();
-    test_log_state("button_down");
+    prv_finish_interaction("button_down");
     return;
   }
   else if (main_data.control_mode == ControlModeCounting) {
@@ -972,31 +931,18 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   }
   else if (main_data.control_mode == ControlModeNew) {
     int64_t increment = DOWN_BUTTON_INCREMENT_MS;
-    bool was_chrono = timer_is_chrono();
-    prv_update_timer(increment);
-    prv_check_zero_crossing_direction_flip(was_chrono, increment);
-    main_data.timer_length_modified_in_edit_mode = true;
-    drawing_update();
-    layer_mark_dirty(main_data.layer);
-    test_log_state("button_down");
+    prv_apply_edit_increment(increment);
+    prv_finish_interaction("button_down");
   }
   else if (main_data.control_mode == ControlModeEditSec) {
     int64_t increment = DOWN_BUTTON_INCREMENT_SEC_MS;
-    bool was_chrono = timer_is_chrono();
-    prv_update_timer(increment);
-    prv_check_zero_crossing_direction_flip(was_chrono, increment);
-    main_data.timer_length_modified_in_edit_mode = true;
-    drawing_update();
-    layer_mark_dirty(main_data.layer);
-    test_log_state("button_down");
+    prv_apply_edit_increment(increment);
+    prv_finish_interaction("button_down");
   }
   else if (main_data.control_mode == ControlModeEditRepeat) {
     timer_data.repeat_count += 1;
     prv_reset_new_expire_timer();
-    drawing_update();
-    layer_mark_dirty(main_data.layer);
-    prv_update_backlight();
-    test_log_state("button_down");
+    prv_finish_interaction("button_down");
   }
 }
 

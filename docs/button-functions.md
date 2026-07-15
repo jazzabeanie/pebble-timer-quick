@@ -366,3 +366,5 @@ Settings are configured via the Pebble mobile app (tap the gear icon next to the
 | `test_backlight.py::test_backlight_on_in_edit_sec_mode` | Backlight on in EditSec mode |
 | `test_backlight.py::test_backlight_on_in_edit_repeat_mode` | Backlight on in EditRepeat mode |
 | `test_backlight.py::test_backlight_stays_on_when_silencing_to_edit_mode` | Backlight stays on when silencing alarm to edit |
+| `test_main_logic.c::test_down_click_in_new_mode_updates_backlight` | Down in New mode leaves the backlight consistent with edit mode (on) |
+| `test_main_logic.c::test_down_click_in_edit_sec_mode_updates_backlight` | Down in EditSec mode leaves the backlight consistent with edit mode (on) |

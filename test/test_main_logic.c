@@ -64,6 +64,8 @@ void drawing_render(Layer *layer, GContext *ctx) {}
 void drawing_update(void) {}
 void drawing_initialize(Layer *layer) {}
 void drawing_terminate(void) {}
+void drawing_set_slot_override(int8_t slot) {}
+int8_t drawing_get_slot_override(void) { return -1; }
 
 // Utility Mocks
 void assert(void *ptr, const char *file, int line) {
@@ -100,6 +102,7 @@ bool settings_get_show_snooze_icon(void)        { return true; }
 bool settings_get_swap_back_and_select_long(void) { return s_mock_swap_back_and_select_long; }
 bool settings_get_multiple_timers_enabled(void) { return false; }
 bool settings_get_voice_naming_enabled(void) { return false; }
+bool settings_get_lap_stopwatch_enabled(void) { return false; }
 
 // --- Timer List stub ---
 void timer_list_window_push(void) {}
@@ -309,8 +312,61 @@ static void test_down_click_intermediate_repeat_keeps_base_length(void **state) 
     assert_int_equal(timer_get_value_ms(), 59000);
 }
 
+// Every interaction handler must leave the backlight consistent with the
+// current control mode. The Down handler's New/EditSec branches historically
+// skipped prv_update_backlight(), so if the backlight was off it stayed off
+// even though we are in an (illuminated) edit mode. Force that state and
+// verify the handler corrects it.
+static void test_down_click_in_new_mode_updates_backlight(void **state) {
+    memset(&timer_data, 0, sizeof(Timer));
+    timer_reset();
+    memset(&main_data, 0, sizeof(main_data));
+    main_data.control_mode = ControlModeNew;
+
+    backlight_on = false;
+    backlight_timer = NULL;
+
+    prv_down_click_handler(NULL, NULL);
+
+    assert_true(backlight_on);
+}
+
+static void test_down_click_in_edit_sec_mode_updates_backlight(void **state) {
+    memset(&timer_data, 0, sizeof(Timer));
+    timer_reset();
+    memset(&main_data, 0, sizeof(main_data));
+    main_data.control_mode = ControlModeEditSec;
+
+    backlight_on = false;
+    backlight_timer = NULL;
+
+    prv_down_click_handler(NULL, NULL);
+
+    assert_true(backlight_on);
+}
+
+// #2: prv_apply_edit_increment centralizes the edit-mode increment sequence
+// used by every timer-adjusting button. It must change the timer length and
+// mark the length as modified so the new duration is committed when the edit
+// expires (see timer_length_modified_in_edit_mode in prv_new_expire_callback).
+static void test_apply_edit_increment_adds_time_and_sets_flag(void **state) {
+    memset(&timer_data, 0, sizeof(Timer));
+    timer_reset();
+    memset(&main_data, 0, sizeof(main_data));
+    main_data.control_mode = ControlModeEditSec;
+    main_data.timer_length_modified_in_edit_mode = false;
+
+    prv_apply_edit_increment(SELECT_BUTTON_INCREMENT_SEC_MS);
+
+    assert_int_equal(timer_data.length_ms, SELECT_BUTTON_INCREMENT_SEC_MS);
+    assert_true(main_data.timer_length_modified_in_edit_mode);
+}
+
 int main(void) {
     const struct CMUnitTest tests[] = {
+        cmocka_unit_test(test_apply_edit_increment_adds_time_and_sets_flag),
+        cmocka_unit_test(test_down_click_in_new_mode_updates_backlight),
+        cmocka_unit_test(test_down_click_in_edit_sec_mode_updates_backlight),
         cmocka_unit_test(test_seconds_timer_bug),
         cmocka_unit_test(test_first_launch_starts_in_new_mode),
         cmocka_unit_test(test_swap_back_toggles_to_editsec_from_new),

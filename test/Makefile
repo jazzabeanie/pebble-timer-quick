@@ -40,8 +40,10 @@ all: $(TEST_TIMER_BIN) $(TEST_MAIN_BIN) $(TEST_DRAWING_BIN) $(TEST_TIMER_MULTI_B
 $(TEST_TIMER_BIN): $(TEST_TIMER_SRCS) $(TIMER_SRCS) $(MNEMONIC_SRCS)
 	$(CC) $(CFLAGS) $(INCLUDES) $^ -o $@ $(LDFLAGS) $(LIBS)
 
-$(TEST_MAIN_BIN): $(TEST_MAIN_SRCS) $(TIMER_SRCS) $(MNEMONIC_SRCS)
-	$(CC) $(CFLAGS) $(INCLUDES) $^ -o $@ $(LDFLAGS) $(LIBS)
+# main.c is #included by test_main_logic.c, so it is a prerequisite (rebuild
+# when it changes) but must NOT be passed to gcc as a separate source.
+$(TEST_MAIN_BIN): $(TEST_MAIN_SRCS) $(SRC_DIR)/main.c $(TIMER_SRCS) $(MNEMONIC_SRCS)
+	$(CC) $(CFLAGS) $(INCLUDES) $(TEST_MAIN_SRCS) $(TIMER_SRCS) $(MNEMONIC_SRCS) -o $@ $(LDFLAGS) $(LIBS)
 
 # drawing.c is #included by the test, so it is a dependency but must NOT be
 # passed to gcc as a separate source (only compile $(TEST_DRAWING_SRCS)).
