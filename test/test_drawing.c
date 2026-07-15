@@ -444,8 +444,42 @@ static void test_repeat_counter_flash_off_phase_in_edit_repeat(void **state) {
     assert_false(prv_is_repeat_counter_visible());
 }
 
+// #2: prv_draw_action_icons is split into per-mode helpers, each independently
+// testable. EditRepeat draws the reset-count and +5-rep icons.
+static void test_draw_edit_repeat_icons(void **state) {
+    reset_ms_mocks();
+    mock_control_mode = ControlModeEditRepeat;
+    drawing_initialize((Layer*)1);
+    draw_call_count = 0;
+    IconPositions pos = prv_compute_icon_positions((GRect){{0,0},{144,168}});
+    prv_draw_edit_repeat_icons((GContext*)1, &pos);
+    drawing_terminate();
+
+    assert_true(was_bitmap_drawn(RESOURCE_ID_IMAGE_ICON_RESET_COUNT));
+    assert_true(was_bitmap_drawn(RESOURCE_ID_IMAGE_ICON_PLUS_5_REP));
+}
+
+// Counting mode draws the to-background and details icons; the edit icon shows
+// only while the repeat counter is hidden.
+static void test_draw_counting_icons(void **state) {
+    reset_ms_mocks();
+    mock_control_mode = ControlModeCounting;
+    drawing_initialize((Layer*)1);
+    draw_call_count = 0;
+    IconPositions pos = prv_compute_icon_positions((GRect){{0,0},{144,168}});
+    // is_paused, is_chrono, repeat_counter_visible
+    prv_draw_counting_icons((GContext*)1, &pos, true, false, false);
+    drawing_terminate();
+
+    assert_true(was_bitmap_drawn(RESOURCE_ID_IMAGE_ICON_TO_BG));
+    assert_true(was_bitmap_drawn(RESOURCE_ID_IMAGE_ICON_DETAILS));
+    assert_true(was_bitmap_drawn(RESOURCE_ID_IMAGE_ICON_EDIT));
+}
+
 int main(void) {
     const struct CMUnitTest tests[] = {
+        cmocka_unit_test(test_draw_edit_repeat_icons),
+        cmocka_unit_test(test_draw_counting_icons),
         cmocka_unit_test(test_repeat_counter_hidden_when_not_repeating),
         cmocka_unit_test(test_repeat_counter_visible_counting_multiple),
         cmocka_unit_test(test_repeat_counter_hidden_counting_single),
