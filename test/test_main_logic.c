@@ -102,7 +102,8 @@ bool settings_get_show_snooze_icon(void)        { return true; }
 bool settings_get_swap_back_and_select_long(void) { return s_mock_swap_back_and_select_long; }
 bool settings_get_multiple_timers_enabled(void) { return false; }
 bool settings_get_voice_naming_enabled(void) { return false; }
-bool settings_get_lap_stopwatch_enabled(void) { return false; }
+static bool s_mock_lap_stopwatch_enabled = false;
+bool settings_get_lap_stopwatch_enabled(void) { return s_mock_lap_stopwatch_enabled; }
 
 // --- Timer List stub ---
 void timer_list_window_push(void) {}
@@ -362,8 +363,67 @@ static void test_apply_edit_increment_adds_time_and_sets_flag(void **state) {
     assert_true(main_data.timer_length_modified_in_edit_mode);
 }
 
+// Restarting a running stopwatch (long-press Select while counting up) with the
+// Lap Stopwatch feature on assigns a fresh mnemonic name — but only when the
+// user has NOT given the stopwatch a custom name. A stopwatch renamed via voice
+// must keep that name across a restart.
+static void test_restart_stopwatch_preserves_custom_name(void **state) {
+    memset(&timer_data, 0, sizeof(Timer));
+    timer_reset();
+    memset(&main_data, 0, sizeof(main_data));
+    s_mock_lap_stopwatch_enabled = true;
+
+    // Running stopwatch (chrono): counting up 5s, not paused, in Counting mode
+    s_mock_epoch = 1000000;
+    timer_data.length_ms = 0;
+    timer_data.base_length_ms = 0;
+    timer_data.is_paused = false;
+    timer_data.start_ms = s_mock_epoch - 5000;
+    main_data.control_mode = ControlModeCounting;
+
+    // User renames the stopwatch
+    timer_set_name(timer_get_active_slot(), "My Run");
+    assert_string_equal(timer_data.name, "My Run");
+
+    // Hold Select to restart the stopwatch
+    prv_select_long_click_handler(NULL, NULL);
+
+    // The custom name survives the restart
+    assert_string_equal(timer_data.name, "My Run");
+
+    s_mock_lap_stopwatch_enabled = false;
+}
+
+// A stopwatch that was never renamed still gets a fresh mnemonic name assigned
+// when it is restarted (the has-custom-name guard must not suppress this).
+static void test_restart_unnamed_stopwatch_reassigns_name(void **state) {
+    memset(&timer_data, 0, sizeof(Timer));
+    timer_reset();
+    memset(&main_data, 0, sizeof(main_data));
+    s_mock_lap_stopwatch_enabled = true;
+
+    s_mock_epoch = 1000000;
+    timer_data.length_ms = 0;
+    timer_data.base_length_ms = 0;
+    timer_data.is_paused = false;
+    timer_data.start_ms = s_mock_epoch - 5000;
+    main_data.control_mode = ControlModeCounting;
+
+    // Stand-in for a generated name that is NOT user-provided
+    snprintf(timer_data.name, sizeof(timer_data.name), "%s", "placeholder");
+
+    prv_select_long_click_handler(NULL, NULL);
+
+    // A mnemonic name was reassigned, replacing the placeholder
+    assert_string_not_equal(timer_data.name, "placeholder");
+
+    s_mock_lap_stopwatch_enabled = false;
+}
+
 int main(void) {
     const struct CMUnitTest tests[] = {
+        cmocka_unit_test(test_restart_stopwatch_preserves_custom_name),
+        cmocka_unit_test(test_restart_unnamed_stopwatch_reassigns_name),
         cmocka_unit_test(test_apply_edit_increment_adds_time_and_sets_flag),
         cmocka_unit_test(test_down_click_in_new_mode_updates_backlight),
         cmocka_unit_test(test_down_click_in_edit_sec_mode_updates_backlight),

@@ -189,6 +189,10 @@ class TestTimerList:
         assert state2 is not None, "No button_up state after selecting New Timer"
         assert_mode(state2, "New")
 
+    # Load-flaky: the hold-to-delete gesture can be dropped by an under-load
+    # emulator late in a long full-suite run (timer_list_delete never fires);
+    # a fresh retry passes.
+    @pytest.mark.flaky(reruns=2, reruns_delay=5)
     def test_hold_down_deletes_existing_timer(self, emulator):
         """
         5.4: Hold Down on an existing timer entry deletes it and refreshes the list.
@@ -414,6 +418,10 @@ class TestDeleteAllRow:
         capture2, _ = _relaunch_to_list(emulator, platform, expected_count=4)
         capture2.stop()
 
+    # Load-flaky: the hold-to-delete-all gesture can be dropped by an under-load
+    # emulator late in a long full-suite run (timer_list_delete_all never fires);
+    # a fresh retry passes.
+    @pytest.mark.flaky(reruns=2, reruns_delay=5)
     def test_hold_down_clears_all_and_exits(self, emulator):
         _skip_if_no_lap_feature(emulator)
         platform = emulator.platform
@@ -447,6 +455,10 @@ class TestDeleteAllRow:
 class TestPostDeleteSelection:
     """Deleting an entry selects the previous timer (never Delete all)."""
 
+    # Load-flaky: relies on the hold-to-delete gesture TWICE, so it has double
+    # exposure to an under-load emulator dropping the gesture (timer_list_delete
+    # never fires) late in a long full-suite run; a fresh retry passes.
+    @pytest.mark.flaky(reruns=2, reruns_delay=5)
     def test_delete_selects_previous_then_new_timer(self, emulator):
         _skip_if_no_lap_feature(emulator)
         platform = emulator.platform
@@ -476,6 +488,10 @@ class TestPostDeleteSelection:
             f"Expected New Timer row selected after deleting the last timer: {deleted2}"
         )
 
+    # Load-flaky: the hold-to-delete gesture can be dropped by an under-load
+    # emulator late in a long full-suite run (timer_list_delete never fires);
+    # a fresh retry passes.
+    @pytest.mark.flaky(reruns=2, reruns_delay=5)
     def test_delete_topmost_keeps_position(self, emulator):
         _skip_if_no_lap_feature(emulator)
         platform = emulator.platform

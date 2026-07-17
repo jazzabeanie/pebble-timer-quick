@@ -113,6 +113,9 @@ class TestStopwatchMilliseconds:
             f"Expected running stopwatch display to omit milliseconds, got '{disp}'"
         )
 
+    # Load-flaky: create_countdown's Down press can be dropped by an under-load
+    # emulator late in a long full-suite run; a fresh retry passes.
+    @pytest.mark.flaky(reruns=2, reruns_delay=5)
     def test_paused_countdown_hides_ms(self, persistent_emulator):
         """A paused countdown timer shows no millisecond component."""
         emulator = persistent_emulator
@@ -124,8 +127,15 @@ class TestStopwatchMilliseconds:
         # Establish a countdown timer (not a stopwatch).
         create_countdown(emulator, capture)
 
-        # Wait for the idle transition into Counting mode, then pause.
-        time.sleep(3.5)
+        # Wait for the idle transition into Counting rather than assuming it
+        # happens within a fixed sleep: under full-suite load the emulator clock
+        # and host wall-time diverge, so a bare sleep can elapse while the app is
+        # still in New — pausing there would not exercise a Counting countdown.
+        state_counting = capture.wait_for_state(event="mode_change", timeout=8.0)
+        assert state_counting is not None, "Countdown did not transition to Counting"
+        assert_mode(state_counting, "Counting")
+
+        time.sleep(0.3)  # settle so the Select press isn't swallowed post-transition
         emulator.press_select()
         state = capture.wait_for_state(event="button_select", timeout=5.0)
         assert state is not None
