@@ -121,6 +121,10 @@ class TestLogBasedAssertions:
             # by checking that we can at least capture logs
             logger.info("Init log was likely emitted before capture started (expected)")
 
+    # Load-flaky: an under-load emulator can drop one of the Down presses (its
+    # button_down never arrives) late in a long full-suite run; a fresh retry
+    # from the fixture's clean state passes.
+    @pytest.mark.flaky(reruns=2, reruns_delay=5)
     def test_multiple_button_presses_log_sequence(self, persistent_emulator):
         """
         Test capturing a sequence of button presses via logs.
@@ -130,12 +134,14 @@ class TestLogBasedAssertions:
         """
         emulator = persistent_emulator
 
-        # Start log capture
+        # Start log capture (attaches to the already-connected shared stream, so
+        # no "wait for logs to connect" sleep is needed). The app was opened by
+        # the fixture ~0.5s ago and idle-transitions New->Counting only after
+        # ~3s, so pressing immediately keeps the whole sequence in New with a
+        # wide margin, and each press resets that window. Minimising setup time
+        # and press count also minimises exposure to under-load press drops.
         capture = LogCapture(emulator.platform)
         capture.start()
-
-        # Wait for pebble logs to connect
-        time.sleep(1.0)
         capture.clear_state_queue()
 
         # Press Down twice (each adds 1 minute)

@@ -13,7 +13,7 @@
 #include "mnemonic.h"
 #include <time.h>
 
-#define PERSIST_VERSION 8
+#define PERSIST_VERSION 9
 #define PERSIST_VERSION_KEY 4342896
 // Legacy keys kept for cleanup only
 #define PERSIST_TIMER_KEY_V2_DATA 58734
@@ -376,6 +376,11 @@ void timer_persist_read(void) {
 //
 
 void timer_assign_name(uint8_t new_idx) {
+#if LAP_FEATURE
+  // An auto-assigned mnemonic replaces any prior name; the slot is no longer
+  // considered user-renamed (so a later restart may reassign again).
+  timer_slots[new_idx].has_custom_name = false;
+#endif
   time_t t = (time_t)(timer_slots[new_idx].start_ms / 1000);
   struct tm *tm_info = localtime(&t);
   const char *adj, *noun;
@@ -460,6 +465,12 @@ void timer_set_name(uint8_t idx, const char *name) {
     dst[i] = start[i];
   }
   dst[len] = '\0';
+
+#if LAP_FEATURE
+  // Mark the slot as user-renamed so a stopwatch restart preserves this name
+  // rather than reassigning a fresh mnemonic.
+  timer_slots[idx].has_custom_name = true;
+#endif
 
   timer_persist_store();
 }

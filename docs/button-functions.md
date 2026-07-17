@@ -220,6 +220,10 @@ When the `Lap Stopwatch` setting is enabled, a running timer's Select button rec
 - The **header** shows the **total** elapsed since first start, prefixed with the count-up arrow (e.g. `-->12:34`), instead of the `00:00-->` base-length header.
 - A recorded lap slot shows its own split as the main value and its cumulative time in the header (`-->` prefixed).
 
+**Restart (long-press Select, Counting mode, stopwatch running):**
+- Restarting a running stopwatch resets the lap session (next lap is `Lap 1`) and assigns a fresh mnemonic name based on the new start time.
+- **Exception:** if the user has renamed the stopwatch (e.g. via voice dictation — see the Up + Back rename gesture), the custom name is preserved across the restart instead of being replaced by a new mnemonic. A slot is considered user-renamed once `timer_set_name` runs (`has_custom_name`); assigning a mnemonic name clears the flag.
+
 **Header when lapping is disabled (default):**
 - A genuine stopwatch (started at 0:00, no original countdown length) shows the time of day it was started, prefixed with `@` and followed by the count-up arrow, e.g. `@12:45-->` — replacing the old `00:00-->` placeholder. Formatted per the watch's 12/24-hour clock style. A paused stopwatch's shown start time drifts forward for however long it stays paused (a known, accepted trade-off).
 - An **overtime countdown** (an ordinary countdown that ran past zero) keeps its unchanged base-length header (e.g. `05:00-->`) regardless of the `Lap Stopwatch` setting — it was never a genuine stopwatch, so it never gets the `@`-prefixed header. The `@` prefix exists specifically so a stopwatch's start-time header can't be mistaken for an overtime countdown's original length, since both would otherwise be a bare `NN:NN-->`.
@@ -238,6 +242,8 @@ When the `Lap Stopwatch` setting is enabled, a running timer's Select button rec
 | `test_stopwatch_laps.py::TestSlotLimit::test_fill_to_capacity_warns_and_persists` | Warnings at ≤3 free, "no free slots" guard at capacity, 32 slots persist |
 | `test_stopwatch_laps.py::TestSlotLimit::test_new_timer_near_limit_shows_warning` | New-timer approaching-limit overlay (3 s) |
 | `test_stopwatch_laps.py::TestLongPressRestart::test_restart_resets_lap_numbering` | Long-press Select restarts and resets lap numbering |
+| `test_main_logic.c::test_restart_stopwatch_preserves_custom_name` | Restarting a renamed stopwatch keeps its custom name |
+| `test_main_logic.c::test_restart_unnamed_stopwatch_reassigns_name` | Restarting an un-renamed stopwatch reassigns a fresh mnemonic name |
 | `test/test_timer_multi.c::test_lap_*` | Unit tests: lap copy state, split/cumulative math, naming, trimming, capacity |
 
 ---
@@ -352,7 +358,7 @@ Settings are configured via the Pebble mobile app (tap the gear icon next to the
 | Increment Icons | On | Shows/hides the +1, +5, +20 button indicator icons in edit modes |
 | Swap Back / Select-Hold Buttons | Off | When on, swaps the functions of Back (short press) and Select (long press) in New and EditSec modes only. Back becomes the New↔EditSec mode toggle; Select long press becomes the +1hr / +1min time increment. The back button icon is replaced with an **m/s** indicator: **m** bold in New mode, **s** bold in EditSec mode. |
 | Voice Naming (Pebble 2 only) | Off | When on (and running on an emery / microphone-capable watch), the Up + Back chord (Up pressed first) in New or EditSec mode launches voice dictation to rename the active timer. No effect on non-microphone platforms, where the feature is compiled out. |
-| Lap Stopwatch (not on original Pebble) | Off | When on, pressing Select on a running timer in Counting mode records a lap (paused copy in a new slot named `Lap [n]: <name>`) instead of toggling play/pause, the main value shows the current split while the header shows the total (`-->12:34`), and long-press Select restarts the stopwatch with the lap session reset and a new name. When off, a genuine stopwatch's header shows its `@`-prefixed start time instead of the total. See the Lap Stopwatch section. Compiled out on aplite (the original Pebble / Pebble Steel); the settings row is labelled accordingly. |
+| Lap Stopwatch (not on original Pebble) | Off | When on, pressing Select on a running timer in Counting mode records a lap (paused copy in a new slot named `Lap [n]: <name>`) instead of toggling play/pause, the main value shows the current split while the header shows the total (`-->12:34`), and long-press Select restarts the stopwatch with the lap session reset and a new mnemonic name (unless the user renamed it, in which case the custom name is kept). When off, a genuine stopwatch's header shows its `@`-prefixed start time instead of the total. See the Lap Stopwatch section. Compiled out on aplite (the original Pebble / Pebble Steel); the settings row is labelled accordingly. |
 
 ---
 

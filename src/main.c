@@ -851,10 +851,13 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
       if (settings_get_lap_stopwatch_enabled() && timer_is_chrono()) {
         // Lap Stopwatch: restarting a stopwatch also resets the lap session
         // (next lap is "Lap 1") and assigns a new name. Previously recorded
-        // lap slots are independent copies and stay untouched.
+        // lap slots are independent copies and stay untouched. A stopwatch the
+        // user has renamed keeps its custom name across the restart.
         timer_data.last_lap_ms = 0;
         timer_data.lap_count = 0;
-        timer_assign_name(timer_get_active_slot());
+        if (!timer_data.has_custom_name) {
+          timer_assign_name(timer_get_active_slot());
+        }
       }
 #endif
       vibes_short_pulse();

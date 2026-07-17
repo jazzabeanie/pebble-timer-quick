@@ -54,8 +54,9 @@ typedef struct {
   bool        is_paused;      //< A flag to indicate if the timer is paused
 #if LAP_FEATURE
   uint8_t     lap_count;      //< Number of laps recorded from this timer (next lap is lap_count + 1)
+  bool        has_custom_name; //< True once the user renames the slot; a restart then keeps the name instead of reassigning a mnemonic
 #endif
-  char        name[TIMER_NAME_LEN]; //< Mnemonic name assigned at creation; never changes
+  char        name[TIMER_NAME_LEN]; //< Mnemonic name (auto-assigned) unless has_custom_name is set, then a user-provided name
 } Timer;
 
 extern Timer timer_slots[MAX_TIMERS];

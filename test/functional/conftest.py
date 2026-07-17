@@ -311,7 +311,11 @@ class EmulatorHelper:
                 logger.debug(f"[{self.platform}] Attempt {attempt+1}: sending button {button} via WebSocket")
                 # Send press
                 self._ws.send_binary(press_data)
-                time.sleep(0.1)  # Hold button briefly
+                # Hold briefly before release. Kept generous (0.25s) so a
+                # CPU-starved emulator late in a long full-suite run still has a
+                # wide enough window to sample the press — a too-short hold is a
+                # cheap, side-effect-free contributor to dropped presses under load.
+                time.sleep(0.25)
                 # Send release
                 self._ws.send_binary(release_data)
                 logger.debug(f"[{self.platform}] Button {button} sent successfully")
