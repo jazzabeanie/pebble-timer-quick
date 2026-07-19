@@ -52,6 +52,32 @@ is compiled out there.)
 - **AND** the user holds Down
 - **THEN** the app quits and new timer is not saved
 
+### Requirement: Back button exits the app from any screen
+
+Pressing the Back button from any screen (Timer List or individual timer view)
+SHALL exit the app and return the user to the watchface, **except** while the
+lap flash is active after recording a lap. In that window Back opens the
+recorded lap instead of exiting, as defined by the `stopwatch-laps` capability.
+
+#### Scenario: Back on Timer List exits app
+
+- **WHEN** the Timer List is open
+- **AND** the user presses Back
+- **THEN** the app exits to the watchface
+
+#### Scenario: Back on individual timer exits app
+
+- **WHEN** an individual timer is open
+- **AND** no lap flash is active
+- **AND** the user presses Back
+- **THEN** the app exits to the watchface
+
+#### Scenario: Back during the lap flash does not exit
+
+- **WHEN** an individual timer is open and the lap flash is active
+- **AND** the user presses Back
+- **THEN** the app does not exit and the recorded lap becomes the active timer
+
 ## ADDED Requirements
 
 ### Requirement: Timer List scrolls when entries exceed the screen

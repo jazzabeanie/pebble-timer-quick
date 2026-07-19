@@ -70,3 +70,9 @@
 - [x] 9.4 Update `test_stopwatch_laps.py::TestSplitTotalDisplay::test_header_unchanged_when_lapping_disabled` (header is now `@HH:MM-->` start time, not `00:00-->`) and add a test that an overtime countdown's header stays `NN:NN-->` (no `@`, base length) with `Lap Stopwatch` disabled
 - [x] 9.5 Label the `Lap Stopwatch` row in `src/js/pebble-js-app.js` so the aplite limitation is clear (e.g. `Lap Stopwatch (not on original Pebble)`)
 - [x] 9.6 Update `docs/button-functions.md` and `README.md` for the new flash timing (1 s / 1 s, 5 s), the `@`-prefixed start-time header when lapping is disabled, and the aplite limitations (no laps / Delete all / warnings; 5 slots, 20-char names)
+
+## 10. Spec amendment (2026-07-19): Back during the flash opens the recorded lap
+
+- [x] 10.1 Add a failing functional test (`test_stopwatch_laps.py::TestLapFlash::test_back_during_flash_views_lap`): Back inside the flash window logs `flash_view_lap` for the recorded slot, the app stays in Counting mode with the paused lap active (`p=1`), and it does not exit
+- [x] 10.2 Add `prv_flash_view_lap()` in `src/main.c` (cancels the flash and calls `timer_set_active_slot` on the recorded lap; a no-op macro returning false when `LAP_FEATURE` is off) and call it from the Counting-mode branch of `prv_back_click_handler` ahead of `prv_handle_alarm()` / `window_stack_pop`
+- [x] 10.3 Update `docs/button-functions.md`: the Counting-mode Back row and the Lap Stopwatch section

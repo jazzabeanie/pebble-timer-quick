@@ -143,7 +143,7 @@ Up to **32 timer slots** are supported (5 on aplite, where the additions below a
 | Select | Long (paused) | Reset to 0:00 and enter EditSec mode | `test_hold_select_restart.py::test_long_press_select_paused_countdown_resets_to_editsec`, `test_hold_select_restart.py::test_long_press_select_paused_chrono_resets_to_editsec` |
 | Down | Short | Extend high-refresh display rate (cosmetic, no timer change) | *(no dedicated behavioral test)* |
 | Down | Long | Delete this timer and exit app. If multiple timers are enabled, remaining timers stay persisted; re-launching shows the Timer List with the remaining slots. | `test_hold_down_delete.py::TestHoldDownDelete::test_hold_down_in_main_window_deletes_only_active_timer`, `test_hold_down_delete.py::TestHoldDownDelete::test_hold_down_single_timer_exits_cleanly` |
-| Back | Short | Exit app (timer persisted; re-launching shows Timer List if any timers remain) | *(no dedicated test)* |
+| Back | Short | Exit app (timer persisted; re-launching shows Timer List if any timers remain). **Exception:** within the ~5 s lap flash window, opens the lap just recorded instead — see the Lap Stopwatch section. | `test_stopwatch_laps.py::TestLapFlash::test_back_during_flash_views_lap` |
 
 **Paused state icon tests:**
 
@@ -210,8 +210,9 @@ When the `Lap Stopwatch` setting is enabled, a running timer's Select button rec
 
 **Recording a lap (Select, Counting mode, timer running):**
 - A paused copy of the timer is created in a new slot, frozen at the current value, named `Lap [n]: <name>` with `n` starting at 1 and incrementing per originating timer. If the prefixed name would overflow the name field, the END of the original name is trimmed — the prefix is never dropped.
-- The original timer keeps running, stays the active/on-screen timer, and all buttons keep acting on it.
+- The original timer keeps running, stays the active/on-screen timer, and all buttons except Back keep acting on it.
 - The display then **flashes** for ~5 seconds: 1 s showing the paused lap, 1 s showing the original. Pressing Select during the flash cancels it and immediately records the next lap.
+- Pressing **Back** during the flash cancels it and makes the lap just recorded the active timer, so you stay in Counting mode viewing the paused lap instead of exiting the app. After the flash window ends, Back exits as usual.
 - At capacity (no free slot) nothing is recorded: a "No free slots" message is shown with three short vibrations and the original keeps running with its play/pause state unchanged.
 - When a lap (or new timer) leaves **3 or fewer slots free**, an approaching-limit "N slots left" message is shown with three short vibrations — for laps it replaces the original-timer phase of the flash; for new timers it is a 3-second overlay.
 
@@ -236,6 +237,7 @@ When the `Lap Stopwatch` setting is enabled, a running timer's Select button rec
 | `test_stopwatch_laps.py::TestLapRecording::test_select_toggles_pause_when_setting_off` | Setting off: Select still toggles play/pause |
 | `test_stopwatch_laps.py::TestLapFlash::test_flash_alternates_then_ends` | Flash alternates lap/original and ends after ~5 s |
 | `test_stopwatch_laps.py::TestLapFlash::test_select_during_flash_records_next_lap` | Re-lap during the flash window |
+| `test_stopwatch_laps.py::TestLapFlash::test_back_during_flash_views_lap` | Back during the flash opens the recorded lap instead of exiting |
 | `test_stopwatch_laps.py::TestSplitTotalDisplay::test_header_shows_total_after_lap` | Main = split, header = `-->` total; lap slot shows split + cumulative |
 | `test_stopwatch_laps.py::TestSplitTotalDisplay::test_header_shows_start_time_when_lapping_disabled` | Setting off shows the `@`-prefixed start-time header for a genuine stopwatch |
 | `test_stopwatch_laps.py::TestSplitTotalDisplay::test_overtime_countdown_header_unchanged_when_lapping_disabled` | An overtime countdown keeps its base-length header, no `@` prefix |

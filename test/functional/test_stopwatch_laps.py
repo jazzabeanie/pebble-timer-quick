@@ -6,7 +6,8 @@ Covered behaviors:
   original keeps running and stays active) when `Lap Stopwatch` is enabled.
 - Lap slots are named "Lap [n]: <name>" with n incrementing per source.
 - The recorded lap flashes (1s lap / 1s original) for ~5 seconds; Select
-  during the flash cancels it and records the next lap.
+  during the flash cancels it and records the next lap, while Back cancels it
+  and opens the recorded lap instead of exiting the app.
 - Split/total display: main value shows the current split, header shows the
   total prefixed with "-->" while lapping is enabled.
 - Approaching-limit warning at <= 3 free slots; "no free slots" guard at
@@ -205,6 +206,35 @@ class TestLapFlash:
         assert laps[1].get("name", "").startswith("Lap 2: ")
         # Original still running after the re-lap
         assert laps[1].get("p") == "0"
+
+    def test_back_during_flash_views_lap(self, emulator):
+        """Back inside the flash window opens the paused lap, not the original."""
+        _skip_if_no_lap_feature(emulator)
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        _enable_lap_setting(emulator)
+        _wait_for_counting_stopwatch(emulator, capture)
+
+        capture.clear_state_queue()
+        emulator.press_select()
+        lap = capture.wait_for_state(event="lap_recorded", timeout=5.0)
+        assert lap is not None
+        lap_slot = lap.get("slot")
+
+        # Back well inside the 5s flash window switches to the lap slot
+        emulator.press_back()
+        view = capture.wait_for_state(event="flash_view_lap", timeout=5.0)
+        assert view is not None, (
+            f"Back did not open the lap. Logs: {capture.get_all_logs()[-10:]}"
+        )
+        assert view.get("slot") == lap_slot, f"Opened the wrong slot: {view}"
+
+        # The app is still alive, in Counting mode, showing the paused lap
+        state = capture.wait_for_state(event="button_back", timeout=5.0)
+        capture.stop()
+        assert state is not None, "App exited instead of viewing the lap"
+        assert_mode(state, "Counting")
+        assert state.get("p") == "1", f"Active timer is not the paused lap: {state}"
 
 
 class TestSplitTotalDisplay:
