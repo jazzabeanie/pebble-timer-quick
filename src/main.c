@@ -457,9 +457,24 @@ static void prv_record_lap(void) {
              (unsigned)free_slots);
   }
 }
+
+// Back within the flash window opens the lap that was just recorded: cancel the
+// flash and make the lap slot the active timer. Returns false when no flash is
+// running, leaving Back to its usual behavior.
+static bool prv_flash_view_lap(void) {
+  if (main_data.flash_lap_slot < 0) {
+    return false;
+  }
+  int8_t slot = main_data.flash_lap_slot;
+  prv_flash_cancel();
+  timer_set_active_slot((uint8_t)slot);
+  TEST_LOG(APP_LOG_LEVEL_DEBUG, "TEST_STATE:flash_view_lap,slot=%d", (int)slot);
+  return true;
+}
 #else
-// Without the lap feature there is never a flash to cancel
+// Without the lap feature there is never a flash to cancel or a lap to view
 #define prv_flash_cancel() ((void)0)
+#define prv_flash_view_lap() (false)
 #endif  // LAP_FEATURE
 
 // Rewind timer if button is clicked to stop vibration
@@ -626,8 +641,8 @@ static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     timer_data.repeat_count = 0;
     prv_reset_new_expire_timer();
   } else {
-    // silence the alarm, or quit if no alarm
-    if (!prv_handle_alarm()) {
+    // view the lap just recorded, else silence the alarm, or quit if no alarm
+    if (!prv_flash_view_lap() && !prv_handle_alarm()) {
       window_stack_pop(true);
     }
   }

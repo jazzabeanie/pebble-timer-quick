@@ -1,5 +1,3 @@
-## ADDED Requirements
-
 ### Requirement: Lap Stopwatch setting controls the lap feature
 
 The app SHALL expose a `Lap Stopwatch` setting in the settings page that is
@@ -145,7 +143,8 @@ Immediately after a lap is recorded the display SHALL alternate between the
 paused lap copy and the original running timer — 1 s showing the lap, 1 s
 showing the original — for 5 seconds, after which the flash auto-dismisses and
 only the original timer is shown. The active timer and all button context
-remain the original timer throughout.
+remain the original timer throughout, except for Back, which switches the
+active timer to the recorded lap.
 
 #### Scenario: Flash alternates for five seconds
 
@@ -158,7 +157,7 @@ remain the original timer throughout.
 #### Scenario: Buttons during the flash act on the original timer
 
 - **WHEN** the flash is active after recording a lap
-- **AND** the user presses a non-Select button (e.g. Up, Down, Back)
+- **AND** the user presses a non-Select, non-Back button (e.g. Up, Down)
 - **THEN** the action applies to the original running timer, not the lap copy
 
 #### Scenario: Select during the flash records another lap
@@ -168,6 +167,32 @@ remain the original timer throughout.
 - **THEN** the flash is cancelled
 - **AND** a new lap is recorded from the original timer with the next lap number
 - **AND** the flash restarts for the new lap
+
+---
+
+### Requirement: Back during the lap flash opens the recorded lap
+
+While the lap flash is active, the Back button SHALL make the recorded lap slot
+the active timer instead of performing its usual Counting-mode action (silencing
+an alarm, or exiting the app). The flash is cancelled and the app stays in
+Counting mode, now showing the paused lap timer. Back pressed after the flash
+window has ended keeps its usual behavior.
+
+#### Scenario: Back during the flash views the recorded lap
+
+- **WHEN** the flash is active after recording a lap
+- **AND** the user presses Back
+- **THEN** the flash is cancelled
+- **AND** the recorded lap slot becomes the active timer
+- **AND** the app stays in Counting mode showing the paused lap
+- **AND** the app does not exit
+
+#### Scenario: Back after the flash window has ended exits as usual
+
+- **WHEN** the flash window has ended and the original timer is shown
+- **AND** the user presses Back
+- **THEN** the active timer is unchanged and Back behaves as it does in Counting
+  mode without a lap flash
 
 ---
 
