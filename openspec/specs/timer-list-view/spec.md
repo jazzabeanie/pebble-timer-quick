@@ -1,5 +1,3 @@
-## ADDED Requirements
-
 ### Requirement: Timer List opens when existing timers are present
 When the app is launched and the "Multiple Timers" setting is enabled and at least one timer slot is already saved, the app SHALL open to the Timer List window instead of the normal timer view.
 

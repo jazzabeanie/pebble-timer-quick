@@ -1,5 +1,3 @@
-## ADDED Requirements
-
 ### Requirement: App supports up to 32 concurrent timer slots
 The app SHALL support a maximum of 32 concurrent timer or stopwatch instances (increased from the previous limit of 5). Attempting to create a timer beyond the maximum when all slots are in use SHALL be prevented.
 
