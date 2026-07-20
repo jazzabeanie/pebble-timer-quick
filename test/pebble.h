@@ -102,6 +102,38 @@ void tick_timer_service_unsubscribe(void);
 void wakeup_cancel_all(void);
 void wakeup_schedule(time_t timestamp, uint32_t cookie, bool notify_if_missed);
 
+// --- Dictation (voice rename) ---
+// Mirrors the SDK's Dictation API; the status order matches pebble.h so tests
+// exercise the same values the watch reports.
+typedef struct DictationSession DictationSession;
+
+typedef enum {
+  DictationSessionStatusSuccess,
+  DictationSessionStatusFailureTranscriptionRejected,
+  DictationSessionStatusFailureTranscriptionRejectedWithError,
+  DictationSessionStatusFailureSystemAborted,
+  DictationSessionStatusFailureNoSpeechDetected,
+  DictationSessionStatusFailureConnectivityError,
+  DictationSessionStatusFailureDisabled,
+  DictationSessionStatusFailureInternalError,
+  DictationSessionStatusFailureRecognizerError,
+} DictationSessionStatus;
+
+typedef void (*DictationSessionStatusCallback)(DictationSession *session,
+                                               DictationSessionStatus status, char *transcription,
+                                               void *context);
+
+DictationSession *dictation_session_create(uint32_t buffer_size,
+                                           DictationSessionStatusCallback callback, void *context);
+void dictation_session_destroy(DictationSession *session);
+DictationSessionStatus dictation_session_start(DictationSession *session);
+DictationSessionStatus dictation_session_stop(DictationSession *session);
+void dictation_session_enable_confirmation(DictationSession *session, bool is_enabled);
+void dictation_session_enable_error_dialogs(DictationSession *session, bool is_enabled);
+
+// Connection service
+bool connection_service_peek_pebble_app_connection(void);
+
 // Launch reason / wakeup events
 typedef enum {
   APP_LAUNCH_SYSTEM = 0,

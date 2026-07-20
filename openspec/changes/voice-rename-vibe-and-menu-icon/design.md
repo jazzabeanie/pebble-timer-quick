@@ -87,5 +87,6 @@ No data, persistence, or settings migration. The `Voice Naming` setting, its def
 
 ## Open Questions
 
-- Final `~bw.png` polarity is decided by the emulator check in Decision 2, not in advance.
+- ~~Final `~bw.png` polarity is decided by the emulator check in Decision 2, not in advance.~~ **Resolved:** no flip needed. Black-on-transparent is correct for both variants — the launcher *inverts* the icon on a B/W selected row, drawing the glyph white on the black highlight, so it stays legible. Evidence in `evidence/` (see `launcher_rows_zoomed.png`).
+  - **Caveat on coverage:** the aplite emulator has no launcher menu (it offers a single "press select to launch your app" shortcut), so the B/W variant was verified on **diorite**, which renders the same `~bw.png` through the modern launcher. Aplite's own launcher remains visually unverified.
 - Whether `FailureNoSpeechDetected` / `FailureConnectivityError` actually reach the callback while error dialogs are enabled, or arrive as `FailureTranscriptionRejectedWithError`. Resolved on-watch in task 6.3; the unit tests pin the mapping either way, so only the real-world frequency of each branch is in doubt.

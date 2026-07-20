@@ -44,10 +44,60 @@ void wakeup_cancel_all(void) {}
 void wakeup_schedule(time_t timestamp, uint32_t cookie, bool notify_if_missed) {}
 
 // Vibration
+// The voice-rename feedback is "one short pulse = renamed, three pulses =
+// nothing changed". The three-pulse pattern goes through the custom-pattern
+// call, so the two are told apart by which counter moves.
+static int s_short_pulse_count = 0;
+static int s_custom_pattern_count = 0;
+static uint32_t s_last_pattern_segments[8];
+static int s_last_pattern_num_segments = 0;
+
+static void prv_reset_vibe_counters(void) {
+    s_short_pulse_count = 0;
+    s_custom_pattern_count = 0;
+    s_last_pattern_num_segments = 0;
+    memset(s_last_pattern_segments, 0, sizeof(s_last_pattern_segments));
+}
+
 void vibes_long_pulse(void) {}
-void vibes_enqueue_custom_pattern(VibePattern pattern) {}
+void vibes_enqueue_custom_pattern(VibePattern pattern) {
+    s_custom_pattern_count++;
+    s_last_pattern_num_segments = pattern.num_segments;
+    for (int i = 0; i < pattern.num_segments && i < (int)ARRAY_LENGTH(s_last_pattern_segments); i++) {
+        s_last_pattern_segments[i] = pattern.durations[i];
+    }
+}
 void vibes_cancel(void) {}
-void vibes_short_pulse(void) {}
+void vibes_short_pulse(void) { s_short_pulse_count++; }
+
+// --- Dictation stubs ---
+// A non-NULL opaque handle is enough: main.c only passes it back to the stubs.
+static DictationSession *const s_mock_dictation_session = (DictationSession *)0xD1C7;
+static bool s_mock_phone_connected = true;
+static bool s_last_enable_confirmation = true;
+static bool s_last_enable_error_dialogs = false;
+static int s_dictation_start_count = 0;
+
+DictationSession *dictation_session_create(uint32_t buffer_size,
+                                           DictationSessionStatusCallback callback, void *context) {
+    return s_mock_dictation_session;
+}
+void dictation_session_destroy(DictationSession *session) {}
+DictationSessionStatus dictation_session_start(DictationSession *session) {
+    s_dictation_start_count++;
+    return DictationSessionStatusSuccess;
+}
+DictationSessionStatus dictation_session_stop(DictationSession *session) {
+    return DictationSessionStatusSuccess;
+}
+void dictation_session_enable_confirmation(DictationSession *session, bool is_enabled) {
+    s_last_enable_confirmation = is_enabled;
+}
+void dictation_session_enable_error_dialogs(DictationSession *session, bool is_enabled) {
+    s_last_enable_error_dialogs = is_enabled;
+}
+
+bool connection_service_peek_pebble_app_connection(void) { return s_mock_phone_connected; }
 
 // Persistence (Stubs)
 int32_t persist_read_int(const uint32_t key) { return 0; }
@@ -420,8 +470,121 @@ static void test_restart_unnamed_stopwatch_reassigns_name(void **state) {
     s_mock_lap_stopwatch_enabled = false;
 }
 
+// --- Voice rename feedback ---
+// A successful transcription commits immediately with one short pulse; a
+// failure the user did not dismiss themselves gives three pulses and leaves
+// the name alone; backing out of the dictation UI is silent.
+
+// Put a known name on the active slot and clear the vibration counters.
+static void prv_setup_dictation_test(const char *initial_name) {
+    memset(&timer_data, 0, sizeof(Timer));
+    timer_reset();
+    memset(&main_data, 0, sizeof(main_data));
+    snprintf(timer_data.name, sizeof(timer_data.name), "%s", initial_name);
+    prv_reset_vibe_counters();
+}
+
+static void test_dictation_success_vibrates_and_sets_name(void **state) {
+    prv_setup_dictation_test("old name");
+
+    char transcription[] = "pasta";
+    prv_dictation_callback(NULL, DictationSessionStatusSuccess, transcription, NULL);
+
+    assert_string_equal(timer_data.name, "pasta");
+    assert_int_equal(s_short_pulse_count, 1);
+    assert_int_equal(s_custom_pattern_count, 0);
+}
+
+// Failures that end without the user dismissing the UI: three short pulses.
+static void prv_assert_failure_buzzes(DictationSessionStatus status) {
+    prv_setup_dictation_test("old name");
+
+    prv_dictation_callback(NULL, status, NULL, NULL);
+
+    assert_string_equal(timer_data.name, "old name");
+    assert_int_equal(s_short_pulse_count, 0);
+    assert_int_equal(s_custom_pattern_count, 1);
+    // Five alternating on/off segments produce three distinct buzzes
+    assert_int_equal(s_last_pattern_num_segments, 5);
+    for (int i = 0; i < 5; i++) {
+        assert_int_equal(s_last_pattern_segments[i], 100);
+    }
+}
+
+static void test_dictation_system_aborted_buzzes(void **state) {
+    prv_assert_failure_buzzes(DictationSessionStatusFailureSystemAborted);
+}
+
+static void test_dictation_no_speech_buzzes(void **state) {
+    prv_assert_failure_buzzes(DictationSessionStatusFailureNoSpeechDetected);
+}
+
+static void test_dictation_connectivity_error_buzzes(void **state) {
+    prv_assert_failure_buzzes(DictationSessionStatusFailureConnectivityError);
+}
+
+static void test_dictation_disabled_buzzes(void **state) {
+    prv_assert_failure_buzzes(DictationSessionStatusFailureDisabled);
+}
+
+static void test_dictation_internal_error_buzzes(void **state) {
+    prv_assert_failure_buzzes(DictationSessionStatusFailureInternalError);
+}
+
+static void test_dictation_recognizer_error_buzzes(void **state) {
+    prv_assert_failure_buzzes(DictationSessionStatusFailureRecognizerError);
+}
+
+// The user exited the dictation UI themselves: they already know nothing was
+// renamed, so stay silent.
+static void prv_assert_failure_silent(DictationSessionStatus status) {
+    prv_setup_dictation_test("old name");
+
+    prv_dictation_callback(NULL, status, NULL, NULL);
+
+    assert_string_equal(timer_data.name, "old name");
+    assert_int_equal(s_short_pulse_count, 0);
+    assert_int_equal(s_custom_pattern_count, 0);
+}
+
+static void test_dictation_transcription_rejected_is_silent(void **state) {
+    prv_assert_failure_silent(DictationSessionStatusFailureTranscriptionRejected);
+}
+
+static void test_dictation_rejected_with_error_is_silent(void **state) {
+    prv_assert_failure_silent(DictationSessionStatusFailureTranscriptionRejectedWithError);
+}
+
+// The SDK confirmation screen is disabled so the result callback fires as soon
+// as the transcription is ready - that is where the success pulse happens.
+static void test_dictation_confirmation_disabled(void **state) {
+    prv_setup_dictation_test("old name");
+    s_mock_phone_connected = true;
+    s_last_enable_confirmation = true;
+    s_dictation_session = NULL;
+
+    prv_start_voice_rename();
+
+    assert_false(s_last_enable_confirmation);
+    assert_true(s_last_enable_error_dialogs);
+    assert_int_equal(s_dictation_start_count, 1);
+
+    s_dictation_session = NULL;
+    s_dictation_start_count = 0;
+}
+
 int main(void) {
     const struct CMUnitTest tests[] = {
+        cmocka_unit_test(test_dictation_success_vibrates_and_sets_name),
+        cmocka_unit_test(test_dictation_system_aborted_buzzes),
+        cmocka_unit_test(test_dictation_no_speech_buzzes),
+        cmocka_unit_test(test_dictation_connectivity_error_buzzes),
+        cmocka_unit_test(test_dictation_disabled_buzzes),
+        cmocka_unit_test(test_dictation_internal_error_buzzes),
+        cmocka_unit_test(test_dictation_recognizer_error_buzzes),
+        cmocka_unit_test(test_dictation_transcription_rejected_is_silent),
+        cmocka_unit_test(test_dictation_rejected_with_error_is_silent),
+        cmocka_unit_test(test_dictation_confirmation_disabled),
         cmocka_unit_test(test_restart_stopwatch_preserves_custom_name),
         cmocka_unit_test(test_restart_unnamed_stopwatch_reassigns_name),
         cmocka_unit_test(test_apply_edit_increment_adds_time_and_sets_flag),

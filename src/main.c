@@ -550,12 +550,34 @@ static void prv_layer_update_proc_handler(Layer *layer, GContext *ctx) {
 }
 
 #ifdef PBL_MICROPHONE
-// Dictation result callback: on success, rename the active timer; ignore failures
+// Dictation result callback. The SDK confirmation screen is disabled, so this
+// runs the moment the transcription is ready: rename the active timer and give
+// one short pulse. Failures leave the name alone; whether they buzz depends on
+// who ended the session - if the user exited the dictation UI themselves they
+// are already looking at the watch, so three pulses would just be noise.
 static void prv_dictation_callback(DictationSession *session, DictationSessionStatus status,
                                    char *transcription, void *context) {
-  if (status == DictationSessionStatusSuccess && transcription != NULL) {
-    timer_set_name(timer_get_active_slot(), transcription);
-    main_force_redraw();
+  switch (status) {
+    case DictationSessionStatusSuccess:
+      if (transcription != NULL) {
+        timer_set_name(timer_get_active_slot(), transcription);
+        vibes_short_pulse();
+        main_force_redraw();
+      }
+      break;
+    // The user exited the dictation UI: stay silent
+    case DictationSessionStatusFailureTranscriptionRejected:
+    case DictationSessionStatusFailureTranscriptionRejectedWithError:
+      break;
+    // Ended without the user dismissing anything: three pulses mean "nothing changed"
+    case DictationSessionStatusFailureSystemAborted:
+    case DictationSessionStatusFailureNoSpeechDetected:
+    case DictationSessionStatusFailureConnectivityError:
+    case DictationSessionStatusFailureDisabled:
+    case DictationSessionStatusFailureInternalError:
+    case DictationSessionStatusFailureRecognizerError:
+      prv_three_pulse_vibe();
+      break;
   }
 }
 
@@ -593,7 +615,10 @@ static void prv_start_voice_rename(void) {
     if (!s_dictation_session) {
       return;
     }
-    dictation_session_enable_confirmation(s_dictation_session, true);
+    // No confirmation screen: the result callback fires as soon as the
+    // transcription is ready and vibrates there. A wrong transcription is
+    // corrected by simply repeating the rename gesture.
+    dictation_session_enable_confirmation(s_dictation_session, false);
     dictation_session_enable_error_dialogs(s_dictation_session, true);
   }
   dictation_session_start(s_dictation_session);

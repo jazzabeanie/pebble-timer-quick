@@ -42,8 +42,11 @@ $(TEST_TIMER_BIN): $(TEST_TIMER_SRCS) $(TIMER_SRCS) $(MNEMONIC_SRCS)
 
 # main.c is #included by test_main_logic.c, so it is a prerequisite (rebuild
 # when it changes) but must NOT be passed to gcc as a separate source.
+# PBL_MICROPHONE is defined so the voice-rename path (dictation callback and
+# its vibration feedback) is compiled in and can be tested; on real builds the
+# SDK defines it for microphone-capable platforms only.
 $(TEST_MAIN_BIN): $(TEST_MAIN_SRCS) $(SRC_DIR)/main.c $(TIMER_SRCS) $(MNEMONIC_SRCS)
-	$(CC) $(CFLAGS) $(INCLUDES) $(TEST_MAIN_SRCS) $(TIMER_SRCS) $(MNEMONIC_SRCS) -o $@ $(LDFLAGS) $(LIBS)
+	$(CC) $(CFLAGS) -DPBL_MICROPHONE $(INCLUDES) $(TEST_MAIN_SRCS) $(TIMER_SRCS) $(MNEMONIC_SRCS) -o $@ $(LDFLAGS) $(LIBS)
 
 # drawing.c is #included by the test, so it is a dependency but must NOT be
 # passed to gcc as a separate source (only compile $(TEST_DRAWING_SRCS)).
