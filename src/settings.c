@@ -1,7 +1,7 @@
 #include <pebble.h>
 #include "settings.h"
 
-#define PERSIST_SETTINGS_VERSION 5
+#define PERSIST_SETTINGS_VERSION 6
 #define PERSIST_SETTINGS_VERSION_KEY 4342897
 #define PERSIST_SETTINGS_KEY 58737
 
@@ -23,6 +23,17 @@
 #define APPMSG_KEY_MULTIPLE_TIMERS_ENABLED   13
 #define APPMSG_KEY_VOICE_NAMING_ENABLED      14
 #define APPMSG_KEY_LAP_STOPWATCH_ENABLED     15
+#define APPMSG_KEY_SCREEN_ON_SECONDS         16
+#define APPMSG_KEY_DOWN_EXTRA_SECONDS        17
+
+// Bounds for the duration settings (seconds). Values outside are clamped so a
+// stale/garbage payload can never wedge the display refresh.
+#define SCREEN_ON_SECONDS_MIN   1
+#define SCREEN_ON_SECONDS_MAX   3600
+#define SCREEN_ON_SECONDS_DEF   10
+#define DOWN_EXTRA_SECONDS_MIN  0    // 0 disables the Down extension
+#define DOWN_EXTRA_SECONDS_MAX  3600
+#define DOWN_EXTRA_SECONDS_DEF  60
 
 typedef struct {
   bool show_increment_icons;
@@ -40,7 +51,22 @@ typedef struct {
   bool multiple_timers_enabled;
   bool voice_naming_enabled;
   bool lap_stopwatch_enabled;
+  int32_t screen_on_seconds;
+  int32_t down_extra_seconds;
 } AppSettings;
+
+static int32_t prv_clamp(int32_t v, int32_t lo, int32_t hi) {
+  if (v < lo) { return lo; }
+  if (v > hi) { return hi; }
+  return v;
+}
+
+// Read a signed integer tuple regardless of the byte width the phone used.
+static int32_t prv_tuple_int(const Tuple *t) {
+  if (t->length >= 4) { return t->value->int32; }
+  if (t->length == 2) { return t->value->int16; }
+  return t->value->int8;
+}
 
 static AppSettings s_settings;
 static SettingsChangeCallback s_change_callback;
@@ -92,6 +118,19 @@ static void prv_inbox_received(DictionaryIterator *iterator, void *context) {
 
   #undef HANDLE
 
+  t = dict_find(iterator, APPMSG_KEY_SCREEN_ON_SECONDS);
+  if (t) {
+    s_settings.screen_on_seconds =
+      prv_clamp(prv_tuple_int(t), SCREEN_ON_SECONDS_MIN, SCREEN_ON_SECONDS_MAX);
+    changed = true;
+  }
+  t = dict_find(iterator, APPMSG_KEY_DOWN_EXTRA_SECONDS);
+  if (t) {
+    s_settings.down_extra_seconds =
+      prv_clamp(prv_tuple_int(t), DOWN_EXTRA_SECONDS_MIN, DOWN_EXTRA_SECONDS_MAX);
+    changed = true;
+  }
+
   if (changed) {
     settings_save();
     if (s_change_callback) { s_change_callback(); }
@@ -113,6 +152,15 @@ bool settings_get_swap_back_and_select_long(void) { return s_settings.swap_back_
 bool settings_get_multiple_timers_enabled(void)   { return s_settings.multiple_timers_enabled; }
 bool settings_get_voice_naming_enabled(void)      { return s_settings.voice_naming_enabled; }
 bool settings_get_lap_stopwatch_enabled(void)     { return s_settings.lap_stopwatch_enabled; }
+
+uint32_t settings_get_screen_on_seconds(void) {
+  return (uint32_t)prv_clamp(s_settings.screen_on_seconds,
+                             SCREEN_ON_SECONDS_MIN, SCREEN_ON_SECONDS_MAX);
+}
+uint32_t settings_get_down_extra_seconds(void) {
+  return (uint32_t)prv_clamp(s_settings.down_extra_seconds,
+                             DOWN_EXTRA_SECONDS_MIN, DOWN_EXTRA_SECONDS_MAX);
+}
 
 void settings_save(void) {
   persist_write_int(PERSIST_SETTINGS_VERSION_KEY, PERSIST_SETTINGS_VERSION);
@@ -137,6 +185,8 @@ void settings_init(SettingsChangeCallback on_change) {
     .multiple_timers_enabled   = true,
     .voice_naming_enabled      = false,
     .lap_stopwatch_enabled     = false,
+    .screen_on_seconds         = SCREEN_ON_SECONDS_DEF,
+    .down_extra_seconds        = DOWN_EXTRA_SECONDS_DEF,
   };
   if (persist_read_int(PERSIST_SETTINGS_VERSION_KEY) == PERSIST_SETTINGS_VERSION &&
       persist_exists(PERSIST_SETTINGS_KEY)) {

@@ -154,6 +154,10 @@ bool settings_get_multiple_timers_enabled(void) { return false; }
 bool settings_get_voice_naming_enabled(void) { return false; }
 static bool s_mock_lap_stopwatch_enabled = false;
 bool settings_get_lap_stopwatch_enabled(void) { return s_mock_lap_stopwatch_enabled; }
+static uint32_t s_mock_screen_on_seconds = 10;
+static uint32_t s_mock_down_extra_seconds = 60;
+uint32_t settings_get_screen_on_seconds(void) { return s_mock_screen_on_seconds; }
+uint32_t settings_get_down_extra_seconds(void) { return s_mock_down_extra_seconds; }
 
 // --- Timer List stub ---
 void timer_list_window_push(void) {}
@@ -573,8 +577,85 @@ static void test_dictation_confirmation_disabled(void **state) {
     s_dictation_start_count = 0;
 }
 
+// --- Configurable display-refresh windows --------------------------------
+
+// main_is_interaction_active uses the "screen on" seconds setting for its
+// window, not a hardcoded 10s.
+static void test_interaction_active_honors_screen_on_setting(void **state) {
+    memset(&main_data, 0, sizeof(main_data));
+    s_mock_epoch = 1000000;
+    main_data.last_interaction_time = s_mock_epoch;
+
+    // Default 10s window: 5s ago is active, 15s ago is not.
+    s_mock_screen_on_seconds = 10;
+    s_mock_epoch = 1000000 + 5000;
+    assert_true(main_is_interaction_active());
+    s_mock_epoch = 1000000 + 15000;
+    assert_false(main_is_interaction_active());
+
+    // Raising the setting to 20s keeps the same 15s-old interaction active.
+    s_mock_screen_on_seconds = 20;
+    assert_true(main_is_interaction_active());
+
+    s_mock_screen_on_seconds = 10;
+}
+
+// main_is_last_interaction_down is a fixed window after the Down press, sized by
+// the "down extra" seconds setting; 0 disables it.
+static void test_down_extension_honors_down_extra_setting(void **state) {
+    memset(&main_data, 0, sizeof(main_data));
+    s_mock_epoch = 2000000;
+    main_data.last_down_time = s_mock_epoch;
+
+    // Default 60s window: still extended at 30s, expired at 70s.
+    s_mock_down_extra_seconds = 60;
+    s_mock_epoch = 2000000 + 30000;
+    assert_true(main_is_last_interaction_down());
+    s_mock_epoch = 2000000 + 70000;
+    assert_false(main_is_last_interaction_down());
+
+    // A short 5s window expires by 30s.
+    s_mock_down_extra_seconds = 5;
+    s_mock_epoch = 2000000 + 30000;
+    assert_false(main_is_last_interaction_down());
+
+    // 0 disables the extension entirely, even immediately after the press.
+    s_mock_down_extra_seconds = 0;
+    s_mock_epoch = 2000000;
+    assert_false(main_is_last_interaction_down());
+
+    s_mock_down_extra_seconds = 60;
+}
+
+// A Down press while running records the extension timestamp; while paused it
+// does not (nothing to refresh).
+static void test_down_press_records_extension_window(void **state) {
+    memset(&main_data, 0, sizeof(main_data));
+    s_mock_down_extra_seconds = 60;
+    s_mock_epoch = 3000000;
+    main_data.control_mode = ControlModeCounting;
+
+    // Running: a Down press opens the extension window.
+    timer_data.start_ms = s_mock_epoch - 30000;
+    timer_data.length_ms = 5 * MSEC_IN_MIN;
+    timer_data.is_paused = false;
+    main_data.last_down_time = 0;
+    prv_down_click_handler(NULL, NULL);
+    assert_int_equal((int)main_data.last_down_time, (int)s_mock_epoch);
+    assert_true(main_is_last_interaction_down());
+
+    // Paused: a Down press must not open the window (would refresh with no change).
+    timer_data.is_paused = true;
+    main_data.last_down_time = 0;
+    prv_down_click_handler(NULL, NULL);
+    assert_int_equal((int)main_data.last_down_time, 0);
+}
+
 int main(void) {
     const struct CMUnitTest tests[] = {
+        cmocka_unit_test(test_interaction_active_honors_screen_on_setting),
+        cmocka_unit_test(test_down_extension_honors_down_extra_setting),
+        cmocka_unit_test(test_down_press_records_extension_window),
         cmocka_unit_test(test_dictation_success_vibrates_and_sets_name),
         cmocka_unit_test(test_dictation_system_aborted_buzzes),
         cmocka_unit_test(test_dictation_no_speech_buzzes),

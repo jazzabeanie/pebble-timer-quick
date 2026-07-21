@@ -21,3 +21,10 @@ bool settings_get_swap_back_and_select_long(void);
 bool settings_get_multiple_timers_enabled(void);
 bool settings_get_voice_naming_enabled(void);
 bool settings_get_lap_stopwatch_enabled(void);
+
+//! Seconds the display stays in high-refresh (showing live seconds) after any
+//! interaction before dropping to a lower refresh rate. Default 10.
+uint32_t settings_get_screen_on_seconds(void);
+//! Additional seconds the display stays in high-refresh after a Down press in
+//! the running-timer view. 0 disables the extension. Default 60.
+uint32_t settings_get_down_extra_seconds(void);

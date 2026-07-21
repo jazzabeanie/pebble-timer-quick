@@ -4,6 +4,14 @@ function getOr(key, def) {
   return config.hasOwnProperty(key) ? config[key] : def;
 }
 
+function clampInt(v, lo, hi) {
+  v = parseInt(v, 10);
+  if (isNaN(v)) { return lo; }
+  if (v < lo) { return lo; }
+  if (v > hi) { return hi; }
+  return v;
+}
+
 function sendSettingsToWatch(attempt) {
   attempt = attempt || 0;
   Pebble.sendAppMessage(
@@ -22,7 +30,9 @@ function sendSettingsToWatch(attempt) {
       '12': getOr('swap_back_and_select_long', false) ? 1 : 0,
       '13': getOr('multiple_timers_enabled',   true)  ? 1 : 0,
       '14': getOr('voice_naming_enabled',      false) ? 1 : 0,
-      '15': getOr('lap_stopwatch_enabled',     false) ? 1 : 0
+      '15': getOr('lap_stopwatch_enabled',     false) ? 1 : 0,
+      '16': clampInt(getOr('screen_on_seconds',  10), 1, 3600),
+      '17': clampInt(getOr('down_extra_seconds', 60), 0, 3600)
     },
     function() { console.log('QuickTimer: settings sent to watch'); },
     function(err) {
@@ -72,6 +82,12 @@ Pebble.addEventListener('showConfiguration', function() {
   function section(title, rows) {
     return '<div class="section"><div class="section-title">' + title + '</div>' + rows + '</div>';
   }
+  function rowNum(label, id, def, min, max, hint) {
+    return '<div class="row"><span>' + label +
+      (hint ? '<small>' + hint + '</small>' : '') + '</span>' +
+      '<input class="num" type="number" inputmode="numeric" id="' + id + '"' +
+      ' min="' + min + '" max="' + max + '" value="' + getOr(id, def) + '"></div>';
+  }
 
   var html = [
     '<!DOCTYPE html><html><head>',
@@ -86,7 +102,10 @@ Pebble.addEventListener('showConfiguration', function() {
     '.row{background:#fff;display:flex;justify-content:space-between;align-items:center;',
     '  padding:14px 16px;border-bottom:1px solid #eee;}',
     '.row:last-child{border-bottom:none;}',
-    '.row span{font-size:15px;}',
+    '.row span{font-size:15px;display:flex;flex-direction:column;}',
+    '.row span small{color:#888;font-size:12px;margin-top:2px;}',
+    '.num{width:64px;padding:8px;font-size:15px;border:1px solid #ccc;border-radius:6px;',
+    '  text-align:right;flex-shrink:0;}',
     '.toggle{position:relative;display:inline-block;width:46px;height:26px;flex-shrink:0;}',
     '.toggle input{opacity:0;width:0;height:0;}',
     '.slider{position:absolute;cursor:pointer;inset:0;background:#ccc;',
@@ -104,6 +123,13 @@ Pebble.addEventListener('showConfiguration', function() {
       row('Multiple Timers', 'multiple_timers_enabled'),
       rowOff('Voice Naming (Pebble 2 only)', 'voice_naming_enabled'),
       rowOff('Lap Stopwatch (not on original Pebble)', 'lap_stopwatch_enabled'),
+    ].join('')),
+
+    section('Display', [
+      rowNum('Screen On (seconds)', 'screen_on_seconds', 10, 1, 3600,
+             'Show live seconds this long after a press before lowering the refresh rate'),
+      rowNum('Down Button Extra (seconds)', 'down_extra_seconds', 60, 0, 3600,
+             'Extra time seconds stay visible after pressing Down (0 = off)'),
     ].join('')),
 
     section('Edit Mode', [
@@ -130,8 +156,12 @@ Pebble.addEventListener('showConfiguration', function() {
     '<button onclick="save()">Save</button>',
     '<script>',
     'function val(id){return document.getElementById(id).checked;}',
+    'function num(id,lo,hi){var v=parseInt(document.getElementById(id).value,10);',
+    '  if(isNaN(v))v=lo;if(v<lo)v=lo;if(v>hi)v=hi;return v;}',
     'function save(){',
     '  var r={',
+    '    screen_on_seconds:  num("screen_on_seconds",1,3600),',
+    '    down_extra_seconds: num("down_extra_seconds",0,3600),',
     '    show_increment_icons:   val("show_increment_icons"),',
     '    show_direction_icon:    val("show_direction_icon"),',
     '    show_quit_icon:         val("show_quit_icon"),',
