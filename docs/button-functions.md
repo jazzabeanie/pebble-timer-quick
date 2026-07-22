@@ -49,6 +49,8 @@ Up to **32 timer slots** are supported (5 on aplite, where the additions below a
 | Stopwatch / chrono | Total duration + ` -->` (e.g. `05:00 -->`) | Elapsed time |
 | New Timer row | `New Timer` | Elapsed time of implicit slot |
 
+**Repeat indicator:** A repeating timer's row shows the repeat glyph (the same icon the Counting-mode "enable repeat" button uses) at the right of the name line. The glyph is tinted to the row's text color — black on the light (unselected) background, white on the black (selected) row highlight — so it stays visible in both states. Test: `test_repeat_list_icon.py::TestRepeatListIcon::test_repeat_icon_contrasts_on_both_row_states`.
+
 ---
 
 ## New Mode (ControlModeNew)

@@ -42,6 +42,55 @@ static uint8_t s_total_rows;
 static int16_t s_scroll_y;
 static int16_t s_screen_h;
 
+// Repeat indicator: the same glyph the Counting-mode "enable repeat" button
+// shows. The list draws it on rows whose background flips between light
+// (unselected) and black (selected), so it is pre-tinted to both the black and
+// white text colors and the matching copy is drawn per row.
+#define REPEAT_ICON_SIZE 15
+static GBitmap *s_repeat_icon_dark;   //< black glyph for light (unselected) rows
+static GBitmap *s_repeat_icon_light;  //< white glyph for the black selected row
+
+// Load the repeat glyph and recolor its opaque pixels to `color`, leaving
+// transparent pixels untouched so GCompOpSet still composites cleanly. Handles
+// the 8-bit (color) and palettized (b&w) formats the resource loads as.
+static GBitmap *prv_create_tinted_repeat_icon(GColor color) {
+  GBitmap *bmp = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_REPEAT_ENABLE);
+  if (!bmp) {
+    return NULL;
+  }
+  GBitmapFormat fmt = gbitmap_get_format(bmp);
+  if (fmt == GBitmapFormat8Bit) {
+    GRect b = gbitmap_get_bounds(bmp);
+    uint8_t *data = gbitmap_get_data(bmp);
+    uint16_t stride = gbitmap_get_bytes_per_row(bmp);
+    for (int y = 0; y < b.size.h; y++) {
+      uint8_t *row = data + y * stride;
+      for (int x = 0; x < b.size.w; x++) {
+        uint8_t alpha = row[x] & 0xC0;  // preserve the 2-bit alpha (edge softness)
+        if (alpha) {
+          row[x] = alpha | (color.argb & 0x3F);  // replace RGB, keep alpha
+        }
+      }
+    }
+  } else {
+    // Palettized (1/2/4-bit with a transparent entry): recolor opaque entries
+    GColor *palette = gbitmap_get_palette(bmp);
+    if (palette) {
+      int count = (fmt == GBitmapFormat1BitPalette) ? 2
+                : (fmt == GBitmapFormat2BitPalette) ? 4
+                : (fmt == GBitmapFormat4BitPalette) ? 16 : 0;
+      for (int i = 0; i < count; i++) {
+        if (palette[i].a != 0) {
+          palette[i].r = color.r;
+          palette[i].g = color.g;
+          palette[i].b = color.b;
+        }
+      }
+    }
+  }
+  return bmp;
+}
+
 // Emit a TEST_STATE log line for timer list events so functional tests can assert them.
 static void prv_log_list_state(const char *event) {
   // Include the name of the first existing slot (if any) so tests can verify name display.
@@ -176,6 +225,9 @@ static void prv_layer_update_proc(Layer *layer, GContext *ctx) {
 
     int8_t slot = prv_slot_for_row(row);
 
+    // Existing repeating timers get a repeat glyph at the right of the name line
+    bool show_repeat_icon = (slot >= 0) && timer_slots[slot].is_repeating;
+
     if (slot == SLOT_DELETE_ALL) {
       // Pinned "Delete all" entry
       snprintf(line1, sizeof(line1), "Delete all");
@@ -197,7 +249,10 @@ static void prv_layer_update_proc(Layer *layer, GContext *ctx) {
       }
     }
 
-    GRect l1_rect = GRect(4, row_y, w - 8, LINE1_HEIGHT);
+    // Reserve room on the name line for the repeat glyph so long names don't
+    // draw underneath it
+    int16_t l1_right_pad = show_repeat_icon ? (REPEAT_ICON_SIZE + 6) : 0;
+    GRect l1_rect = GRect(4, row_y, w - 8 - l1_right_pad, LINE1_HEIGHT);
     GRect l2_rect = GRect(4, row_y + LINE1_HEIGHT, w - 8, LINE2_HEIGHT);
 
     GTextAlignment text_align = PBL_IF_ROUND_ELSE(GTextAlignmentCenter, GTextAlignmentLeft);
@@ -205,6 +260,17 @@ static void prv_layer_update_proc(Layer *layer, GContext *ctx) {
                        GTextOverflowModeFill, text_align, NULL);
     graphics_draw_text(ctx, line2, value_font, l2_rect,
                        GTextOverflowModeFill, text_align, NULL);
+
+    if (show_repeat_icon) {
+      GBitmap *icon = is_selected ? s_repeat_icon_light : s_repeat_icon_dark;
+      if (icon) {
+        int16_t ix = w - REPEAT_ICON_SIZE - 4;
+        int16_t iy = row_y + (LINE1_HEIGHT - REPEAT_ICON_SIZE) / 2;
+        graphics_context_set_compositing_mode(ctx, GCompOpSet);
+        graphics_draw_bitmap_in_rect(ctx, icon,
+            GRect(ix, iy, REPEAT_ICON_SIZE, REPEAT_ICON_SIZE));
+      }
+    }
 
     // Separator line (between rows, only when not selected)
     if (!is_selected && row < s_total_rows - 1) {
@@ -456,6 +522,9 @@ static void prv_window_load(Window *window) {
   s_scroll_y = 0;
   prv_update_scroll();
 
+  s_repeat_icon_dark = prv_create_tinted_repeat_icon(GColorBlack);
+  s_repeat_icon_light = prv_create_tinted_repeat_icon(GColorWhite);
+
   s_layer = layer_create(bounds);
   layer_set_update_proc(s_layer, prv_layer_update_proc);
   layer_add_child(root, s_layer);
@@ -481,6 +550,14 @@ static void prv_window_unload(Window *window) {
     s_show_hint = false;
   }
 #endif
+  if (s_repeat_icon_dark) {
+    gbitmap_destroy(s_repeat_icon_dark);
+    s_repeat_icon_dark = NULL;
+  }
+  if (s_repeat_icon_light) {
+    gbitmap_destroy(s_repeat_icon_light);
+    s_repeat_icon_light = NULL;
+  }
   layer_destroy(s_layer);
   s_layer = NULL;
   window_destroy(s_window);
