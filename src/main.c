@@ -813,9 +813,11 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
       break;
     case ControlModeCounting:
 #if LAP_FEATURE
-      // Lap Stopwatch: Select on a running timer records a lap instead of
-      // pausing (a Select during the flash window re-laps immediately)
-      if (settings_get_lap_stopwatch_enabled() && !timer_is_paused()) {
+      // Lap Stopwatch: Select on a running stopwatch records a lap instead of
+      // pausing (a Select during the flash window re-laps immediately). Laps are
+      // a stopwatch-only behavior; a running countdown still toggles play/pause.
+      if (settings_get_lap_stopwatch_enabled() && !timer_is_paused() &&
+          timer_is_chrono()) {
         prv_record_lap();
         break;
       }

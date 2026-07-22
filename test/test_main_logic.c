@@ -474,6 +474,33 @@ static void test_restart_unnamed_stopwatch_reassigns_name(void **state) {
     s_mock_lap_stopwatch_enabled = false;
 }
 
+// With the Lap Stopwatch setting on, Select on a running *countdown* must still
+// toggle play/pause — laps are a stopwatch-only behavior. Regression guard for
+// the bug where a running countdown recorded a lap instead of pausing.
+static void test_lap_setting_countdown_select_pauses_not_lap(void **state) {
+    memset(&timer_data, 0, sizeof(Timer));
+    timer_reset();
+    memset(&main_data, 0, sizeof(main_data));
+    s_mock_lap_stopwatch_enabled = true;
+
+    // Running countdown (NOT chrono): 5-minute timer, 5s elapsed, in Counting mode
+    s_mock_epoch = 1000000;
+    timer_data.length_ms = 5 * 60 * 1000;
+    timer_data.base_length_ms = timer_data.length_ms;
+    timer_data.is_paused = false;
+    timer_data.start_ms = s_mock_epoch - 5000;
+    main_data.control_mode = ControlModeCounting;
+    assert_false(timer_is_chrono());
+
+    // Press Select
+    prv_select_click_handler(NULL, NULL);
+
+    // Countdown should be paused, not lapped (would still be running if lapped)
+    assert_true(timer_is_paused());
+
+    s_mock_lap_stopwatch_enabled = false;
+}
+
 // --- Voice rename feedback ---
 // A successful transcription commits immediately with one short pulse; a
 // failure the user did not dismiss themselves gives three pulses and leaves
@@ -668,6 +695,7 @@ int main(void) {
         cmocka_unit_test(test_dictation_confirmation_disabled),
         cmocka_unit_test(test_restart_stopwatch_preserves_custom_name),
         cmocka_unit_test(test_restart_unnamed_stopwatch_reassigns_name),
+        cmocka_unit_test(test_lap_setting_countdown_select_pauses_not_lap),
         cmocka_unit_test(test_apply_edit_increment_adds_time_and_sets_flag),
         cmocka_unit_test(test_down_click_in_new_mode_updates_backlight),
         cmocka_unit_test(test_down_click_in_edit_sec_mode_updates_backlight),
