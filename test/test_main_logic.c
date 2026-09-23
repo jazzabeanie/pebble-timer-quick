@@ -927,19 +927,19 @@ static void test_wakeup_guard_new_press_after_ignored_press_acts(void **state) {
     prv_end_launch_test();
 }
 
-// The window is 0.5s: a press that starts at 450ms is ignored, and a new
-// press at 550ms acts.
+// The window is 250ms: a press that starts at 200ms is ignored, and a new
+// press at 300ms acts.
 static void test_wakeup_guard_press_late_in_window_ignored(void **state) {
     prv_launch_with_alarm(APP_LAUNCH_WAKEUP);
-    prv_at(450);
+    prv_at(200);
     prv_down_raw_down_handler(NULL, NULL);
-    prv_at(500);
+    prv_at(250);
     prv_down_click_handler(NULL, NULL);
     prv_assert_alarm_untouched();
 
-    prv_at(550);
+    prv_at(300);
     prv_down_raw_down_handler(NULL, NULL);
-    prv_at(600);
+    prv_at(350);
     prv_down_click_handler(NULL, NULL);
     assert_false(timer_is_vibrating());
     prv_end_launch_test();
