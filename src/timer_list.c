@@ -365,6 +365,9 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     main_set_control_mode(ControlModeNew);
     main_reset_new_expire_timer();
     prv_log_list_state("timer_list_select_new");
+    // Confirm the new timer start, as other button-started new timers do
+    vibes_short_pulse();
+    TEST_LOG(APP_LOG_LEVEL_DEBUG, "TEST_STATE:vibe,src=list_new");
   } else {
     // Existing timer selected
     int8_t selected_slot = prv_slot_for_row(s_selected_row);

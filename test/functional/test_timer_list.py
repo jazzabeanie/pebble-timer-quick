@@ -550,3 +550,57 @@ class TestListScrolling:
         assert hint is not None, (
             "Could not reach the Delete all row at the bottom of a scrolled list"
         )
+
+
+def _vibe_logs(capture):
+    """Raw TEST_STATE:vibe lines (raw, because wait_for_state consumes states)."""
+    return [line for line in capture.get_all_logs() if "TEST_STATE:vibe," in line]
+
+
+class TestNewTimerVibration:
+    """Select on "New Timer" gives one short vibration; other list paths stay silent."""
+
+    def test_select_new_timer_vibrates(self, emulator):
+        platform = emulator.platform
+        _create_timer_and_background(emulator, platform)
+        capture, _ = _relaunch_to_list(emulator, platform)
+
+        emulator.press_select()  # row 0 = New Timer
+        assert capture.wait_for_state(event="timer_list_select_new", timeout=5.0) is not None
+        vibe = capture.wait_for_state(event="vibe", timeout=2.0)
+        capture.stop()
+
+        assert vibe is not None, (
+            "No vibration marker after selecting New Timer. "
+            f"All logs: {capture.get_all_logs()}"
+        )
+        assert vibe.get("src") == "list_new", f"Unexpected vibe source: {vibe}"
+
+    def test_open_list_does_not_vibrate(self, emulator):
+        # Only the New Timer vibration has a marker; the approaching-limit
+        # warning (aplite, <= 3 free slots) is a separate pattern and not logged
+        platform = emulator.platform
+        _create_timer_and_background(emulator, platform)
+        capture, _ = _relaunch_to_list(emulator, platform)
+        time.sleep(0.5)
+        capture.stop()
+
+        assert _vibe_logs(capture) == [], (
+            f"Opening the Timer List vibrated: {_vibe_logs(capture)}"
+        )
+
+    def test_select_existing_timer_does_not_vibrate(self, emulator):
+        platform = emulator.platform
+        _create_timer_and_background(emulator, platform)
+        capture, _ = _relaunch_to_list(emulator, platform)
+
+        emulator.press_down()  # row 1 = existing timer
+        time.sleep(0.3)
+        emulator.press_select()
+        assert capture.wait_for_state(event="timer_list_select_existing", timeout=5.0) is not None
+        time.sleep(0.5)
+        capture.stop()
+
+        assert _vibe_logs(capture) == [], (
+            f"Selecting an existing timer vibrated: {_vibe_logs(capture)}"
+        )
