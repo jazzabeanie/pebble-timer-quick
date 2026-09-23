@@ -45,7 +45,7 @@ $(TEST_TIMER_BIN): $(TEST_TIMER_SRCS) $(TIMER_SRCS) $(MNEMONIC_SRCS)
 # PBL_MICROPHONE is defined so the voice-rename path (dictation callback and
 # its vibration feedback) is compiled in and can be tested; on real builds the
 # SDK defines it for microphone-capable platforms only.
-$(TEST_MAIN_BIN): $(TEST_MAIN_SRCS) $(SRC_DIR)/main.c $(TIMER_SRCS) $(MNEMONIC_SRCS)
+$(TEST_MAIN_BIN): $(TEST_MAIN_SRCS) $(SRC_DIR)/main.c $(SRC_DIR)/main.h $(TIMER_SRCS) $(MNEMONIC_SRCS)
 	$(CC) $(CFLAGS) -DPBL_MICROPHONE $(INCLUDES) $(TEST_MAIN_SRCS) $(TIMER_SRCS) $(MNEMONIC_SRCS) -o $@ $(LDFLAGS) $(LIBS)
 
 # drawing.c is #included by the test, so it is a dependency but must NOT be

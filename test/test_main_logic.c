@@ -799,11 +799,11 @@ static void test_wakeup_guard_long_press_started_in_window_ignored(void **state)
 // after the window must still be ignored.
 static void test_wakeup_guard_press_held_before_launch_ignored(void **state) {
     prv_launch_with_alarm(APP_LAUNCH_WAKEUP);
-    prv_at(500);
+    prv_at(WAKEUP_INPUT_GUARD_MS + 200);
     prv_select_click_handler(NULL, NULL);
     prv_up_click_handler(NULL, NULL);
     prv_down_click_handler(NULL, NULL);
-    prv_at(1000);
+    prv_at(WAKEUP_INPUT_GUARD_MS + 700);
     prv_select_long_click_handler(NULL, NULL);
     prv_up_long_click_handler(NULL, NULL);
     prv_down_long_click_handler(NULL, NULL);
@@ -813,9 +813,9 @@ static void test_wakeup_guard_press_held_before_launch_ignored(void **state) {
 
 static void test_wakeup_guard_down_press_after_window_snoozes(void **state) {
     prv_launch_with_alarm(APP_LAUNCH_WAKEUP);
-    prv_at(400);
+    prv_at(WAKEUP_INPUT_GUARD_MS + 100);
     prv_down_raw_down_handler(NULL, NULL);
-    prv_at(500);
+    prv_at(WAKEUP_INPUT_GUARD_MS + 200);
     prv_down_click_handler(NULL, NULL);
     assert_false(timer_is_vibrating());
     assert_int_equal(timer_data.length_ms, 60000 + SNOOZE_INCREMENT_MS);
@@ -824,7 +824,7 @@ static void test_wakeup_guard_down_press_after_window_snoozes(void **state) {
 
 static void test_wakeup_guard_back_press_after_window_silences(void **state) {
     prv_launch_with_alarm(APP_LAUNCH_WAKEUP);
-    prv_at(400);
+    prv_at(WAKEUP_INPUT_GUARD_MS + 100);
     prv_back_click_handler(NULL, NULL);
     assert_false(timer_is_vibrating());
     assert_int_equal(s_window_pop_count, 0);
@@ -839,11 +839,29 @@ static void test_wakeup_guard_new_press_after_ignored_press_acts(void **state) {
     prv_select_click_handler(NULL, NULL);
     prv_assert_alarm_untouched();
 
-    prv_at(600);
+    prv_at(WAKEUP_INPUT_GUARD_MS + 100);
     prv_select_raw_click_handler(NULL, NULL);
     assert_false(timer_is_vibrating());
-    prv_at(700);
+    prv_at(WAKEUP_INPUT_GUARD_MS + 200);
     prv_select_click_handler(NULL, NULL);
+    assert_false(timer_is_vibrating());
+    prv_end_launch_test();
+}
+
+// The window is 0.5s: a press that starts at 450ms is ignored, and a new
+// press at 550ms acts.
+static void test_wakeup_guard_press_late_in_window_ignored(void **state) {
+    prv_launch_with_alarm(APP_LAUNCH_WAKEUP);
+    prv_at(450);
+    prv_down_raw_down_handler(NULL, NULL);
+    prv_at(500);
+    prv_down_click_handler(NULL, NULL);
+    prv_assert_alarm_untouched();
+
+    prv_at(550);
+    prv_down_raw_down_handler(NULL, NULL);
+    prv_at(600);
+    prv_down_click_handler(NULL, NULL);
     assert_false(timer_is_vibrating());
     prv_end_launch_test();
 }
@@ -873,6 +891,7 @@ int main(void) {
         cmocka_unit_test(test_wakeup_guard_down_press_after_window_snoozes),
         cmocka_unit_test(test_wakeup_guard_back_press_after_window_silences),
         cmocka_unit_test(test_wakeup_guard_new_press_after_ignored_press_acts),
+        cmocka_unit_test(test_wakeup_guard_press_late_in_window_ignored),
         cmocka_unit_test(test_wakeup_guard_not_applied_on_user_launch),
         cmocka_unit_test(test_interaction_active_honors_screen_on_setting),
         cmocka_unit_test(test_down_extension_honors_down_extra_setting),
