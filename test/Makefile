@@ -25,6 +25,7 @@ TEST_MAIN_SRCS = test_main_logic.c
 TEST_DRAWING_SRCS = test_drawing.c
 TEST_TIMER_MULTI_SRCS = test_timer_multi.c
 TEST_MNEMONIC_SRCS = test_mnemonic.c
+TEST_EPOCH_SRCS = test_epoch.c
 
 # Output
 TEST_TIMER_BIN = run_test_timer
@@ -32,10 +33,11 @@ TEST_MAIN_BIN = run_test_main
 TEST_DRAWING_BIN = run_test_drawing
 TEST_TIMER_MULTI_BIN = run_test_timer_multi
 TEST_MNEMONIC_BIN = run_test_mnemonic
+TEST_EPOCH_BIN = run_test_epoch
 
-.PHONY: all test test_timer test_main test_drawing test_timer_multi test_mnemonic clean
+.PHONY: all test test_timer test_main test_drawing test_timer_multi test_mnemonic test_epoch clean
 
-all: $(TEST_TIMER_BIN) $(TEST_MAIN_BIN) $(TEST_DRAWING_BIN) $(TEST_TIMER_MULTI_BIN) $(TEST_MNEMONIC_BIN)
+all: $(TEST_TIMER_BIN) $(TEST_MAIN_BIN) $(TEST_DRAWING_BIN) $(TEST_TIMER_MULTI_BIN) $(TEST_MNEMONIC_BIN) $(TEST_EPOCH_BIN)
 
 $(TEST_TIMER_BIN): $(TEST_TIMER_SRCS) $(TIMER_SRCS) $(MNEMONIC_SRCS)
 	$(CC) $(CFLAGS) $(INCLUDES) $^ -o $@ $(LDFLAGS) $(LIBS)
@@ -59,8 +61,13 @@ $(TEST_TIMER_MULTI_BIN): $(TEST_TIMER_MULTI_SRCS) $(TIMER_SRCS) $(MNEMONIC_SRCS)
 $(TEST_MNEMONIC_BIN): $(TEST_MNEMONIC_SRCS) $(MNEMONIC_SRCS)
 	$(CC) $(CFLAGS) $(INCLUDES) $^ -o $@ $(LDFLAGS) $(LIBS)
 
+# utility.c is #included by the test (it mocks time/time_ms), so it is a
+# prerequisite but must NOT be passed to gcc as a separate source.
+$(TEST_EPOCH_BIN): $(TEST_EPOCH_SRCS) $(SRC_DIR)/utility.c
+	$(CC) $(CFLAGS) $(INCLUDES) $(TEST_EPOCH_SRCS) -o $@ $(LDFLAGS) $(LIBS)
+
 # Run all tests
-test: test_timer test_main test_drawing test_timer_multi test_mnemonic
+test: test_timer test_main test_drawing test_timer_multi test_mnemonic test_epoch
 
 # Run individual tests
 test_timer: $(TEST_TIMER_BIN)
@@ -78,5 +85,8 @@ test_timer_multi: $(TEST_TIMER_MULTI_BIN)
 test_mnemonic: $(TEST_MNEMONIC_BIN)
 	./$(TEST_MNEMONIC_BIN)
 
+test_epoch: $(TEST_EPOCH_BIN)
+	./$(TEST_EPOCH_BIN)
+
 clean:
-	rm -f $(TEST_TIMER_BIN) $(TEST_MAIN_BIN) $(TEST_DRAWING_BIN) $(TEST_TIMER_MULTI_BIN) $(TEST_MNEMONIC_BIN)
+	rm -f $(TEST_TIMER_BIN) $(TEST_MAIN_BIN) $(TEST_DRAWING_BIN) $(TEST_TIMER_MULTI_BIN) $(TEST_MNEMONIC_BIN) $(TEST_EPOCH_BIN)
