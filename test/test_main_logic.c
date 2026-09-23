@@ -24,9 +24,25 @@ GRect layer_get_bounds(Layer *layer) { return (GRect){{0,0},{144,168}}; }
 void window_stack_push(Window *window, bool animated) {}
 static int s_window_pop_count = 0;
 void window_stack_pop(bool animated) { s_window_pop_count++; }
-void window_single_click_subscribe(ButtonId button_id, ClickHandler handler) {}
-void window_raw_click_subscribe(ButtonId button_id, void* down_handler, void* up_handler, void* context) {}
-void window_long_click_subscribe(ButtonId button_id, uint16_t delay_ms, ClickHandler handler, void* context) {}
+// Click subscriptions are recorded so the simulator (prv_sim_press) can drive
+// the app's real handlers in the order the SDK fires them.
+#define SIM_BUTTON_COUNT 4
+static ClickHandler s_sub_single[SIM_BUTTON_COUNT];
+static ClickHandler s_sub_raw_down[SIM_BUTTON_COUNT];
+static ClickHandler s_sub_raw_up[SIM_BUTTON_COUNT];
+static ClickHandler s_sub_long[SIM_BUTTON_COUNT];
+static uint16_t s_sub_long_delay[SIM_BUTTON_COUNT];
+void window_single_click_subscribe(ButtonId button_id, ClickHandler handler) {
+  s_sub_single[button_id] = handler;
+}
+void window_raw_click_subscribe(ButtonId button_id, void* down_handler, void* up_handler, void* context) {
+  s_sub_raw_down[button_id] = (ClickHandler)down_handler;
+  s_sub_raw_up[button_id] = (ClickHandler)up_handler;
+}
+void window_long_click_subscribe(ButtonId button_id, uint16_t delay_ms, ClickHandler handler, void* context) {
+  s_sub_long[button_id] = handler;
+  s_sub_long_delay[button_id] = delay_ms;
+}
 
 // Layer
 Layer* layer_create(GRect frame) { return (Layer*)1; }
@@ -36,9 +52,57 @@ void layer_add_child(Layer *parent, Layer *child) {}
 void layer_mark_dirty(Layer *layer) {}
 
 // Timer/Wakeup
-AppTimer* app_timer_register(uint32_t timeout_ms, AppTimerCallback callback, void* callback_data) { return (AppTimer*)1; }
-void app_timer_cancel(AppTimer* timer) {}
-void app_timer_reschedule(AppTimer* timer, uint32_t new_timeout_ms) {}
+// A small fake AppTimer scheduler. Registered callbacks fire in due-time order
+// when a test advances the mock clock with prv_run_until(). Tests that never
+// advance the clock see the old behavior (callbacks never fire).
+#define FAKE_TIMER_COUNT 32
+typedef struct {
+  bool active;
+  uint64_t due_ms;
+  AppTimerCallback callback;
+  void *data;
+} FakeTimer;
+static FakeTimer s_fake_timers[FAKE_TIMER_COUNT];
+static FakeTimer s_fake_timer_sink;  // returned when full; never fires
+
+static void prv_fake_timers_clear(void) {
+  memset(s_fake_timers, 0, sizeof(s_fake_timers));
+}
+
+AppTimer* app_timer_register(uint32_t timeout_ms, AppTimerCallback callback, void* callback_data) {
+  for (int i = 0; i < FAKE_TIMER_COUNT; i++) {
+    if (!s_fake_timers[i].active) {
+      s_fake_timers[i] = (FakeTimer){true, s_mock_epoch + timeout_ms, callback, callback_data};
+      return (AppTimer*)&s_fake_timers[i];
+    }
+  }
+  s_fake_timer_sink.active = false;
+  return (AppTimer*)&s_fake_timer_sink;
+}
+void app_timer_cancel(AppTimer* timer) {
+  if (timer) ((FakeTimer*)timer)->active = false;
+}
+void app_timer_reschedule(AppTimer* timer, uint32_t new_timeout_ms) {
+  if (timer) ((FakeTimer*)timer)->due_ms = s_mock_epoch + new_timeout_ms;
+}
+
+// Advance the mock clock to target_ms, firing every due fake timer in order.
+static void prv_run_until(uint64_t target_ms) {
+  for (int guard = 0; guard < 100000; guard++) {
+    FakeTimer *next = NULL;
+    for (int i = 0; i < FAKE_TIMER_COUNT; i++) {
+      FakeTimer *t = &s_fake_timers[i];
+      if (t->active && t->due_ms <= target_ms && (!next || t->due_ms < next->due_ms)) {
+        next = t;
+      }
+    }
+    if (!next) break;
+    next->active = false;
+    if (next->due_ms > s_mock_epoch) s_mock_epoch = next->due_ms;
+    next->callback(next->data);
+  }
+  if (target_ms > s_mock_epoch) s_mock_epoch = target_ms;
+}
 void tick_timer_service_subscribe(TimeUnits tick_units, void* handler) {}
 void tick_timer_service_unsubscribe(void) {}
 void wakeup_cancel_all(void) {}
@@ -128,8 +192,23 @@ void assert(void *ptr, const char *file, int line) {
 // App event loop mock
 void app_event_loop(void) {}
 
-// Backlight mock
-void light_enable(bool enable) {}
+// Backlight mock. Models what the user sees: every button press lights the
+// screen for SYSTEM_LIGHT_MS (the system's own timeout); light_enable(true)
+// forces it on; light_enable(false) returns to automatic control and turns the
+// light off at once (the observed symptom on the watch).
+#define SYSTEM_LIGHT_MS 3000
+static bool s_light_forced = false;
+static uint64_t s_light_auto_until = 0;
+void light_enable(bool enable) {
+  s_light_forced = enable;
+  if (!enable) s_light_auto_until = 0;
+}
+void light_enable_interaction(void) {
+  if (!s_light_forced) s_light_auto_until = s_mock_epoch + SYSTEM_LIGHT_MS;
+}
+static bool prv_light_is_on(void) {
+  return s_light_forced || s_mock_epoch < s_light_auto_until;
+}
 
 // Test logging mock
 void test_log_state(const char *event) {}
@@ -880,8 +959,269 @@ static void test_wakeup_guard_not_applied_on_user_launch(void **state) {
     prv_end_launch_test();
 }
 
+// --- Event-loop simulation ------------------------------------------------
+// These tests run real user flows: the app's click config drives the buttons,
+// the fake scheduler fires the app's own AppTimers (edit expire, refresh,
+// backlight linger), and the mock clock moves forward in small steps.
+
+// Launch the app with no saved timers at at_ms.
+static void prv_sim_launch(AppLaunchReason reason, uint64_t at_ms) {
+    prv_fake_timers_clear();
+    memset(&timer_data, 0, sizeof(Timer));
+    timer_reset();
+    memset(&main_data, 0, sizeof(main_data));
+    backlight_timer = NULL;
+    backlight_on = false;
+    s_light_forced = false;
+    s_light_auto_until = 0;
+    s_up_held = false;
+    s_up_chord_consumed = false;
+    s_window_pop_count = 0;
+    s_mock_launch_reason = reason;
+    s_mock_epoch = at_ms;
+    prv_initialize();
+    prv_click_config_provider(NULL);
+}
+
+static void prv_sim_wait(uint64_t ms) {
+    prv_run_until(s_mock_epoch + ms);
+}
+
+// Press a button and hold it for hold_ms, firing handlers in SDK order: raw
+// down on press; single on press when the button has no long click (Back),
+// else on release; long after its delay (then no single on release).
+static void prv_sim_press(ButtonId b, uint32_t hold_ms) {
+    s_light_auto_until = s_mock_epoch + SYSTEM_LIGHT_MS;  // the system lights the screen
+    bool has_long = s_sub_long[b] != NULL;
+    if (s_sub_raw_down[b]) s_sub_raw_down[b](NULL, NULL);
+    if (!has_long && s_sub_single[b]) s_sub_single[b](NULL, NULL);
+    uint64_t release_ms = s_mock_epoch + hold_ms;
+    bool long_fired = false;
+    if (has_long && hold_ms >= s_sub_long_delay[b]) {
+        prv_run_until(s_mock_epoch + s_sub_long_delay[b]);
+        s_sub_long[b](NULL, NULL);
+        long_fired = true;
+    }
+    prv_run_until(release_ms);
+    if (s_sub_raw_up[b]) s_sub_raw_up[b](NULL, NULL);
+    if (has_long && !long_fired && s_sub_single[b]) s_sub_single[b](NULL, NULL);
+}
+
+// The same flow as the functional helper setup_short_timer(): wait for the
+// running stopwatch, pause it, hold Select to reset into EditSec, add seconds
+// with Down, and wait for the edit to expire. Ends in Counting, paused.
+static void prv_sim_set_short_timer(int seconds) {
+    prv_sim_wait(3100);                      // New expires to a running stopwatch
+    prv_sim_press(BUTTON_ID_SELECT, 100);    // pause it
+    prv_sim_wait(300);
+    prv_sim_press(BUTTON_ID_SELECT, 1000);   // hold: reset to 0:00, EditSec
+    prv_sim_wait(300);
+    for (int i = 0; i < seconds; i++) {
+        prv_sim_press(BUTTON_ID_DOWN, 100);  // +1 s
+        prv_sim_wait(200);
+    }
+    prv_sim_wait(3500);                      // edit expires (sub-minute stays paused)
+}
+
+// Step until the alarm starts; return that time (0 if it never starts).
+static uint64_t prv_sim_wait_for_alarm(uint64_t timeout_ms) {
+    uint64_t end = s_mock_epoch + timeout_ms;
+    while (s_mock_epoch < end) {
+        if (timer_is_vibrating()) return s_mock_epoch;
+        prv_sim_wait(5);
+    }
+    return timer_is_vibrating() ? s_mock_epoch : 0;
+}
+
+// A 10 s timer, once started, shows exactly 10 s minus the time since start,
+// never goes up, and rings 10 s after the start.
+static void test_sim_ten_second_timer_counts_down_smoothly(void **state) {
+    prv_sim_launch(APP_LAUNCH_SYSTEM, 7000000);
+    prv_sim_set_short_timer(10);
+    assert_int_equal(main_data.control_mode, ControlModeCounting);
+    assert_true(timer_is_paused());
+    assert_int_equal(timer_get_value_ms(), 10000);
+
+    prv_sim_press(BUTTON_ID_SELECT, 100);    // start (single fires on release)
+    uint64_t start = s_mock_epoch;
+    assert_false(timer_is_paused());
+
+    int64_t prev = timer_get_value_ms();
+    while (!timer_is_vibrating() && s_mock_epoch < start + 11000) {
+        prv_sim_wait(10);
+        if (timer_is_chrono()) break;
+        int64_t value = timer_get_value_ms();
+        assert_true(value <= prev);
+        assert_int_equal(value, 10000 - (int64_t)(s_mock_epoch - start));
+        prev = value;
+    }
+    uint64_t alarm = prv_sim_wait_for_alarm(1000);
+    assert_true(alarm >= start + 10000);
+    assert_true(alarm <= start + 10000 + 20);
+}
+
+// Sweep the timing of the fast "set it right after launch" flow: from New,
+// hold Select into EditSec, press Down 10 times, and start it if it paused.
+// Whatever the timing: no alarm may start while the user is still entering
+// the time, the result must not be longer than the 10 s entered, a running
+// countdown must never count up, and the shown seconds must never jump by
+// more than 1 between 10 ms samples.
+static void test_sim_countdown_never_counts_up_sweep(void **state) {
+    for (int phase = 0; phase < 1000; phase += 125) {
+        for (int delay = 200; delay <= 2600; delay += 400) {
+            prv_sim_launch(APP_LAUNCH_SYSTEM, 8000000 + phase);
+            prv_sim_wait(delay);
+            prv_sim_press(BUTTON_ID_SELECT, 1000);   // hold: New -> EditSec
+            prv_sim_wait(150);
+            bool alarm_while_editing = false;
+            for (int i = 0; i < 10; i++) {
+                prv_sim_press(BUTTON_ID_DOWN, 80);
+                for (int w = 0; w < 15; w++) {
+                    prv_sim_wait(10);
+                    if (timer_is_vibrating()) alarm_while_editing = true;
+                }
+            }
+            prv_sim_wait(3500);                      // edit expires
+            if (timer_is_paused()) {
+                prv_sim_press(BUTTON_ID_SELECT, 100);
+            }
+            int64_t first = timer_get_value_ms();
+            bool countdown = !timer_is_chrono();
+            printf("  phase=%3d delay=%4d -> %s %lld ms%s\n", phase, delay,
+                   countdown ? "countdown" : "stopwatch", (long long)first,
+                   alarm_while_editing ? " (ALARM while editing)" : "");
+            assert_false(alarm_while_editing);
+            assert_true(countdown);
+            assert_true(first <= 10000);
+
+            int64_t prev = first;
+            uint16_t hr, min, prev_sec;
+            timer_get_time_parts(&hr, &min, &prev_sec);
+            uint64_t end = s_mock_epoch + 12000;
+            while (s_mock_epoch < end && countdown && !timer_is_chrono()) {
+                prv_sim_wait(10);
+                if (timer_is_chrono()) break;
+                int64_t value = timer_get_value_ms();
+                assert_true(value <= prev);
+                uint16_t sec;
+                timer_get_time_parts(&hr, &min, &sec);
+                assert_true(prev_sec - sec <= 1);
+                prev = value;
+                prev_sec = sec;
+            }
+        }
+    }
+}
+
+// Starting a sub-minute timer with Select right after its edit expires must
+// not turn the light off: the press lights the screen, and the app must not
+// cut that short.
+static void test_sim_light_stays_on_after_select_starts_timer(void **state) {
+    prv_sim_launch(APP_LAUNCH_SYSTEM, 9000000);
+    prv_sim_set_short_timer(10);
+    uint64_t press = s_mock_epoch;
+    prv_sim_press(BUTTON_ID_SELECT, 100);    // start the countdown
+    prv_run_until(press + 1500);
+    assert_true(prv_light_is_on());
+}
+
+// Silencing an alarm with Select must not turn the light off at once.
+static void test_sim_light_stays_on_after_select_silences_alarm(void **state) {
+    prv_sim_launch(APP_LAUNCH_SYSTEM, 9500000);
+    prv_sim_set_short_timer(5);
+    prv_sim_press(BUTTON_ID_SELECT, 100);    // start
+    assert_true(prv_sim_wait_for_alarm(6000) != 0);
+    prv_sim_wait(2000);
+    assert_true(prv_light_is_on());          // the alarm keeps the light on
+    uint64_t press = s_mock_epoch;
+    prv_sim_press(BUTTON_ID_SELECT, 100);    // silence
+    assert_false(timer_is_vibrating());
+    prv_run_until(press + 1500);
+    assert_true(prv_light_is_on());
+}
+
+// On a wakeup launch the app can open before the countdown ends (the wakeup
+// time is rounded down to whole seconds), so the alarm starts after launch.
+// A press 100 ms after the alarm appears must be ignored, however early the
+// app opened.
+static void test_sim_guard_covers_alarm_start_after_early_wakeup(void **state) {
+    const int leads[] = {0, 200, 400, 600, 800, 950};
+    int failures = 0;
+    for (size_t i = 0; i < ARRAY_LENGTH(leads); i++) {
+        uint64_t launch = 10000000 + i * 100000;
+        prv_sim_launch(APP_LAUNCH_WAKEUP, launch);
+        // The saved 10 s countdown has leads[i] ms left at launch
+        timer_data.length_ms = 10000;
+        timer_data.base_length_ms = 10000;
+        timer_data.can_vibrate = true;
+        timer_data.is_paused = false;
+        timer_data.start_ms = launch - (10000 - leads[i]);
+        main_data.control_mode = ControlModeCounting;
+        app_timer_cancel(main_data.app_timer);
+        prv_app_timer_callback(NULL);
+
+        uint64_t alarm = prv_sim_wait_for_alarm(2000);
+        assert_true(alarm != 0);
+        prv_run_until(alarm + 100);
+        prv_sim_press(BUTTON_ID_DOWN, 100);
+        bool ignored = timer_is_vibrating();
+        printf("  wakeup %3d ms before the end: alarm at +%llu ms, press at alarm+100 %s\n",
+               leads[i], (unsigned long long)(alarm - launch),
+               ignored ? "ignored" : "ACTED");
+        if (!ignored) failures++;
+    }
+    assert_int_equal(failures, 0);
+}
+
+// On a user launch, the alarm start does not start the guard: a press 100 ms
+// after the alarm appears acts at once (Down snoozes).
+static void test_sim_alarm_start_on_user_launch_not_guarded(void **state) {
+    uint64_t launch = 11000000;
+    prv_sim_launch(APP_LAUNCH_SYSTEM, launch);
+    timer_data.length_ms = 10000;
+    timer_data.base_length_ms = 10000;
+    timer_data.can_vibrate = true;
+    timer_data.is_paused = false;
+    timer_data.start_ms = launch - (10000 - 800);
+    main_data.control_mode = ControlModeCounting;
+    app_timer_cancel(main_data.app_timer);
+    prv_app_timer_callback(NULL);
+
+    uint64_t alarm = prv_sim_wait_for_alarm(2000);
+    assert_true(alarm != 0);
+    prv_run_until(alarm + 100);
+    prv_sim_press(BUTTON_ID_DOWN, 100);
+    assert_false(timer_is_vibrating());
+}
+
+// Case A: holding Select into EditSec while the New-mode timer still runs as a
+// stopwatch, then adding less time than the stopwatch shows, leaves a
+// stopwatch. No alarm may start on it, so the next Down adds 1 s (it must not
+// be taken as a snooze).
+static void test_sim_no_alarm_on_stopwatch_after_edit_increment(void **state) {
+    prv_sim_launch(APP_LAUNCH_SYSTEM, 12000000);
+    prv_sim_wait(1000);
+    prv_sim_press(BUTTON_ID_SELECT, 1000);   // hold: New -> EditSec (still running)
+    assert_int_equal(main_data.control_mode, ControlModeEditSec);
+    prv_sim_wait(150);
+    prv_sim_press(BUTTON_ID_DOWN, 80);       // +1 s: still a stopwatch (~1.2 s)
+    assert_true(timer_is_chrono());
+    prv_sim_wait(500);
+    assert_false(timer_is_vibrating());
+    prv_sim_press(BUTTON_ID_DOWN, 80);       // +1 s, not a snooze
+    assert_int_equal(main_data.control_mode, ControlModeEditSec);
+    assert_true(timer_data.length_ms < SNOOZE_INCREMENT_MS);
+}
+
 int main(void) {
     const struct CMUnitTest tests[] = {
+        cmocka_unit_test(test_sim_no_alarm_on_stopwatch_after_edit_increment),
+        cmocka_unit_test(test_sim_alarm_start_on_user_launch_not_guarded),
+        cmocka_unit_test(test_sim_ten_second_timer_counts_down_smoothly),
+        cmocka_unit_test(test_sim_countdown_never_counts_up_sweep),
+        cmocka_unit_test(test_sim_light_stays_on_after_select_starts_timer),
+        cmocka_unit_test(test_sim_light_stays_on_after_select_silences_alarm),
+        cmocka_unit_test(test_sim_guard_covers_alarm_start_after_early_wakeup),
         cmocka_unit_test(test_wakeup_guard_select_press_in_window_ignored),
         cmocka_unit_test(test_wakeup_guard_up_press_in_window_ignored),
         cmocka_unit_test(test_wakeup_guard_down_press_in_window_ignored),

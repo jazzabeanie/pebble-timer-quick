@@ -71,6 +71,8 @@ static uint8_t s_blocked_buttons = 0;   //< One bit per ButtonId: its current pr
 // Bit in s_blocked_buttons: the guard window may still be open. Cleared by the
 // first press-down after the window, so a wrap of the 32-bit time never reopens it.
 #define WAKEUP_GUARD_OPEN 0x80
+// True from a wakeup launch until the first alarm start, which restarts the guard
+static bool s_restart_guard_on_alarm = false;
 #endif
 
 #ifdef PBL_MICROPHONE
@@ -145,12 +147,24 @@ static void prv_update_backlight(void) {
   prv_set_backlight(prv_is_edit_mode() || timer_is_vibrating());
 }
 
+// Update the backlight after a button press. Handing the light back to the
+// system (light_enable(false)) turns it off at once, which after a press looks
+// like the press turned the light off. Relight it with the system's normal
+// timeout instead, as any other press would.
+static void prv_update_backlight_after_press(void) {
+  bool was_on = backlight_on;
+  prv_update_backlight();
+  if (was_on && !backlight_on) {
+    light_enable_interaction();
+  }
+}
+
 // Common epilogue for interaction handlers: redraw, refresh the backlight to
 // match the resulting mode, and log the new state for functional tests.
 static void prv_finish_interaction(const char *log_tag) {
   drawing_update();
   layer_mark_dirty(main_data.layer);
-  prv_update_backlight();
+  prv_update_backlight_after_press();
   test_log_state(log_tag);
 }
 
@@ -493,7 +507,7 @@ static bool prv_handle_alarm(void) {
     timer_data.can_vibrate = false;
     vibes_cancel();
     drawing_update();
-    prv_update_backlight();
+    prv_update_backlight_after_press();
     test_log_state("alarm_stop");
     return true;
   }
@@ -676,6 +690,13 @@ static bool prv_press_down_blocked(ButtonId button) {
   }
   return prv_press_blocked(button);
 }
+
+// Start the guard window now, and block every button so a press already held
+// down (no press-down seen since) is ignored on release
+static void prv_start_input_guard(void) {
+  s_wakeup_launch_ms = (uint32_t)epoch();
+  s_blocked_buttons = 0xFF;
+}
 #else
 // Without the guard, no press is ever blocked
 #define prv_press_blocked(button) (false)
@@ -846,7 +867,7 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     if (main_data.control_mode == ControlModeCounting) {
       timer_toggle_play_pause();
     }
-    prv_update_backlight();
+    prv_update_backlight_after_press();
     test_log_state("button_select");
     return;
   }
@@ -1049,7 +1070,7 @@ static void prv_down_long_click_handler(ClickRecognizerRef recognizer, void *ctx
   timer_reset_auto_snooze();
   // Delete this timer slot and exit
   timer_slot_delete(timer_get_active_slot());
-  prv_update_backlight();
+  prv_update_backlight_after_press();
   test_log_state("long_press_down");
   // quit app
   window_stack_pop(true);
@@ -1099,6 +1120,15 @@ static void prv_app_timer_callback(void *data) {
   bool is_elapsed = timer_data.elapsed;
 
   if (!was_elapsed && is_elapsed) {
+#if WAKEUP_GUARD_FEATURE
+    // The wakeup time is rounded down to whole seconds, so the app can open up
+    // to 1s before the alarm starts: restart the guard when the alarm appears
+    if (s_restart_guard_on_alarm) {
+      s_restart_guard_on_alarm = false;
+      prv_start_input_guard();
+      test_log_state("guard_restart");
+    }
+#endif
     prv_update_backlight();
     test_log_state("alarm_start");
   } else if (was_elapsed && !is_elapsed) {
@@ -1200,11 +1230,12 @@ static void prv_initialize(void) {
   // If launched by a wakeup, restore the slot that scheduled the alarm and skip the timer list
   bool wakeup_launch = (launch_reason() == APP_LAUNCH_WAKEUP);
 #if WAKEUP_GUARD_FEATURE
-  // Wakeup input guard: start the window, and block every button so a press
-  // held from before launch (no press-down in this app) is ignored on release
-  s_wakeup_launch_ms = (uint32_t)epoch();
-  s_blocked_buttons = wakeup_launch ? 0xFF : 0;
+  // Wakeup input guard: on a wakeup launch, start the window now and restart
+  // it when the alarm starts (see prv_app_timer_callback)
+  s_blocked_buttons = 0;
+  s_restart_guard_on_alarm = wakeup_launch;
   if (wakeup_launch) {
+    prv_start_input_guard();
     test_log_state("wakeup_launch");
   }
 #endif

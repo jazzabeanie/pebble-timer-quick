@@ -35,6 +35,8 @@ typedef struct {
 void vibes_long_pulse(void);
 void vibes_enqueue_custom_pattern(VibePattern pattern);
 void vibes_cancel(void);
+void light_enable(bool enable);
+void light_enable_interaction(void);
 void vibes_short_pulse(void);
 
 // Time

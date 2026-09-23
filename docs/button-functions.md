@@ -116,6 +116,8 @@ Up to **32 timer slots** are supported (5 on aplite, where the additions below a
 | Down | +1s | -1s | `test_directional_icons.py::TestEditSecModeReverseIcons::test_editsec_reverse_down_icon` |
 | Back | +60s | -60s | `test_directional_icons.py::TestEditSecModeReverseIcons::test_editsec_reverse_back_icon` |
 
+**Entering EditSec while the New timer still runs:** a fresh New timer runs as a stopwatch from launch, so holding Select within the first 3 s enters EditSec with that stopwatch still running, and each added second is subtracted from it. If the added time is still less than the stopwatch (the result is still a stopwatch), no alarm is armed: an alarm on a stopwatch would ring at once and turn the next Down into a snooze (+5 min). Only a result that is a countdown arms the alarm (`timer_increment`). Tests: `test_main_logic.c::test_sim_no_alarm_on_stopwatch_after_edit_increment`, `test_main_logic.c::test_sim_countdown_never_counts_up_sweep` (timing sweep of this path; no alarm while editing, result at most the entered time).
+
 **Zero-crossing tests (EditSec):**
 
 | Test | Description |
@@ -187,8 +189,10 @@ When an alarm (wakeup event, `APP_LAUNCH_WAKEUP`) launches the app, a press that
 | Press-down after 500 ms | Acts normally (for example, Down snoozes, Back silences) | `test_main_logic.c::test_wakeup_guard_down_press_after_window_snoozes`, `test_main_logic.c::test_wakeup_guard_back_press_after_window_silences`, `test_wakeup_guard.py::TestWakeupInputGuard::test_press_after_guard_window_snoozes` |
 | New press after an ignored press | Acts normally | `test_main_logic.c::test_wakeup_guard_new_press_after_ignored_press_acts` |
 | User launch (not a wakeup) | No guard; a press at 100 ms acts | `test_main_logic.c::test_wakeup_guard_not_applied_on_user_launch` |
+| Alarm starts after a wakeup launch | The window **restarts** when the alarm starts (the first alarm after the wakeup launch only). The wakeup time is rounded down to whole seconds, so the app can open up to 1 s before the alarm; a press 100 ms after the alarm appears is ignored however early the app opened. Presses held at the alarm start are ignored on release | `test_main_logic.c::test_sim_guard_covers_alarm_start_after_early_wakeup` |
+| Alarm starts after a user launch | No guard; a press 100 ms after the alarm acts | `test_main_logic.c::test_sim_alarm_start_on_user_launch_not_guarded` |
 
-An ignored press logs `TEST_STATE:input_blocked`; a wakeup launch logs `TEST_STATE:wakeup_launch`. Any new click handler on the main window must start with the `prv_press_blocked()` check (or `prv_press_down_blocked()` for a handler that fires on press-down).
+An ignored press logs `TEST_STATE:input_blocked`; a wakeup launch logs `TEST_STATE:wakeup_launch`; the restart at the alarm logs `TEST_STATE:guard_restart`. Any new click handler on the main window must start with the `prv_press_blocked()` check (or `prv_press_down_blocked()` for a handler that fires on press-down).
 
 ---
 
@@ -201,6 +205,7 @@ Timers with only seconds (no minutes) stay paused after edit mode expires, rathe
 | `test_timer_workflows.py::TestSubMinuteTimerStaysPaused::test_sub_minute_timer_stays_paused_after_edit_expires` | Sub-minute timer stays paused when edit expires |
 | `test_timer_workflows.py::TestMinuteAndSecondsTimerStaysPaused::test_minute_and_seconds_timer_stays_paused` | Timer with both minutes and seconds stays paused |
 | `test_reverse_chrono_and_edit_pause.py::TestPausedTimerStaysPausedAfterEdit::test_paused_timer_stays_paused_after_edit_expires` | Paused timer remains paused after editing and letting edit mode expire |
+| `test_select_ten_second_timer.py::TestSelectTenSecondTimer::test_ten_second_timer_counts_down_on_time` | **Suspected bug, watch closely** (`suspected_bug` marker): a 10 s timer set with Select x2 after a hold-Select reset shows the expected time left at ~2, 5, and 8 s and rings at ~10 s |
 
 ---
 
@@ -402,3 +407,7 @@ Settings are configured via the Pebble mobile app (tap the gear icon next to the
 | `test_backlight.py::test_backlight_stays_on_when_silencing_to_edit_mode` | Backlight stays on when silencing alarm to edit |
 | `test_main_logic.c::test_down_click_in_new_mode_updates_backlight` | Down in New mode leaves the backlight consistent with edit mode (on) |
 | `test_main_logic.c::test_down_click_in_edit_sec_mode_updates_backlight` | Down in EditSec mode leaves the backlight consistent with edit mode (on) |
+| `test_main_logic.c::test_sim_light_stays_on_after_select_starts_timer` | Select that starts a timer right after its edit expires (during the 1 s edit linger) does not turn the light off |
+| `test_main_logic.c::test_sim_light_stays_on_after_select_silences_alarm` | Select that silences an alarm does not turn the light off |
+
+When a button press ends the app's forced backlight (edit mode or alarm), the app hands the light back to the system (`light_enable(false)`, which turns it off at once) and then calls `light_enable_interaction()`, so the light stays on for the system's normal timeout as after any press. Light changes from timers (edit linger, 30 s backlight timeout, alarm end) do not relight the screen.

@@ -196,12 +196,17 @@ void timer_repeat_restart(void) {
 // Increment timer value currently being edited
 void timer_increment(int64_t increment) {
   timer_data.length_ms += increment;
-  // if at zero, remove any leftover milliseconds
-  if (timer_get_value_ms() < MSEC_IN_SEC) {
+  // Read the clock once: raw > 0 is a countdown, raw <= 0 a stopwatch
+  int64_t elapsed = timer_data.is_paused ? timer_data.start_ms
+                                         : (int64_t)epoch() - timer_data.start_ms;
+  int64_t raw = timer_data.length_ms - elapsed;
+  if (raw < MSEC_IN_SEC && raw > -MSEC_IN_SEC) {
+    // if at zero, remove any leftover milliseconds
     timer_reset();
-  }
-  // enable vibration
-  if (timer_data.length_ms > 0) {
+  } else if (timer_data.length_ms > 0 && raw > 0) {
+    // enable vibration, but only for a countdown: a running stopwatch can still
+    // be past the new length (time added in EditSec is less than the time it
+    // has run), and arming it would start a false alarm at the next refresh
     timer_data.can_vibrate = true;
   }
   timer_data.elapsed = false;
