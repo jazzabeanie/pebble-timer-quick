@@ -10,7 +10,7 @@ The list (`src/timer_list.c`) has a 500 ms refresh timer (`REFRESH_MS`) that onl
 
 So a countdown that ends while the list is open either vibrates unseen behind the list (slot 0) or does not ring at all (any other slot).
 
-The wakeup input guard (`wakeup-input-guard` change) is in `src/main.c`: `s_wakeup_launch_ms` (low 32 bits of `epoch()`), the `s_blocked_buttons` bitmask with the `WAKEUP_GUARD_OPEN` bit, `prv_press_down_blocked()`, and `prv_press_blocked()`. `prv_initialize` sets the state on a wakeup launch. The code is compiled out on aplite (`WAKEUP_GUARD_FEATURE`). `WAKEUP_INPUT_GUARD_MS` is 500.
+The wakeup input guard (`wakeup-input-guard` capability) is in `src/main.c`: `s_wakeup_launch_ms` (low 32 bits of `epoch()`), the `s_blocked_buttons` bitmask with the `WAKEUP_GUARD_OPEN` bit, `prv_press_down_blocked()`, and `prv_press_blocked()`. `prv_start_input_guard()` records the time and sets `s_blocked_buttons = 0xFF`. On a wakeup launch, `prv_initialize` calls it and sets `s_restart_guard_on_alarm`, and `prv_app_timer_callback` restarts the guard at the first alarm start. The Timer List shows only on user launches, so that flag is always false while the list is open. The code is compiled out on aplite (`WAKEUP_GUARD_FEATURE`). `WAKEUP_INPUT_GUARD_MS` is 250.
 
 ## Goals / Non-Goals
 
@@ -64,9 +64,9 @@ When `timer_find_ended_countdown()` returns a slot:
 Add a new public API that the list calls:
 
 - `main_set_control_mode(ControlModeCounting)` (this also cancels any lap flash), clear `is_reverse_direction`, and stop the edit-expire timer.
-- Start the input guard. Move the guard start in `prv_initialize` into `prv_start_input_guard()` (record `s_wakeup_launch_ms` and set `s_blocked_buttons = 0xFF`), and call it from both places.
+- Start the input guard: call the existing `prv_start_input_guard()` directly. Do not set `s_restart_guard_on_alarm` instead: if the slot is slot 0, it can already be vibrating behind the list, so there is no not-elapsed to elapsed change and the restart would never fire.
 - `prv_record_interaction()` (screen-on window and fast refresh).
-- Cancel `main_data.app_timer` and call `prv_app_timer_callback(NULL)` at once. It runs `timer_check_elapsed()` on the new active slot. That starts the vibration, logs `alarm_start`, turns on the backlight, and reschedules the refresh for the new slot.
+- Cancel `main_data.app_timer` and call `prv_app_timer_callback(NULL)` at once. It runs `timer_check_elapsed()` on the new active slot. That starts the vibration, logs `alarm_start`, turns on the backlight, and reschedules the refresh for the new slot. If slot 0 was already the active slot and its alarm started behind the list, `alarm_start` was logged before the takeover and is not logged again.
 
 A button held in the list at the takeover has no press-down in the main window. The 0xFF mask blocks its release, as it blocks a press held across a wakeup launch.
 
@@ -77,9 +77,9 @@ The takeover depends on the guard, and the aplite heap is already below the ~1.6
 ### D7. Tests
 
 - `test/test_timer_multi.c`: `timer_running_countdown_mask()` (running countdown, paused countdown, overdue countdown, chrono) and `timer_find_ended_countdown()` (none ended, one ended, two ended picks the first, bits outside the mask ignored).
-- `test/test_main_logic.c`: `main_show_alarm()` switches to Counting on the new slot and starts the guard. A press at +100 ms and a release with no press-down are ignored, and a press at +600 ms acts.
+- `test/test_main_logic.c`: `main_show_alarm()` switches to Counting on the new slot and starts the guard. A press at +100 ms and a release with no press-down are ignored, and a press at +600 ms acts. Use the existing sim helpers (fake AppTimer scheduler, `prv_sim_press`).
 - The list's mask shift on delete: a small static helper `prv_mask_remove_slot()`. It is covered by the functional test for deletes, because `timer_list.c` has no unit test harness.
-- Functional (`test/functional/test_list_alarm_takeover.py`): save a ~15 s countdown, exit, reopen (user launch) so the Timer List shows, wait for `list_alarm_takeover` and `alarm_start` (`m=Counting`, `v=1`), then check that the next list shows the kept stopwatch.
+- Functional (`test/functional/test_list_alarm_takeover.py`): save a ~15 s countdown, exit, reopen (user launch) so the Timer List shows, wait for `list_alarm_takeover` and `alarm_start` (`m=Counting`, `v=1`; accept `alarm_start` before or after the takeover, see D5), then check that the next list shows the kept stopwatch.
 
 ## Risks / Trade-offs
 

@@ -74,7 +74,7 @@ as a running stopwatch (chrono) that counts from the moment the list opened.
 ### Requirement: The input guard starts when the alarm takes over
 
 When the Timer List closes because a countdown ended, the app SHALL ignore every
-button press whose press-down occurs within `WAKEUP_INPUT_GUARD_MS` (500 ms) of
+button press whose press-down occurs within `WAKEUP_INPUT_GUARD_MS` (250 ms) of
 the takeover, and every press that was already held down at the takeover. This
 uses the same rules as the wakeup input guard: an ignored press triggers no
 single-click, long-click, multi-click, or raw press-down action, and the alarm
