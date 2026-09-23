@@ -174,6 +174,22 @@ Up to **32 timer slots** are supported (5 on aplite, where the additions below a
 | Down | Long | Quit app | *(no dedicated test)* |
 | Back | Short | Silence alarm (timer continues as chrono) | `test_timer_workflows.py::TestQuietAlarmBackButton::test_quiet_alarm_with_back_button` |
 
+### Wakeup Input Guard (alarm launch)
+
+When an alarm (wakeup event, `APP_LAUNCH_WAKEUP`) launches the app, a press that **starts** within `WAKEUP_INPUT_GUARD_MS` (300 ms) of launch is ignored on all four buttons until it is released. This stops a press already in progress from silencing, snoozing, restarting, or exiting the alarm before the user has seen it. The alarm keeps vibrating; the user presses again to act. User launches are not guarded. Active on every platform except aplite, where it is compiled out for RAM (`WAKEUP_GUARD_FEATURE` in `src/main.h`) and presses act immediately.
+
+| Case | Behavior | Tests |
+|------|----------|-------|
+| Up, Select, or Down press-down within 300 ms | Raw-down, single, and long actions are all ignored for that press | `test_main_logic.c::test_wakeup_guard_select_press_in_window_ignored`, `test_main_logic.c::test_wakeup_guard_up_press_in_window_ignored`, `test_main_logic.c::test_wakeup_guard_down_press_in_window_ignored` |
+| Back press within 300 ms | Ignored (Back's single click fires on press-down, so it is checked there) | `test_main_logic.c::test_wakeup_guard_back_press_in_window_ignored` |
+| Press starts within 300 ms and is held past the long-press threshold | Long action is ignored, even though it fires after the window | `test_main_logic.c::test_wakeup_guard_long_press_started_in_window_ignored` |
+| Button held down from before launch | Its release (single or long click) is ignored | `test_main_logic.c::test_wakeup_guard_press_held_before_launch_ignored` |
+| Press-down after 300 ms | Acts normally (for example, Down snoozes, Back silences) | `test_main_logic.c::test_wakeup_guard_down_press_after_window_snoozes`, `test_main_logic.c::test_wakeup_guard_back_press_after_window_silences`, `test_wakeup_guard.py::TestWakeupInputGuard::test_press_after_guard_window_snoozes` |
+| New press after an ignored press | Acts normally | `test_main_logic.c::test_wakeup_guard_new_press_after_ignored_press_acts` |
+| User launch (not a wakeup) | No guard; a press at 100 ms acts | `test_main_logic.c::test_wakeup_guard_not_applied_on_user_launch` |
+
+An ignored press logs `TEST_STATE:input_blocked`; a wakeup launch logs `TEST_STATE:wakeup_launch`. Any new click handler on the main window must start with the `prv_press_blocked()` check (or `prv_press_down_blocked()` for a handler that fires on press-down).
+
 ---
 
 ## Sub-minute Timer Behavior

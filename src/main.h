@@ -11,6 +11,16 @@
 #include <pebble.h>
 
 #define BUTTON_HOLD_RESET_MS 750
+// On an alarm (wakeup) launch, presses that start within this time are ignored
+#define WAKEUP_INPUT_GUARD_MS 300
+// The wakeup input guard (~340 bytes) does not fit in aplite's 24KB app
+// region, whose heap was already below the ~1.6KB floor, so it is compiled out
+// there and aplite handles presses immediately on every launch.
+#ifndef PBL_PLATFORM_APLITE
+  #define WAKEUP_GUARD_FEATURE 1
+#else
+  #define WAKEUP_GUARD_FEATURE 0
+#endif
 #define REDUCE_SCREEN_UPDATES 1
 
 // Current control mode

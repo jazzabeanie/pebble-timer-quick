@@ -66,12 +66,20 @@ launch), button presses SHALL be handled immediately, as before.
 
 ---
 
-### Requirement: The guard is available on all platforms
+### Requirement: The guard is not included on aplite
 
-The input guard SHALL be active on every supported platform, including aplite.
+The input guard SHALL be active on every supported platform except aplite. On
+aplite it SHALL be compiled out to save RAM, and button presses SHALL be
+handled immediately on every launch, as before.
 
-#### Scenario: Guard on aplite
+#### Scenario: Guard on other platforms
+
+- **WHEN** the app runs on basalt and is launched by an alarm wakeup
+- **AND** the user presses Select 100 ms after launch
+- **THEN** the press has no effect
+
+#### Scenario: No guard on aplite
 
 - **WHEN** the app runs on aplite and is launched by an alarm wakeup
 - **AND** the user presses Select 100 ms after launch
-- **THEN** the press has no effect
+- **THEN** the press acts normally

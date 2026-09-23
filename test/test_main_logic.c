@@ -22,7 +22,8 @@ void window_set_click_config_provider(Window *window, ClickConfigProvider click_
 Layer* window_get_root_layer(Window *window) { return (Layer*)1; }
 GRect layer_get_bounds(Layer *layer) { return (GRect){{0,0},{144,168}}; }
 void window_stack_push(Window *window, bool animated) {}
-void window_stack_pop(bool animated) {}
+static int s_window_pop_count = 0;
+void window_stack_pop(bool animated) { s_window_pop_count++; }
 void window_single_click_subscribe(ButtonId button_id, ClickHandler handler) {}
 void window_raw_click_subscribe(ButtonId button_id, void* down_handler, void* up_handler, void* context) {}
 void window_long_click_subscribe(ButtonId button_id, uint16_t delay_ms, ClickHandler handler, void* context) {}
@@ -163,7 +164,8 @@ uint32_t settings_get_down_extra_seconds(void) { return s_mock_down_extra_second
 void timer_list_window_push(void) {}
 
 // --- Launch reason / wakeup event stubs ---
-AppLaunchReason launch_reason(void) { return APP_LAUNCH_SYSTEM; }
+static AppLaunchReason s_mock_launch_reason = APP_LAUNCH_SYSTEM;
+AppLaunchReason launch_reason(void) { return s_mock_launch_reason; }
 bool wakeup_get_launch_event(WakeupId *wakeup_id, int32_t *cookie) { return false; }
 
 // --- Include main.c logic ---
@@ -678,8 +680,200 @@ static void test_down_press_records_extension_window(void **state) {
     assert_int_equal((int)main_data.last_down_time, 0);
 }
 
+// --- Wakeup input guard ---------------------------------------------------
+// On an alarm (wakeup) launch, a press whose press-down is within
+// WAKEUP_INPUT_GUARD_MS of launch is ignored until it is released, and so is a
+// press held from before launch. The handlers are called directly in the order
+// the SDK would fire them: raw-down on press, single on release, long after
+// BUTTON_HOLD_RESET_MS.
+
+#define WAKEUP_TEST_LAUNCH_MS 5000000
+
+// Launch the app with the given reason at WAKEUP_TEST_LAUNCH_MS, then put the
+// active timer into a ringing alarm: a 1-min countdown that elapsed 1s ago.
+static void prv_launch_with_alarm(AppLaunchReason reason) {
+    memset(&timer_data, 0, sizeof(Timer));
+    timer_reset();
+    memset(&main_data, 0, sizeof(main_data));
+    s_mock_launch_reason = reason;
+    s_mock_epoch = WAKEUP_TEST_LAUNCH_MS;
+    prv_initialize();
+
+    timer_data.length_ms = 60000;
+    timer_data.base_length_ms = 60000;
+    timer_data.can_vibrate = true;
+    timer_data.is_paused = false;
+    timer_data.start_ms = WAKEUP_TEST_LAUNCH_MS - 61000;
+    timer_data.reset_on_init = false;
+    main_data.control_mode = ControlModeCounting;
+    s_window_pop_count = 0;
+    assert_true(timer_is_vibrating());
+}
+
+// Relaunch as a user launch so the guard does not leak into later tests.
+static void prv_end_launch_test(void) {
+    s_mock_launch_reason = APP_LAUNCH_SYSTEM;
+    s_mock_epoch = WAKEUP_TEST_LAUNCH_MS;
+    prv_initialize();
+    s_up_held = false;
+    s_up_chord_consumed = false;
+}
+
+static void prv_at(uint64_t ms_after_launch) {
+    s_mock_epoch = WAKEUP_TEST_LAUNCH_MS + ms_after_launch;
+}
+
+// The alarm is untouched: still ringing, same length, same mode, app still open.
+static void prv_assert_alarm_untouched(void) {
+    assert_true(timer_is_vibrating());
+    assert_int_equal(timer_data.length_ms, 60000);
+    assert_int_equal(main_data.control_mode, ControlModeCounting);
+    assert_int_equal(s_window_pop_count, 0);
+}
+
+static void test_wakeup_guard_select_press_in_window_ignored(void **state) {
+    prv_launch_with_alarm(APP_LAUNCH_WAKEUP);
+    prv_at(100);
+    prv_select_raw_click_handler(NULL, NULL);
+    prv_at(200);
+    prv_select_click_handler(NULL, NULL);
+    prv_assert_alarm_untouched();
+    prv_end_launch_test();
+}
+
+static void test_wakeup_guard_up_press_in_window_ignored(void **state) {
+    prv_launch_with_alarm(APP_LAUNCH_WAKEUP);
+    prv_at(100);
+    prv_up_raw_down_handler(NULL, NULL);
+    prv_at(200);
+    prv_up_raw_up_handler(NULL, NULL);
+    prv_up_click_handler(NULL, NULL);
+    prv_assert_alarm_untouched();
+    prv_end_launch_test();
+}
+
+static void test_wakeup_guard_down_press_in_window_ignored(void **state) {
+    prv_launch_with_alarm(APP_LAUNCH_WAKEUP);
+    prv_at(100);
+    prv_down_raw_down_handler(NULL, NULL);
+    prv_at(200);
+    prv_down_click_handler(NULL, NULL);
+    prv_assert_alarm_untouched();
+    prv_end_launch_test();
+}
+
+// Back has no raw subscription; its single click fires on press-down.
+static void test_wakeup_guard_back_press_in_window_ignored(void **state) {
+    prv_launch_with_alarm(APP_LAUNCH_WAKEUP);
+    prv_at(100);
+    prv_back_click_handler(NULL, NULL);
+    prv_assert_alarm_untouched();
+    prv_end_launch_test();
+}
+
+// A press that starts in the window stays ignored when its long click fires
+// after the window closes.
+static void test_wakeup_guard_long_press_started_in_window_ignored(void **state) {
+    prv_launch_with_alarm(APP_LAUNCH_WAKEUP);
+    prv_at(200);
+    prv_select_raw_click_handler(NULL, NULL);
+    prv_at(200 + BUTTON_HOLD_RESET_MS);
+    prv_select_long_click_handler(NULL, NULL);
+    prv_assert_alarm_untouched();
+
+    prv_at(200);
+    prv_up_raw_down_handler(NULL, NULL);
+    prv_at(200 + BUTTON_HOLD_RESET_MS);
+    prv_up_long_click_handler(NULL, NULL);
+    prv_assert_alarm_untouched();
+
+    prv_at(200);
+    prv_down_raw_down_handler(NULL, NULL);
+    prv_at(200 + BUTTON_HOLD_RESET_MS);
+    prv_down_long_click_handler(NULL, NULL);
+    prv_assert_alarm_untouched();
+    prv_end_launch_test();
+}
+
+// A press held from before launch has no raw-down in this app; its release
+// after the window must still be ignored.
+static void test_wakeup_guard_press_held_before_launch_ignored(void **state) {
+    prv_launch_with_alarm(APP_LAUNCH_WAKEUP);
+    prv_at(500);
+    prv_select_click_handler(NULL, NULL);
+    prv_up_click_handler(NULL, NULL);
+    prv_down_click_handler(NULL, NULL);
+    prv_at(1000);
+    prv_select_long_click_handler(NULL, NULL);
+    prv_up_long_click_handler(NULL, NULL);
+    prv_down_long_click_handler(NULL, NULL);
+    prv_assert_alarm_untouched();
+    prv_end_launch_test();
+}
+
+static void test_wakeup_guard_down_press_after_window_snoozes(void **state) {
+    prv_launch_with_alarm(APP_LAUNCH_WAKEUP);
+    prv_at(400);
+    prv_down_raw_down_handler(NULL, NULL);
+    prv_at(500);
+    prv_down_click_handler(NULL, NULL);
+    assert_false(timer_is_vibrating());
+    assert_int_equal(timer_data.length_ms, 60000 + SNOOZE_INCREMENT_MS);
+    prv_end_launch_test();
+}
+
+static void test_wakeup_guard_back_press_after_window_silences(void **state) {
+    prv_launch_with_alarm(APP_LAUNCH_WAKEUP);
+    prv_at(400);
+    prv_back_click_handler(NULL, NULL);
+    assert_false(timer_is_vibrating());
+    assert_int_equal(s_window_pop_count, 0);
+    prv_end_launch_test();
+}
+
+static void test_wakeup_guard_new_press_after_ignored_press_acts(void **state) {
+    prv_launch_with_alarm(APP_LAUNCH_WAKEUP);
+    prv_at(100);
+    prv_select_raw_click_handler(NULL, NULL);
+    prv_at(200);
+    prv_select_click_handler(NULL, NULL);
+    prv_assert_alarm_untouched();
+
+    prv_at(600);
+    prv_select_raw_click_handler(NULL, NULL);
+    assert_false(timer_is_vibrating());
+    prv_at(700);
+    prv_select_click_handler(NULL, NULL);
+    assert_false(timer_is_vibrating());
+    prv_end_launch_test();
+}
+
+static void test_wakeup_guard_not_applied_on_user_launch(void **state) {
+    prv_launch_with_alarm(APP_LAUNCH_SYSTEM);
+    prv_at(100);
+    prv_select_raw_click_handler(NULL, NULL);
+    assert_false(timer_is_vibrating());
+    prv_end_launch_test();
+
+    prv_launch_with_alarm(APP_LAUNCH_SYSTEM);
+    prv_at(100);
+    prv_back_click_handler(NULL, NULL);
+    assert_false(timer_is_vibrating());
+    prv_end_launch_test();
+}
+
 int main(void) {
     const struct CMUnitTest tests[] = {
+        cmocka_unit_test(test_wakeup_guard_select_press_in_window_ignored),
+        cmocka_unit_test(test_wakeup_guard_up_press_in_window_ignored),
+        cmocka_unit_test(test_wakeup_guard_down_press_in_window_ignored),
+        cmocka_unit_test(test_wakeup_guard_back_press_in_window_ignored),
+        cmocka_unit_test(test_wakeup_guard_long_press_started_in_window_ignored),
+        cmocka_unit_test(test_wakeup_guard_press_held_before_launch_ignored),
+        cmocka_unit_test(test_wakeup_guard_down_press_after_window_snoozes),
+        cmocka_unit_test(test_wakeup_guard_back_press_after_window_silences),
+        cmocka_unit_test(test_wakeup_guard_new_press_after_ignored_press_acts),
+        cmocka_unit_test(test_wakeup_guard_not_applied_on_user_launch),
         cmocka_unit_test(test_interaction_active_honors_screen_on_setting),
         cmocka_unit_test(test_down_extension_honors_down_extra_setting),
         cmocka_unit_test(test_down_press_records_extension_window),

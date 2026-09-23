@@ -63,6 +63,16 @@ static bool s_up_held = false;
 
 static bool s_up_chord_consumed = false;
 
+#if WAKEUP_GUARD_FEATURE
+// Wakeup input guard: on an alarm launch, a press whose press-down is within
+// WAKEUP_INPUT_GUARD_MS of launch is ignored until the button's next press-down
+static uint32_t s_wakeup_launch_ms = 0; //< Low 32 bits of epoch (ms) at launch
+static uint8_t s_blocked_buttons = 0;   //< One bit per ButtonId: its current press is ignored
+// Bit in s_blocked_buttons: the guard window may still be open. Cleared by the
+// first press-down after the window, so a wrap of the 32-bit time never reopens it.
+#define WAKEUP_GUARD_OPEN 0x80
+#endif
+
 #ifdef PBL_MICROPHONE
 // Voice naming: dictation session for the Up+Back chord rename gesture
 static DictationSession *s_dictation_session = NULL;
@@ -642,8 +652,43 @@ bool main_is_showing_no_phone(void) {
 #endif
 }
 
+#if WAKEUP_GUARD_FEATURE
+// True if the current press of this button must be ignored (wakeup input guard)
+static bool prv_press_blocked(ButtonId button) {
+  if (!(s_blocked_buttons & (1 << button))) {
+    return false;
+  }
+  test_log_state("input_blocked");
+  return true;
+}
+
+// Called on press-down: a press that starts inside the guard window is blocked
+// until the button's next press-down. Clearing only here (not on release) keeps
+// the late single/long clicks of a blocked press blocked, whatever the order of
+// raw-up and single-click on release.
+static bool prv_press_down_blocked(ButtonId button) {
+  // Unsigned 32-bit subtraction is correct across a wrap of the low bits
+  if ((s_blocked_buttons & WAKEUP_GUARD_OPEN) &&
+      (uint32_t)epoch() - s_wakeup_launch_ms < WAKEUP_INPUT_GUARD_MS) {
+    s_blocked_buttons |= (1 << button);
+  } else {
+    s_blocked_buttons &= ~((1 << button) | WAKEUP_GUARD_OPEN);
+  }
+  return prv_press_blocked(button);
+}
+#else
+// Without the guard, no press is ever blocked
+#define prv_press_blocked(button) (false)
+#define prv_press_down_blocked(button) (false)
+#endif  // WAKEUP_GUARD_FEATURE
+
 // Back click handler
 static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  // Back has only a single click, which fires on press-down (the SDK allows no
+  // raw or long click on Back), so this is its press-down check
+  if (prv_press_down_blocked(BUTTON_ID_BACK)) {
+    return;
+  }
   prv_record_interaction();
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
@@ -684,6 +729,9 @@ static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 
 // Up click handler
 static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  if (prv_press_blocked(BUTTON_ID_UP)) {
+    return;
+  }
   if (s_up_chord_consumed) {
     s_up_chord_consumed = false;
     return;
@@ -730,6 +778,9 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 
 // Up long click handler
 static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  if (prv_press_blocked(BUTTON_ID_UP)) {
+    return;
+  }
   prv_record_interaction();
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
@@ -784,6 +835,9 @@ static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) 
 
 // Select click handler
 static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  if (prv_press_blocked(BUTTON_ID_SELECT)) {
+    return;
+  }
   prv_record_interaction();
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
@@ -835,6 +889,9 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 
 // Select raw click handler
 static void prv_select_raw_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  if (prv_press_down_blocked(BUTTON_ID_SELECT)) {
+    return;
+  }
   prv_record_interaction();
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
@@ -848,6 +905,9 @@ static void prv_select_raw_click_handler(ClickRecognizerRef recognizer, void *ct
 
 // Select long click handler
 static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  if (prv_press_blocked(BUTTON_ID_SELECT)) {
+    return;
+  }
   prv_record_interaction();
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
@@ -936,6 +996,9 @@ static void prv_check_down_button_extended_refresh(void) {
 
 // Down click handler
 static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  if (prv_press_blocked(BUTTON_ID_DOWN)) {
+    return;
+  }
   prv_record_interaction();
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
@@ -978,6 +1041,9 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *ctx) {
 
 // Down long click handler
 static void prv_down_long_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  if (prv_press_blocked(BUTTON_ID_DOWN)) {
+    return;
+  }
   prv_record_interaction();
   prv_cancel_quit_timer();
   timer_reset_auto_snooze();
@@ -991,6 +1057,9 @@ static void prv_down_long_click_handler(ClickRecognizerRef recognizer, void *ctx
 
 // Up raw down click handler
 static void prv_up_raw_down_handler(ClickRecognizerRef recognizer, void *ctx) {
+  if (prv_press_down_blocked(BUTTON_ID_UP)) {
+    return;
+  }
   s_up_held = true;
   prv_record_interaction();
   prv_stop_new_expire_timer();
@@ -1002,6 +1071,9 @@ static void prv_up_raw_up_handler(ClickRecognizerRef recognizer, void *ctx) {
 }
 
 static void prv_down_raw_down_handler(ClickRecognizerRef recognizer, void *ctx) {
+#if WAKEUP_GUARD_FEATURE
+  prv_press_down_blocked(BUTTON_ID_DOWN);
+#endif
 }
 
 // Click configuration provider
@@ -1127,6 +1199,15 @@ static void prv_initialize(void) {
 
   // If launched by a wakeup, restore the slot that scheduled the alarm and skip the timer list
   bool wakeup_launch = (launch_reason() == APP_LAUNCH_WAKEUP);
+#if WAKEUP_GUARD_FEATURE
+  // Wakeup input guard: start the window, and block every button so a press
+  // held from before launch (no press-down in this app) is ignored on release
+  s_wakeup_launch_ms = (uint32_t)epoch();
+  s_blocked_buttons = wakeup_launch ? 0xFF : 0;
+  if (wakeup_launch) {
+    test_log_state("wakeup_launch");
+  }
+#endif
   if (wakeup_launch && timer_count > 0) {
     WakeupId wakeup_id;
     int32_t wakeup_cookie = 0;
