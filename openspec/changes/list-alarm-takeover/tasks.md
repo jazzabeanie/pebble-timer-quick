@@ -5,30 +5,65 @@
 ## 1. Failing tests
 
 - [ ] 1.1 `test/test_timer_multi.c`: tests for `timer_running_countdown_mask()`: a running countdown with time left is set; paused, overdue, and chrono slots are not set
-- [ ] 1.2 `test/test_timer_multi.c`: tests for `timer_find_ended_countdown()`: -1 when none has ended; the ended slot when one has; the first to end when two have; ended slots outside the mask are ignored
-- [ ] 1.3 `test/test_main_logic.c`: `main_show_alarm()` after a switch to an ended countdown slot leaves the main window in Counting mode on that slot and vibrating
+- [ ] 1.2 `test/test_timer_multi.c`: tests for `timer_find_ended_countdown()`: -1 when none has ended; 0 when slot 0 has ended (not taken as "none"); 1 when slot 1 has ended and slot 0 still runs; the first to end when two have; ended slots outside the mask are ignored
+- [ ] 1.2a `test/test_timer_multi.c`: watch mask tests: `timer_watch_add_running()` adds only running countdowns with time left; a bit stays set after the end; `timer_watch_clear()`; `timer_slot_delete()` drops and shifts bits (delete below, at, and above a watched slot); `timer_next_watched_end_ms()` returns the soonest end, ignores ended slots, and returns -1 for none
+- [ ] 1.2b `test/test_timer_multi.c`: an alarm shown 2 min after its end vibrates, and auto-snoozes 30 s after it was shown, not at once; the offset of one slot does not affect another
+- [ ] 1.3 `test/test_main_logic.c`: `main_show_alarm()` on slot 0 that is already elapsed and vibrating: Counting mode, still vibrating, guard started, no second `alarm_start`
+- [ ] 1.3a `test/test_main_logic.c`: `main_show_alarm()` on a non-zero slot that the main window has never checked: Counting mode on that slot, the vibration starts, the backlight turns on
 - [ ] 1.4 `test/test_main_logic.c`: after `main_show_alarm()`, a press-down at +100 ms, a Back at +100 ms, and a release with no press-down are all ignored (the alarm keeps vibrating, the app does not pop); a Down press at +600 ms snoozes
-- [ ] 1.5 Functional test `test/functional/test_list_alarm_takeover.py`: save a ~15 s countdown, exit with Back, reopen (user launch) so the Timer List shows, then wait for `list_alarm_takeover` and `alarm_start` (`m=Counting`, `v=1`); accept `alarm_start` before or after `list_alarm_takeover` (slot 0 can start its alarm behind the list); skip on aplite
+- [ ] 1.4a `test/test_main_logic.c` (sim): not busy, slot 1 ends while slot 0 counts down: slot 1 takes over at its end time, vibrates, the guard starts; slot 0 keeps running and is watched
+- [ ] 1.4b `test/test_main_logic.c` (sim): slot 1 ends while slot 0 alarms: held (no mode or slot change, slot 1 `length_ms` unchanged); Select silences slot 0, and slot 1 takes over at once; also at once for Back, Down, the 30 s vibration ending on its own, an edit that expires, and a button that leaves an edit mode; no watch timer is scheduled while held
+- [ ] 1.4b2 `test/test_main_logic.c` (sim): slot 1 held behind slot 0's alarm; press Up: slot 0 is silenced and the edit screen shows; slot 1 does **not** take over (mode is still the edit mode, active slot still 0); when that edit expires, slot 1 takes over
+- [ ] 1.4c `test/test_main_logic.c` (sim): slot 1 ends while slot 0 is in New, EditSec, and EditRepeat: held; when the edit expires to Counting, slot 1 takes over
+- [ ] 1.4d `test/test_main_logic.c` (sim): two held alarms open in the order they ended, the second after the first is silenced
+- [ ] 1.4e `test/test_main_logic.c` (sim): an alarm held for 45 s vibrates when shown (no instant auto-snooze) and shows about 0:45
+- [ ] 1.4f `test/test_main_logic.c` (sim): a countdown overdue at launch never takes over; with the Timer List on top, the main watch does nothing
+- [ ] 1.5 Functional test `test/functional/test_list_alarm_takeover.py`, slot 0 ends: save one ~20 s countdown, exit with Back, reopen (user launch) so the Timer List shows; expect `list_alarm_takeover` with `slot=0` and `timer_list_hide` within ~1.5 s of the end time, and `alarm_start` (`m=Counting`, `v=1`) before or after the takeover; then a Down after the guard window snoozes from the main window; skip on aplite
+- [ ] 1.5a Functional test, slot 1 ends: a 5 min countdown in slot 0 and a ~30 s countdown in slot 1; move the list selection off the short timer's row; expect `list_alarm_takeover` with `slot=1`, `alarm_start` with `v=1`, `tl` equal to the short timer's length, and a Down after the guard window snoozes
+- [ ] 1.5b Functional test, delete shifts the mask: the same two timers; delete the 5 min one; expect the short one to take over as `slot=0` with its own `tl`
+- [ ] 1.5c Functional test, deleted countdown: delete the short one; expect no takeover within 3 s after its end time
+- [ ] 1.5d Functional test, overdue and paused at open: expect no takeover within 3 s
+- [ ] 1.5e Functional test, main window: two countdowns about 20 s apart; the first rings; do not silence it; check that the second does not take over while the first rings; silence the first with Select; expect `main_alarm_takeover` for the second at once, `alarm_start` with `v=1`, and `t` near its real overtime
+- [ ] 1.5f `test/test_main_logic.c` (sim, D12): mock `wakeup_schedule` (record time, cookie, result; `E_RANGE` within 1 minute of another, including a test-made "other app" wakeup); one held: primary at +10 s and backups at +130 s and +250 s with its cookie, mask saved; two held: cookie is the first to end, both bits saved; held + active ending 30 s later: primary is the held alarm, active bit saved, it rings at its end after the relaunch; held + active ending 5 s later: primary is the active countdown, held bit saved; active only: primary at its end, backups 2 min and 4 min later; active ending in 10 min + non-active ending in 3 min: primary is the non-active one with its slot as the cookie, both bits saved; two non-active 20 s apart: primary is the first, the second is watched after that launch; "other app" within 1 minute of the primary: primary `E_RANGE`, both backups scheduled; "other app" near the primary and the first backup: both `E_RANGE`, second backup scheduled; no pending alarm: no wakeup, mask 0
+- [ ] 1.5g `test/test_main_logic.c` (sim, D12): a backup launch 2 min late vibrates for its full time and shows ~2:00, and a second-backup launch shows ~4:00; a second countdown that ended while waiting for a backup is held after that launch and takes over after the first; wakeup launch for a held alarm that ended 45 s ago vibrates for its full time and shows ~0:45; the second saved held alarm takes over after the first is silenced; a user launch before the wakeup opens straight to the held alarm (D13)
+- [ ] 1.5h Functional test: two countdowns ~20 s apart; the second ends while the first rings (held); exit with the system exit (hold Back; if the emulator cannot do it, rely on the sim tests); expect `wakeup_launch` about 10 s later with the second timer active, `alarm_start` `v=1`, `t` near its real overtime
+- [ ] 1.5i `test/test_timer_multi.c` (D13): `timer_find_due_countdown(5000)` finds a countdown ending in 3 s and one that ended 3 s ago, picks the first to end, counts the bounds (exactly ±5000 ms), and ignores ±8 s, paused, and chrono slots
+- [ ] 1.5j `test/test_main_logic.c` (sim, D13; stub `timer_list_show()` counts calls): user launch with a countdown ending in 3 s (no list, active in Counting, guard at alarm start); ended 3 s ago (no list, vibrates, guard at launch); saved held alarm 2 min old (no list, full vibration, shows ~2:00); ±8 s (list as before); "Multiple Timers" off (the due slot is active, not slot 0)
+- [ ] 1.5k Functional test (D13): a 5 min countdown in slot 0 and a ~20 s one in slot 1; exit; reopen ~3 s before its end; expect `launch_due` with `slot=1`, no `timer_list_show`, then `alarm_start` `v=1`; repeat, reopening ~3 s after the end
+- [ ] 1.5l `test/test_main_logic.c` (sim, D14): slot 0 alarms with slot 1 held; hold Down deletes slot 0, the held timer takes over, the window is not popped; with no held alarm, hold Down exits as today
+- [ ] 1.5m `test/test_main_logic.c` (sim, D5): an edit expires on a countdown with over 20 min left (quit timer started); another timer takes over 10 s later; at 60 s the app has not quit
+- [ ] 1.5n `test/test_main_logic.c` (sim, D15): a 21 min countdown with 45 s left: an edit expires, no quit timer starts, its alarm starts at 45 s, and at 60 s the app has not quit and still vibrates (fails today); 25 min with 21 min left: the quit timer starts; 25 min with 19 min left: no quit timer; the quit timer fires with an alarm held: no quit, the held alarm takes over
 - [ ] 1.6 Functional test: after the takeover, silence the alarm and quit, reopen, and check that the Timer List has one more entry (the kept stopwatch)
-- [ ] 1.7 Run the new tests and confirm they fail
+- [ ] 1.7 Run the new tests and confirm they fail; record that the slot 0 test sees `alarm_start` while the list stays open, the slot 1 test sees no `alarm_start` at all, and the main-window test never sees the second alarm
 
 ## 2. Implementation
 
 - [ ] 2.1 `src/timer.c` / `timer.h`: add `timer_running_countdown_mask()` and `timer_find_ended_countdown(uint32_t mask)`, with a compile-time check that `MAX_TIMERS <= 32`
+- [ ] 2.1a `src/timer.c` / `timer.h`: add the shared watch mask (`timer_watch_add_running()`, `timer_watch_clear()`, `timer_watch_mask()`), shift it in `timer_slot_delete()`, and add `timer_next_watched_end_ms()`
+- [ ] 2.1b `src/timer.c`: add the per-slot "alarm shown" offset and use it in the vibration limit in `timer_check_elapsed()`; clear it in `timer_increment()`, `timer_reset()`, and `timer_repeat_restart()`
 - [x] 2.2 `src/main.c`: move the guard start in `prv_initialize` into `prv_start_input_guard()` (already done by `wakeup-input-guard`)
 - [ ] 2.3 `src/main.c` / `main.h`: add `main_show_alarm()`: Counting mode, clear reverse direction, stop the edit-expire timer, start the guard, record the interaction, cancel the main app timer, and run `prv_app_timer_callback(NULL)` at once
-- [ ] 2.4 `src/timer_list.c`: in `prv_window_load`, store `s_watch_mask` before the implicit slot is created
-- [ ] 2.5 `src/timer_list.c`: in `prv_refresh_callback`, call `timer_find_ended_countdown(s_watch_mask)`; on a hit, set the active slot, keep the implicit slot, log `TEST_STATE:list_alarm_takeover,slot=<n>`, call `main_show_alarm()`, and pop the list
-- [ ] 2.6 `src/timer_list.c`: add `prv_mask_remove_slot()` and call it after a single-timer delete (hold Down on an existing timer)
-- [ ] 2.7 Wrap all new code in `WAKEUP_GUARD_FEATURE` so that it is compiled out on aplite
+- [ ] 2.4 `src/timer_list.c`: in `prv_window_load`, call `timer_watch_add_running()` before the implicit slot is created
+- [ ] 2.5 `src/timer_list.c`: in `prv_refresh_callback`, call `timer_find_ended_countdown(timer_watch_mask())`; on a hit, set the active slot and clear its watch bit, keep the implicit slot, log `TEST_STATE:list_alarm_takeover,slot=<n>`, call `main_show_alarm()`, and pop the list
+- [ ] 2.6 (Covered by 2.1a: `timer_slot_delete()` shifts the mask for every delete path)
+- [ ] 2.6a `src/timer_list.c`: log `TEST_STATE:timer_list_hide` in the window unload
+- [ ] 2.6b `src/main.c`: add the main-window watch (`s_watch_timer`, `prv_watch_arm()`), the busy check, the hold (no re-check timer), and the takeover (log `TEST_STATE:main_alarm_takeover,slot=<n>` and `TEST_STATE:alarm_held,slot=<n>`)
+- [ ] 2.6c `src/main.c` / `main.h`: call `prv_watch_arm()` at the end of `prv_initialize` (no list), from `main_watch_arm()` on every list exit path back to the main window, after a takeover, after the lap view switches the slot, and at each event that ends "busy": the end of every main-window click handler (never in the middle of a handler, so Up into edit stays held), the edit-expire callback, and `prv_app_timer_callback()` when the active alarm stops vibrating on its own
+- [ ] 2.6d `src/main.c`: in `prv_terminate`, replace the active-countdown wakeup with D12: save the pending mask (`PERSIST_PENDING_MASK_KEY`: held bits + every running countdown's bit), schedule one primary wakeup at the earliest event (held alarm at the current whole second + `HELD_WAKEUP_DELAY_S` 10 s, or the soonest end of any running countdown), and backups at + `BACKUP_WAKEUP_DELAY_S` (2 min) and + 2 × `BACKUP_WAKEUP_DELAY_S` (4 min) with the same cookie; log the results
+- [ ] 2.6e `src/main.c`: in `prv_initialize`, read the pending mask into the watch mask and delete the key; on a wakeup launch for an ended slot, mark the alarm as shown at launch (D11) and clear its watch bit
+- [ ] 2.6f `src/timer.c` / `src/main.c` (D13): add `timer_find_due_countdown()`; in `prv_initialize` on a user launch, open straight to a saved held alarm or a countdown within ±5 s (`LAUNCH_DUE_WINDOW_MS`), skip the list, set up the guard, and log `TEST_STATE:launch_due,slot=<n>`
+- [ ] 2.6g `src/main.c` (D14): in `prv_down_long_click_handler`, after the delete, take over a held alarm instead of exiting
+- [ ] 2.6h `src/main.c` (D5, D15): start the auto-quit timer only when the countdown's time left (`timer_get_value_ms()`) is over 20 min (all platforms); `main_show_alarm()` cancels the auto-quit timer; `prv_quit_callback()` does not quit while an alarm vibrates or is held, and runs `prv_watch_arm()` instead
+- [ ] 2.7 Wrap all new code in `WAKEUP_GUARD_FEATURE` so that it is compiled out on aplite (except the D15 time-left test)
 
 ## 3. Verify
 
 - [ ] 3.1 Re-run the new tests and confirm they pass
 - [ ] 3.2 Run all unit tests and the full basalt functional suite (compare to the 153-test baseline; `test_timer_counts_down` is a known OCR flake)
-- [ ] 3.3 Build for aplite and confirm that the text and data sizes are unchanged from before this change
+- [ ] 3.3 Build for aplite and confirm that the only size change is the small D15 time-left test
 
 ## 4. Docs
 
 - [ ] 4.1 Update `docs/button-functions.md`: in the Timer List section, describe the alarm takeover (kept stopwatch, input guard), with its test references
-- [ ] 4.2 In the Wakeup Input Guard section, note that the guard also starts at a Timer List alarm takeover
+- [ ] 4.2 In the Wakeup Input Guard section, note that the guard also starts at a Timer List or main-window alarm takeover
+- [ ] 4.3 Describe the main-window takeover and the held alarm (busy = alarm or edit screen, takeover when free, real overtime shown, full vibration, hold Down shows the held alarm, wakeup ~10 s after a system exit), the next-event wakeup for any timer with backups at 2 min and 4 min, the ±5 s launch rule, Up on an alarm keeps a held alarm waiting, and the auto-quit fix (time left), with test references
