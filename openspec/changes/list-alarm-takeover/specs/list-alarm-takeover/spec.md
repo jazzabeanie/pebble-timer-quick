@@ -240,6 +240,60 @@ before the wakeup, the held alarms SHALL still take over.
 
 ---
 
+### Requirement: An alarm stays pending until it has rung and stopped
+
+An ended countdown's alarm SHALL stay pending until its vibration has started
+and then stopped: the user silences or snoozes it with a press that the input
+guard allows (on aplite, which has no guard, any press), or it stops on its own after its normal vibration time. A takeover
+or a launch that shows the alarm SHALL NOT, by itself, end the pending state.
+This SHALL apply to the active timer's own alarm and to an alarm that took over.
+If the app closes while the active timer's alarm is pending, the app SHALL treat
+it as a held alarm: it SHALL wake up about 10 seconds after the exit and show
+that alarm, with its alarm vibrating for its full normal time and its screen
+showing the real time since it ended.
+
+#### Scenario: Another app opens during a takeover alarm
+
+- **WHEN** a countdown takes over from the Timer List and its alarm vibrates
+- **AND** another app opens 2 seconds later, before the user presses a button
+- **THEN** the app wakes up about 10 seconds after it closed
+- **AND** that timer is the active timer and its alarm vibrates for its full time
+- **AND** its screen shows the real time since it ended
+
+#### Scenario: The app closes before the alarm starts to vibrate
+
+- **WHEN** a wakeup launch opens an ended countdown's alarm
+- **AND** the app closes before the vibration starts
+- **THEN** the app wakes up about 10 seconds later and shows that alarm
+
+#### Scenario: The active timer's own alarm
+
+- **WHEN** only one countdown is saved, and it is the active timer
+- **AND** its alarm vibrates
+- **AND** another app opens before the user presses a button
+- **THEN** the app wakes up about 10 seconds later and shows that alarm
+
+#### Scenario: A press that the guard ignores does not end the pending state
+
+- **WHEN** a countdown takes over and the user is already holding Back
+- **AND** the guard ignores that press, and the system exit closes the app
+- **THEN** the app wakes up about 10 seconds later and shows that alarm
+
+#### Scenario: A silenced alarm is not pending
+
+- **WHEN** the user silences a vibrating alarm with Select
+- **AND** the app then closes by the system exit
+- **THEN** the app does not wake up for that alarm
+
+#### Scenario: An alarm that stops on its own is not pending
+
+- **WHEN** an alarm vibrates for its full time and stops on its own
+- **THEN** it is not pending
+- **AND** it auto-snoozes as before, and its snoozed countdown is watched as
+  usual
+
+---
+
 ### Requirement: Each exit schedules the next alarm event of any timer, with backups
 
 When the app closes, it SHALL schedule one wakeup for the next alarm event of
@@ -368,8 +422,8 @@ SHALL apply whether the "Multiple Timers" setting is on or off.
 
 ### Requirement: The input guard starts when the alarm takes over
 
-When a countdown takes over (from the Timer List or from the main window), the
-app SHALL ignore every
+On every platform except aplite, when a countdown takes over (from the Timer
+List or from the main window), the app SHALL ignore every
 button press whose press-down occurs within `WAKEUP_INPUT_GUARD_MS` (250 ms) of
 the takeover, and every press that was already held down at the takeover. This
 uses the same rules as the wakeup input guard: an ignored press triggers no
@@ -397,13 +451,38 @@ keeps vibrating.
 
 ---
 
-### Requirement: The takeover is not included on aplite
+### Requirement: The takeover is included on every platform
 
-The alarm takeover and hold SHALL be active on every supported platform except
-aplite. On aplite they SHALL be compiled out to save RAM, and the Timer List and
-the main window SHALL behave as before.
+The alarm takeover, the held alarm, the next-event wakeup with its backups, the
+launch rule, the pending alarm, and the auto-quit fix SHALL be active on every
+supported platform, including aplite. No timer SHALL fail to ring on aplite
+because a part of this change is left out there. The input guard is the only
+exception: it SHALL stay compiled out on aplite, as the `wakeup-input-guard`
+capability says. On aplite, every press at a takeover SHALL act at once, and
+every press SHALL count as the user dealing with a pending alarm.
 
-#### Scenario: No takeover on aplite
+#### Scenario: Takeover on aplite
 
 - **WHEN** the app runs on aplite and a countdown ends while the Timer List is open
-- **THEN** the Timer List stays open
+- **THEN** the Timer List closes within one list refresh
+- **AND** the main window shows that timer's alarm, vibrating
+
+#### Scenario: A non-active countdown ends on aplite while the app is closed
+
+- **WHEN** the app runs on aplite and closes while the timer on screen ends in
+  10 minutes and another countdown ends in 3 minutes
+- **THEN** the app wakes up at the 3 minute countdown's end and shows its alarm
+
+#### Scenario: No guard at a takeover on aplite
+
+- **WHEN** the app runs on aplite and a countdown takes over
+- **AND** the user presses Down 100 ms later
+- **THEN** the alarm is snoozed
+
+#### Scenario: A Down held across a takeover on aplite
+
+- **WHEN** the app runs on aplite and the user starts to hold Down in the Timer
+  List just before a countdown ends
+- **AND** the user keeps holding Down until after the takeover
+- **THEN** the timer that took over is not deleted
+- **AND** the app does not exit

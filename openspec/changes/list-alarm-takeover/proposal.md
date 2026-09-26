@@ -23,6 +23,7 @@ The gap also exists when the app is closed. On exit, the app schedules a wakeup 
 - If several alarms are held, the one that ended first opens first. The others stay held until the user is free again.
 - Back cannot exit while an alarm is held: during an alarm, Back silences it, and the held alarm then takes over. Hold Down (delete the timer and exit) also shows the held alarm instead of exiting.
 - If the app closes by another path while an alarm is held (the system exit with hold Back, or another app opens), the app wakes up about 10 s later and shows the held alarm, the same as any alarm wakeup. Other held alarms are saved and stay held after that launch, so each one rings in turn.
+- An alarm stays pending until it has rung and stopped (the user silences or snoozes it, or it stops on its own). A takeover or a launch that shows the alarm does not end this. If the app closes while the alarm on screen is still pending (for example, another app opens before the user presses a button), the app treats it as a held alarm and wakes up about 10 s later. This applies to the active timer's own alarm too. Today, that alarm is lost.
 - On every exit, the app schedules one wakeup for the next alarm event of **any** timer (a held alarm, or the countdown that ends first, active or not), and saves the others. It also schedules two backup wakeups, 2 min and 4 min later, in case the first one fails or is missed (for example, because another app has a wakeup within the same minute). A launch cancels the backups. After each launch, the app watches the other timers, and the next exit schedules the next event again.
 - The app's 60 s auto-quit timer starts only when the time left is over 20 min (today it tests the timer's full length). It also never closes the app while an alarm vibrates or is held. Today it can close the app during the alarm of a long timer that had less than 60 s left when an edit ended; this change fixes that too.
 - `docs/button-functions.md` is updated.
@@ -33,7 +34,7 @@ The gap also exists when the app is closed. On exit, the app schedules a wakeup 
 - `list-alarm-takeover`: A countdown that reaches zero while it is not on screen opens its alarm screen and starts the input guard. From the Timer List, it closes the list and keeps the implicit new timer as a stopwatch. From the main window, it takes over at once, or it is held while the user is on an alarm or edit screen and takes over when the user is free.
 
 ### Modified Capabilities
-<!-- none: the Select, Back, idle, and delete behavior of the Timer List does not change -->
+<!-- none: the Select, Back, idle, and delete behavior of the Timer List does not change, and the wakeup-input-guard capability stays off on aplite -->
 
 ## Impact
 
@@ -41,6 +42,6 @@ The gap also exists when the app is closed. On exit, the app schedules a wakeup 
 - `src/timer_list.c`: add running countdowns to the watch mask when the list opens, check it on each 500 ms refresh, and do the takeover.
 - `src/main.c` / `main.h`: a new `main_show_alarm()` API. It sets Counting mode, stops the edit-expire timer, starts the input guard, and checks the alarm at once (the main refresh timer can be up to a minute away). A new main-window watch timer that fires at the soonest watched end time and does the takeover or the hold; the hold is re-checked at each event that ends "busy". The wakeup scheduling in `prv_terminate` changes to one primary (the next event of any timer) plus two backups. The auto-quit timer tests the time left, and its callback checks for alarms.
 - Builds on the `wakeup-input-guard` capability (its guard state and helpers in `src/main.c`), archived 2026-09-24; see `openspec/specs/wakeup-input-guard/spec.md`.
-- Aplite: compiled out with the `WAKEUP_GUARD_FEATURE` switch. The aplite heap is already below the ~1.6 KB floor. Aplite keeps today's behavior, except the auto-quit time-left test, which is on every platform.
+- Aplite: every part of this change is on aplite too, so no timer fails to ring there. The one exception is the input guard, which stays compiled out on aplite (`WAKEUP_GUARD_FEATURE`), as today. Without it, a stray press can silence or snooze an alarm, but the alarm has still rung. The aplite heap is already below the ~1.6 KB floor, so the change is measured and tested on aplite. If it does not fit, a follow-up change trims it (see design D6).
 - Tests: unit tests in `test/test_timer_multi.c` and `test/test_main_logic.c`; a functional test in `test/functional/`.
 - `src/main.c` (`prv_terminate`, `prv_initialize`): on exit, schedule one wakeup for the next alarm event of any timer plus backups 2 min and 4 min later, and save the pending alarms in a new persist key; restore them on launch. No change to the saved timer data, so `PERSIST_VERSION` stays the same.
