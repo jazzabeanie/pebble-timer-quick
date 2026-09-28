@@ -497,10 +497,15 @@ an alarm is held. Any takeover SHALL cancel the auto-quit timer.
 On a user launch, the app SHALL NOT open straight to a saved held alarm. It
 SHALL open as usual, and each saved held alarm SHALL be held as if it had ended
 while the app was open. If the Timer List shows, the held timers' rows are
-marked and the watch vibrates five short pulses when the list opens. If the
-Timer List does not show (the "Multiple Timers" setting is off), the main
-window rules apply: the held alarm takes over at once if the user is free, or
-it stays held while the main window is busy.
+marked and the watch vibrates five short pulses when the list opens.
+
+If the Timer List does not show (the "Multiple Timers" setting is off), the
+main window shows slot 0, which is the only countdown in normal use. A saved
+held alarm on slot 0 is the active timer's own alarm, not a takeover: its alarm
+SHALL start at launch and SHALL vibrate for its full normal time, counted from
+the launch, with its screen showing the real time since it ended. Any other
+held slot (a countdown left from when the setting was on) SHALL follow the
+main-window rules.
 
 A countdown that has not ended at the launch SHALL be watched as usual. A
 countdown that ended before the launch and is not a saved held alarm is
@@ -521,11 +526,13 @@ overdue at open.
 #### Scenario: Open after a wakeup was missed, Multiple Timers off
 
 - **WHEN** the "Multiple Timers" setting is off
-- **AND** a saved countdown in slot 1 ended 2 minutes ago while the app was
+- **AND** the saved countdown in slot 0 ended 2 minutes ago while the app was
   closed, and its wakeup did not launch the app
-- **AND** the user opens the app, and the main window shows slot 0 in Counting
-  mode
-- **THEN** the slot 1 alarm takes over at once, vibrating
+- **AND** the user opens the app
+- **THEN** the main window shows slot 0's alarm, vibrating for its full normal
+  time (it does not auto-snooze at once)
+- **AND** its screen shows about 2:00 since it ended
+- **AND** a press 100 ms after the alarm starts is ignored
 
 #### Scenario: Open 3 seconds before a countdown ends
 

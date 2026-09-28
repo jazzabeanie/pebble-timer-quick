@@ -224,9 +224,9 @@ On a user launch (not a wakeup), `prv_initialize` restores the saved pending mas
 Each saved bit whose countdown has ended is a held alarm, the same as one that ended while the app was open:
 
 - If the Timer List shows, D4 marks its row and vibrates the five pulses when the list opens. It takes over when the user leaves the list.
-- If the list does not show ("Multiple Timers" off), `prv_watch_arm()` at the end of `prv_initialize` (D8) applies the main-window rules: it takes over at once when the main window is in Counting mode, or it stays held while the main window is busy (for example, in New mode), and takes over when the user is free.
+- If the list does not show ("Multiple Timers" off), the main window shows slot 0. With the setting off, the app cannot make a new countdown slot (the list makes them; laps are stopwatches), so slot 0 is the only countdown in normal use, and a held bit on it is the **active timer's own alarm**, not a takeover. Mark it as shown at launch (D11), the same as on a wakeup launch. Without this, `timer_check_elapsed()` counts the 30 s vibration from the timer's end, so an alarm that ended 2 min ago would auto-snooze at once and never vibrate. Its first `prv_app_timer_callback()` starts the vibration, and the alarm-start guard starts (D17). A held bit on another slot (a countdown left from when the setting was on) follows the main-window rules through `prv_watch_arm()` at the end of `prv_initialize` (D8).
 
-When it takes over, `main_show_alarm()` marks it as shown (D11), so it vibrates for its full time, and starts the guard (D5). Its watch bit stays set until the alarm has rung and stopped (D16).
+When a held alarm takes over, `main_show_alarm()` marks it as shown (D11), so it vibrates for its full time, and starts the guard (D5). Its watch bit stays set until the alarm has rung and stopped (D16).
 
 A countdown that has not ended at the launch is watched as usual: D4 holds it in the list, and D8 to D10 take it over or hold it in the main window. A countdown that ended before the launch and has no saved bit is not watched ("overdue at open"). This is a countdown whose alarm the user already stopped (its bit was cleared, D16), or one from a run where `prv_terminate` did not run (a crash, a battery pull, or a reboot). The list opens as before.
 
@@ -345,8 +345,8 @@ The two failures in the Context are the core of this change, so each one has its
 - Functional: two countdowns about 20 s apart; let the first ring, and let the second end while it rings (held); exit with the system exit (hold Back); expect a `wakeup_launch` about 10 s later with the second timer active, `alarm_start` with `v=1`, and `t` near its real overtime. If the emulator cannot do the system exit, rely on the sim tests.
 - `test/test_main_logic.c`, D13 (stub `timer_list_show()` counts calls):
   - user launch with a saved held alarm in slot 1 and a 5 min countdown in slot 0, "Multiple Timers" on: the list shows, no takeover, no vibration, and no guard;
-  - the same with "Multiple Timers" off and slot 0 in Counting mode: slot 1 takes over at once (`main_alarm_takeover`), vibrates for its full time, shows about 2:00, and a press at +100 ms is ignored;
-  - the same with "Multiple Timers" off and the main window in New mode: held; it takes over when the edit ends.
+  - "Multiple Timers" off, a saved held alarm on slot 0 that ended 2 min ago: no list, no takeover log; slot 0 vibrates for its full time (it does not auto-snooze at once), shows about 2:00, and a press at +100 ms after `alarm_start` is ignored;
+  - "Multiple Timers" off, a leftover held countdown in slot 1 and slot 0 counting down: slot 1 takes over at once (`main_alarm_takeover`).
 - `test/test_timer_multi.c`: `timer_ended_mask()` returns only the ended slots of the mask (none, slot 0, slot 1, both; paused and chrono slots are not included).
 - `test/test_main_logic.c`, D16 (sim, with the D12 `wakeup_schedule` mock):
   - a takeover (`main_show_alarm()`), then exit 2 s into the vibration with no press: a primary wakeup at +10 s with that slot as the cookie, its bit saved; the wakeup launch vibrates for its full time and shows the real overtime;
