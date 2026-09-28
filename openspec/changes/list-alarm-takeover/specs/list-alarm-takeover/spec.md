@@ -1,13 +1,23 @@
 ## ADDED Requirements
 
-### Requirement: A countdown that ends while the Timer List is open opens its alarm screen
+### Requirement: A countdown that ends while the Timer List is open is held and marked
 
 While the Timer List window is open, the app SHALL watch every countdown timer
-that was running with time left when the list opened. When a watched countdown
-reaches zero, the app SHALL close the Timer List and show that timer in the main
-window in Counting mode, as the active timer, with its alarm vibrating. This
-SHALL happen within one list refresh (500 ms) of the countdown reaching zero,
-whatever row is selected in the list.
+that was running with time left when the list opened, and every saved held
+alarm. The Timer List counts as busy: when a watched countdown reaches zero
+while the list is open, the app SHALL hold its alarm and SHALL NOT close the
+list. Within one list refresh (500 ms) of the countdown reaching zero, whatever
+row is selected, the app SHALL:
+
+- mark that timer's row with a large alarm icon that is clearly visible on
+  both the selected and the unselected row, and
+- vibrate five short pulses in a row, once for that alarm. This pattern SHALL
+  be different from the single short pulse for a new timer and from the three
+  vibrations of the slot-limit warning.
+
+While the list is open, a held alarm SHALL NOT start its alarm vibration. This
+includes slot 0, which the main window under the list checks. The held timer's
+end time, length, and base length SHALL NOT change.
 
 #### Scenario: The only saved countdown (slot 0) ends while the list is open
 
@@ -15,19 +25,18 @@ whatever row is selected in the list.
   about 20 seconds left
 - **AND** the Timer List is shown
 - **AND** the countdown reaches zero while the list is still open
-- **THEN** the Timer List closes within one list refresh
-- **AND** the main window shows that timer in Counting mode
-- **AND** the alarm vibrates
-- **AND** the next button press after the guard window goes to the alarm
-  screen, not to the Timer List (Down snoozes the alarm)
+- **THEN** the Timer List stays open
+- **AND** within one list refresh, the timer's row shows the alarm icon and the
+  watch vibrates five short pulses
+- **AND** the alarm vibration does not start
 
 #### Scenario: The ending timer is not slot 0
 
 - **WHEN** two countdowns are saved: a long one in slot 0 and a short one in
   slot 1
 - **AND** the short one reaches zero while the Timer List is open
-- **THEN** the alarm vibrates
-- **AND** the short timer becomes the active timer and its alarm screen shows
+- **THEN** the short timer's row shows the alarm icon and the watch vibrates
+  five short pulses
 - **AND** the long timer in slot 0 is not changed and keeps counting down
 
 #### Scenario: The ending timer's list row is not its slot number
@@ -36,25 +45,19 @@ whatever row is selected in the list.
   same as its slot number (for example, the short timer in slot 1 is shown in
   the first timer row, above the long timer in slot 0)
 - **AND** the short timer reaches zero while the Timer List is open
-- **THEN** the timer that opens is the one that reached zero (its length and
-  remaining time are shown), not the timer at the same row or slot number
-
-#### Scenario: The selected row does not matter
-
-- **WHEN** the user has moved the list selection to a different timer row, or
-  to the "New Timer" row
-- **AND** a watched countdown reaches zero
-- **THEN** the timer that reached zero opens, not the selected one
+- **THEN** the alarm icon shows on the short timer's row, not on the row at the
+  same position as its slot number
 
 #### Scenario: Two countdowns end in the same refresh
 
 - **WHEN** two watched countdowns both reach zero before the next list refresh
-- **THEN** the app opens the countdown that reached zero first
+- **THEN** both rows show the alarm icon
+- **AND** the watch vibrates the five short pulses once
 
-#### Scenario: A deleted countdown is not opened
+#### Scenario: A deleted countdown is not marked
 
 - **WHEN** the user deletes a watched countdown from the list (hold Down)
-- **THEN** that timer does not open when its end time passes
+- **THEN** no row is marked and there is no vibration when its end time passes
 - **AND** the other watched countdowns are still watched
 
 #### Scenario: A delete that moves the ending timer to a lower slot
@@ -63,42 +66,146 @@ whatever row is selected in the list.
 - **AND** the user deletes the long countdown from the list, so the short
   countdown moves to slot 0
 - **AND** the short countdown then reaches zero while the list is open
-- **THEN** the short countdown opens with its alarm vibrating
+- **THEN** the short countdown's row shows the alarm icon
+
+#### Scenario: The list opens with a saved held alarm
+
+- **WHEN** a saved held alarm exists and the Timer List opens
+- **THEN** the held timer's row shows the alarm icon when the list opens
+- **AND** the watch vibrates five short pulses when the list opens
 
 ---
 
-### Requirement: Countdowns that ended before the list opened do not take over
+### Requirement: A held alarm in the Timer List takes over when the user leaves the list
 
-A countdown that had reached zero more than 5 seconds before the app opened, or
-that was paused, when the Timer
-List opened SHALL NOT close the list. The list SHALL behave as before for such
-timers.
+When the user leaves the Timer List while one or more alarms are held, a held
+alarm SHALL take over: the list closes, and the main window shows that timer as
+the active timer in Counting mode, with its alarm vibrating for its full normal
+time and its screen showing the real time since it ended. Unless a rule below
+names the timer, the held alarm that ended first SHALL take over. Each way to
+leave the list SHALL act as follows:
+
+- Select on a held timer's row: that timer's alarm takes over.
+- Select on another existing timer's row: the held alarm takes over instead of
+  the selected timer. The selected timer SHALL NOT change and SHALL NOT show
+  first.
+- Select on the "New Timer" row: the main window opens in New mode, as before.
+  New mode is busy, so the alarm stays held and takes over when the new timer
+  is set (the edit ends).
+- Back: the held alarm takes over instead of the app exiting.
+- The 30-second idle timeout: the held alarm takes over instead of the app
+  going to the background.
+- Hold Down on the "New Timer" row: the implicit new timer is discarded, as
+  before, and the held alarm takes over instead of the app exiting.
+- Hold Down on a held timer's row: that timer and its alarm are deleted, as
+  before. The list stays open, and the other held alarms stay held and marked.
+- Hold Down on the "Delete all" row: every timer is deleted, and the app exits,
+  as before.
+
+The other held alarms SHALL stay held after a takeover and take over in turn
+when the user is free.
+
+#### Scenario: Select on another timer
+
+- **WHEN** an alarm is held in the Timer List
+- **AND** the user selects a different existing timer
+- **THEN** the held timer's alarm shows, vibrating
+- **AND** the selected timer is not changed
+
+#### Scenario: Select on the held timer
+
+- **WHEN** an alarm is held in the Timer List
+- **AND** the user selects the held timer's row
+- **THEN** that timer's alarm shows, vibrating
+
+#### Scenario: Select on New Timer
+
+- **WHEN** an alarm is held in the Timer List
+- **AND** the user selects "New Timer"
+- **THEN** the main window opens in New mode, and the alarm stays held
+- **AND** when the user has set the new timer and the edit ends, the held
+  alarm takes over, vibrating
+
+#### Scenario: Back
+
+- **WHEN** an alarm is held in the Timer List
+- **AND** the user presses Back
+- **THEN** the app does not exit
+- **AND** the held timer's alarm shows, vibrating
+
+#### Scenario: Idle
+
+- **WHEN** an alarm is held in the Timer List
+- **AND** the user presses no button for 30 seconds
+- **THEN** the app does not go to the background
+- **AND** the held timer's alarm shows, vibrating
+
+#### Scenario: Hold Down on New Timer
+
+- **WHEN** an alarm is held in the Timer List
+- **AND** the user holds Down on the "New Timer" row
+- **THEN** the app does not exit
+- **AND** the held timer's alarm shows, vibrating
+
+#### Scenario: Hold Down on the held timer
+
+- **WHEN** an alarm is held in the Timer List
+- **AND** the user holds Down on the held timer's row
+- **THEN** that timer is deleted and its alarm does not show
+- **AND** the list stays open
+
+#### Scenario: Two alarms held in the list
+
+- **WHEN** two alarms are held in the Timer List
+- **AND** the user presses Back
+- **THEN** the one that ended first takes over
+- **AND** after the user silences it, the second one takes over
+
+---
+
+### Requirement: Countdowns that ended before the list opened are not held
+
+A countdown that had reached zero before the app opened and is not a saved
+held alarm, or that was paused, when the Timer List opened SHALL NOT be held or
+marked, and SHALL NOT vibrate. The list SHALL behave as before for such timers.
 
 #### Scenario: Overdue countdown at launch
 
-- **WHEN** a saved countdown ended more than 5 seconds before the app was opened
+- **WHEN** a saved countdown ended before the app was opened, and it is not a
+  saved held alarm (for example, the user silenced its alarm and then closed
+  the app)
 - **AND** the user opens the app and the Timer List is shown
-- **THEN** the Timer List stays open
+- **THEN** its row shows no alarm icon and the watch does not vibrate
+- **AND** Back exits the app as before
 
 #### Scenario: Paused countdown
 
 - **WHEN** a saved countdown is paused
 - **AND** the Timer List is open
-- **THEN** the paused countdown never closes the list
+- **THEN** the paused countdown is never marked
 
 ---
 
-### Requirement: The implicit new timer is kept as a stopwatch on takeover
+### Requirement: The implicit new timer follows the button that leaves the list
 
-When the Timer List closes because a countdown ended, the implicit "New Timer"
-slot created when the list opened SHALL NOT be discarded. It SHALL stay saved
-as a running stopwatch (chrono) that counts from the moment the list opened.
+When a held alarm takes over from the Timer List, the implicit "New Timer" slot
+created when the list opened SHALL be kept or discarded by the same rule as
+before for the button that left the list. Back and the idle timeout SHALL keep
+it as a running stopwatch (chrono) that counts from the moment the list opened.
+Select on an existing timer and hold Down on the "New Timer" row SHALL discard
+it.
 
-#### Scenario: New Timer slot kept
+#### Scenario: Back keeps the New Timer slot
 
-- **WHEN** a countdown ends while the Timer List is open
+- **WHEN** an alarm is held in the Timer List and the user presses Back
 - **THEN** the implicit new timer is still saved as a running stopwatch
 - **AND** the next time the Timer List opens it shows that stopwatch as an entry
+
+#### Scenario: Select on another timer discards the New Timer slot
+
+- **WHEN** an alarm is held in the Timer List and the user selects another
+  existing timer
+- **THEN** the implicit new timer is discarded, as before
 
 ---
 
@@ -127,7 +234,8 @@ keep running, and if it is a countdown with time left, it SHALL be watched too.
 
 #### Scenario: A timer that was overdue at launch does not take over
 
-- **WHEN** a saved countdown ended more than 5 seconds before the app opened
+- **WHEN** a saved countdown ended before the app opened, and it is not a saved
+  held alarm
 - **AND** the main window shows another timer
 - **THEN** the overdue countdown does not take over
 
@@ -135,9 +243,9 @@ keep running, and if it is a countdown with time left, it SHALL be watched too.
 
 ### Requirement: A countdown that ends while the user is busy is held
 
-When a watched countdown reaches zero while the user is busy (the active timer
-is alarming, or the main window is in New mode or an edit mode), the app SHALL
-hold its alarm. A held alarm SHALL NOT vibrate, change the screen, or change the
+When a watched countdown reaches zero while the user is busy (the Timer List
+is open, the active timer is alarming, or the main window is in New mode or an
+edit mode), the app SHALL hold its alarm. A held alarm SHALL NOT vibrate, change the screen, or change the
 held timer's end time, length, or base length. The held alarm SHALL take over
 as soon as the user is no longer busy: when the current alarm is silenced,
 snoozed, or stops vibrating on its own, or when an edit mode ends. The alarm
@@ -208,7 +316,8 @@ alarm that ended first,
 with its alarm vibrating for its full normal time and its screen showing the
 real time since it ended. The other held alarms SHALL stay held after that
 launch and take over in turn when the user is free. If the user reopens the app
-before the wakeup, the held alarms SHALL still take over.
+before the wakeup, the held alarms SHALL still be held: marked in the Timer
+List, or taking over in the main window when the user is free.
 
 #### Scenario: Hold Down while an alarm is held
 
@@ -236,7 +345,8 @@ before the wakeup, the held alarms SHALL still take over.
 
 - **WHEN** an alarm is held and the app closes by the system exit
 - **AND** the user reopens the app 3 seconds later
-- **THEN** the app opens straight to the held alarm
+- **THEN** the Timer List shows, with the held timer's row marked
+- **AND** the watch vibrates five short pulses
 
 ---
 
@@ -382,41 +492,55 @@ an alarm is held. Any takeover SHALL cancel the auto-quit timer.
 
 ---
 
-### Requirement: Opening the app near a timer's end opens that timer
+### Requirement: A user launch holds a saved held alarm
 
-On a user launch, if a saved held alarm exists, the app SHALL open straight to
-the held alarm that ended first. Otherwise, if a running countdown ended in the
-last 5 seconds or ends in the next 5 seconds, the app SHALL open straight to the
-one that ends (or ended) first. In both cases the app SHALL NOT show the Timer
-List, SHALL make that timer the active timer in Counting mode, and SHALL start
-the input guard when its alarm starts (at launch, if it has already ended). This
-SHALL apply whether the "Multiple Timers" setting is on or off.
+On a user launch, the app SHALL NOT open straight to a saved held alarm. It
+SHALL open as usual, and each saved held alarm SHALL be held as if it had ended
+while the app was open. If the Timer List shows, the held timers' rows are
+marked and the watch vibrates five short pulses when the list opens. If the
+Timer List does not show (the "Multiple Timers" setting is off), the main
+window rules apply: the held alarm takes over at once if the user is free, or
+it stays held while the main window is busy.
+
+A countdown that has not ended at the launch SHALL be watched as usual. A
+countdown that ended before the launch and is not a saved held alarm is
+overdue at open.
+
+#### Scenario: Open after a wakeup was missed
+
+- **WHEN** a saved countdown in slot 1 ended 2 minutes ago while the app was
+  closed, and its wakeup did not launch the app
+- **AND** a 5 minute countdown is in slot 0
+- **AND** the user opens the app
+- **THEN** the Timer List shows, with the slot 1 row marked
+- **AND** the watch vibrates five short pulses, and the alarm vibration does
+  not start
+- **AND** when the user presses Back, the slot 1 alarm shows, vibrating, with
+  about 2:00 since it ended
+
+#### Scenario: Open after a wakeup was missed, Multiple Timers off
+
+- **WHEN** the "Multiple Timers" setting is off
+- **AND** a saved countdown in slot 1 ended 2 minutes ago while the app was
+  closed, and its wakeup did not launch the app
+- **AND** the user opens the app, and the main window shows slot 0 in Counting
+  mode
+- **THEN** the slot 1 alarm takes over at once, vibrating
 
 #### Scenario: Open 3 seconds before a countdown ends
 
-- **WHEN** a saved countdown ends 3 seconds after the user opens the app
-- **THEN** the Timer List is not shown
-- **AND** the main window shows that countdown in Counting mode
-- **AND** its alarm vibrates when it ends
-- **AND** a press 100 ms after the alarm starts is ignored
+- **WHEN** two countdowns are saved, and one of them ends 3 seconds after the
+  user opens the app
+- **THEN** the Timer List shows as usual
+- **AND** when the countdown ends, its row is marked and the watch vibrates
+  five short pulses, and the list stays open
 
-#### Scenario: Open 3 seconds after a countdown ended
+#### Scenario: A silenced alarm does not reopen
 
-- **WHEN** a saved countdown ended 3 seconds before the user opens the app
-- **THEN** the Timer List is not shown
-- **AND** the main window shows that timer's alarm, vibrating
-
-#### Scenario: The due timer is not slot 0
-
-- **WHEN** a 5 minute countdown is in slot 0 and a countdown in slot 1 ends 3
-  seconds after the user opens the app
-- **THEN** the slot 1 timer is the one shown
-
-#### Scenario: Not near an end
-
-- **WHEN** the nearest countdown ends 8 seconds after the user opens the app
-- **THEN** the Timer List shows as before
-- **AND** the list takeover opens the countdown when it ends
+- **WHEN** an alarm wakes the app, and the user silences it and closes the app
+- **AND** the user opens the app again 3 seconds later
+- **THEN** the app opens as usual (the Timer List shows as before, with no
+  marked row)
 
 ---
 
@@ -432,14 +556,15 @@ keeps vibrating.
 
 #### Scenario: Press held from the list is ignored
 
-- **WHEN** the user is holding Down in the Timer List
-- **AND** a countdown ends and its alarm screen opens
+- **WHEN** an alarm is held in the Timer List
+- **AND** the user holds Down on the "New Timer" row, and the held alarm takes
+  over
 - **AND** the user then releases Down
 - **THEN** the alarm is not snoozed and keeps vibrating
 
 #### Scenario: Press just after the takeover is ignored
 
-- **WHEN** a countdown ends and its alarm screen opens
+- **WHEN** a held alarm takes over from the Timer List (the user pressed Back)
 - **AND** the user presses Back 100 ms later
 - **THEN** the app stays open and the alarm keeps vibrating
 
@@ -453,8 +578,9 @@ keeps vibrating.
 
 ### Requirement: The takeover is included on every platform
 
-The alarm takeover, the held alarm, the next-event wakeup with its backups, the
-launch rule, the pending alarm, and the auto-quit fix SHALL be active on every
+The alarm takeover, the held alarm (including the Timer List's alarm icon and
+five-pulse vibration), the next-event wakeup with its backups, the launch
+rule, the pending alarm, and the auto-quit fix SHALL be active on every
 supported platform, including aplite. No timer SHALL fail to ring on aplite
 because a part of this change is left out there. The input guard is the only
 exception: it SHALL stay compiled out on aplite, as the `wakeup-input-guard`
@@ -464,8 +590,10 @@ every press SHALL count as the user dealing with a pending alarm.
 #### Scenario: Takeover on aplite
 
 - **WHEN** the app runs on aplite and a countdown ends while the Timer List is open
-- **THEN** the Timer List closes within one list refresh
-- **AND** the main window shows that timer's alarm, vibrating
+- **THEN** within one list refresh, its row shows the alarm icon and the watch
+  vibrates five short pulses
+- **AND** when the user presses Back, the main window shows that timer's
+  alarm, vibrating
 
 #### Scenario: A non-active countdown ends on aplite while the app is closed
 
@@ -481,8 +609,9 @@ every press SHALL count as the user dealing with a pending alarm.
 
 #### Scenario: A Down held across a takeover on aplite
 
-- **WHEN** the app runs on aplite and the user starts to hold Down in the Timer
-  List just before a countdown ends
-- **AND** the user keeps holding Down until after the takeover
-- **THEN** the timer that took over is not deleted
+- **WHEN** the app runs on aplite and an alarm is held in the Timer List
+- **AND** the user holds Down on the "New Timer" row, and the held alarm takes
+  over
+- **AND** the user then releases Down
+- **THEN** the timer that took over is not deleted or snoozed
 - **AND** the app does not exit

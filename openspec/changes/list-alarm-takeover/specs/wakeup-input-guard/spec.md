@@ -120,9 +120,8 @@ ignored on release.
 The input guard SHALL start only when an alarm shows. That is one of:
 
 - a wakeup launch;
-- a user launch that opens straight to a held alarm or to a countdown that
-  already ended in the last 5 seconds (`list-alarm-takeover`);
-- an alarm takeover, from the Timer List or from the main window
+- an alarm takeover, from the Timer List or from the main window, including
+  a held alarm that takes over when the user leaves the Timer List
   (`list-alarm-takeover`);
 - an alarm start (see "The guard starts at every alarm start").
 
@@ -132,21 +131,15 @@ immediately, as before.
 
 #### Scenario: User launch is not guarded
 
-- **WHEN** the user launches the app from the menu, and no countdown has ended
-- **AND** presses Select 100 ms after launch
+- **WHEN** the user launches the app from the menu, and the Timer List shows
+  (with or without a marked held alarm)
+- **AND** presses Down 100 ms after launch
 - **THEN** the press acts normally
-
-#### Scenario: User launch just after a countdown ended is guarded
-
-- **WHEN** a saved countdown ended 3 seconds before the user opens the app
-- **AND** the user presses Down 100 ms after launch
-- **THEN** the press has no effect
-- **AND** the alarm keeps vibrating
 
 #### Scenario: A takeover is guarded
 
-- **WHEN** a countdown ends while the Timer List is open, and its alarm screen
-  opens
+- **WHEN** an alarm is held in the Timer List, and the user presses Back, so
+  its alarm screen opens
 - **AND** the user presses Back 100 ms later
 - **THEN** the app stays open
 - **AND** the alarm keeps vibrating
