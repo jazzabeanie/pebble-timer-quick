@@ -14,7 +14,7 @@ The main window has the same gap. It checks only the active slot, so a non-activ
 
 `timer_check_elapsed()` stops the vibration when the overtime passes `VIBRATION_LENGTH_MS` (30 s), and then it auto-snoozes by `SNOOZE_INCREMENT_MS` (5 min). So a timer that is opened more than 30 s after its end does not vibrate; it snoozes at once.
 
-The wakeup input guard (`wakeup-input-guard` capability) is in `src/main.c`: `s_wakeup_launch_ms` (low 32 bits of `epoch()`), the `s_blocked_buttons` bitmask with the `WAKEUP_GUARD_OPEN` bit, `prv_press_down_blocked()`, and `prv_press_blocked()`. `prv_start_input_guard()` records the time and sets `s_blocked_buttons = 0xFF`. On a wakeup launch, `prv_initialize` calls it and sets `s_restart_guard_on_alarm`, and `prv_app_timer_callback` restarts the guard at the first alarm start. The Timer List shows only on user launches, so that flag is always false while the list is open. The code is compiled out on aplite (`WAKEUP_GUARD_FEATURE`), and it stays out there (D6). `WAKEUP_INPUT_GUARD_MS` is 250.
+The wakeup input guard (`wakeup-input-guard` capability) is in `src/main.c`: `s_wakeup_launch_ms` (low 32 bits of `epoch()`), the `s_blocked_buttons` bitmask with the `WAKEUP_GUARD_OPEN` bit, `prv_press_down_blocked()`, and `prv_press_blocked()`. `prv_start_input_guard()` records the time and sets `s_blocked_buttons = 0xFF`. On a wakeup launch, `prv_initialize` calls it and sets `s_restart_guard_on_alarm`, and `prv_app_timer_callback` restarts the guard at the first alarm start. The Timer List shows only on user launches, so that flag is always false while the list is open. The code is compiled out on aplite (`WAKEUP_GUARD_FEATURE`), and it stays out there (D6). `WAKEUP_INPUT_GUARD_MS` is 250; this change makes it 400 and starts the guard at every alarm start (D17).
 
 ## Goals / Non-Goals
 
@@ -85,7 +85,7 @@ Add a new public API that the list takeover (D4) and the main-window takeover (D
 
 - `main_set_control_mode(ControlModeCounting)` (this also cancels any lap flash), clear `is_reverse_direction`, and stop the edit-expire timer.
 - Cancel the auto-quit timer (`prv_cancel_quit_timer()`). An edit that expires on a long timer starts a 60 s quit timer (`QUIT_DELAY_MS`); without this, the app would quit while the new alarm shows.
-- Start the input guard: call the existing `prv_start_input_guard()` directly. Do not set `s_restart_guard_on_alarm` instead: if the slot is slot 0, it can already be vibrating behind the list, so there is no not-elapsed to elapsed change and the restart would never fire.
+- Start the input guard: call the existing `prv_start_input_guard()` directly. Do not rely on the alarm-start guard (D17) instead: if the slot is slot 0, it can already be vibrating behind the list, so there is no not-elapsed to elapsed change and the alarm-start guard does not fire.
 - Mark the alarm as shown now (D11), so that it vibrates for its full time.
 - `prv_record_interaction()` (screen-on window and fast refresh).
 - Re-arm the main-window watch (D8).
@@ -196,7 +196,7 @@ If there is a due slot:
 
 - Make it the active slot and do not show the Timer List (as on a wakeup launch). Start in Counting mode.
 - If it has already ended (held, or in the last 5 s): mark the alarm as shown at launch (D11), start the input guard at launch, and let the first `prv_app_timer_callback` start the vibration.
-- If it has not ended yet: set `s_restart_guard_on_alarm = true`, so the existing wakeup-guard code starts the guard when its alarm starts.
+- If it has not ended yet: do nothing more. The alarm-start guard (D17) starts the guard when its alarm starts.
 - Log `TEST_STATE:launch_due,slot=<n>`.
 
 Its watch bit stays set until the alarm has rung and stopped (D16). This works with the "Multiple Timers" setting on or off. The other held alarms stay in the watch mask, and D8 takes them over in turn.
@@ -238,12 +238,24 @@ In `prv_terminate`, an ended slot whose bit is set is a held alarm (D12), even i
 - Clear the bit when the vibration starts. Rejected. The vibration can start and the app can close a moment later, before the user sees the screen.
 - Clear the bit in each silence and snooze path. Rejected. There are many paths, and a missed one leaves a stale held alarm. One check in `prv_watch_arm()`, which already runs after every such event (D9), covers them all.
 
+### D17. The guard starts at every alarm start, and it is 400 ms
+
+The user wants the guard every time an alarm shows, including the alarm of the countdown already on screen. A press meant for the running timer (for example, a Down to add time just before it ends) must not snooze the alarm that has just started.
+
+- `WAKEUP_INPUT_GUARD_MS` in `src/main.h` goes from 250 to 400.
+- In `prv_app_timer_callback()`, on every not-elapsed to elapsed change, call `prv_start_input_guard()` (inside `#if WAKEUP_GUARD_FEATURE`). This covers the on-screen timer's own alarm, the early-wakeup case, the D13 launch before the end, and a snoozed or repeated timer that reaches zero again. Keep the `guard_restart` log there, so the functional tests can see it.
+- Remove `s_restart_guard_on_alarm`. The alarm-start guard does its job for every launch, so the flag is not needed.
+- The guard at a wakeup launch (at `prv_initialize`), at the D13 launch of an ended timer, and in `main_show_alarm()` (D5) stays. In those cases the alarm can already be vibrating, so there is no alarm start.
+- The guard is the same `s_blocked_buttons = 0xFF` state, so a button held at the alarm start is ignored on release.
+
+*Alternative:* guard only when the screen changes (takeovers and launches). Rejected by the user: the on-screen timer's alarm is guarded too.
+
 ### D6. Aplite
 
 No timer may fail to ring on any platform, so every part of this change is on aplite too, **except the input guard**. The guard only decides what a press does after the alarm has rung. Without it, a stray press can silence, snooze, or edit the alarm, but the screen has already changed and the watch has buzzed, so the alarm is not missed. The guard costs about 336 bytes, and on aplite that RAM is better spent on the code that makes alarms ring.
 
-- `WAKEUP_GUARD_FEATURE` stays 0 on aplite, as today. The aplite rule of the `wakeup-input-guard` capability does not change. That capability's "only wakeup launches" rule is widened to cover takeovers and the D13 launch (see its delta spec). The guard still does not start when the countdown already on screen reaches zero while the app is open.
-- Only the guard calls are inside `#if WAKEUP_GUARD_FEATURE`: `prv_start_input_guard()` in `main_show_alarm()` (D5) and in the D13 launch path, and `s_restart_guard_on_alarm` (D13). All other new code is on every platform.
+- `WAKEUP_GUARD_FEATURE` stays 0 on aplite, as today. The aplite rule of the `wakeup-input-guard` capability does not change. That capability's "only wakeup launches" rule is widened to every time an alarm shows (D17 and its delta spec).
+- Only the guard calls are inside `#if WAKEUP_GUARD_FEATURE`: `prv_start_input_guard()` in `main_show_alarm()` (D5), in the D13 launch path, and at the alarm start (D17). All other new code is on every platform.
 - On aplite, every press counts for D16, so a stray press ends the pending state.
 - On aplite, nothing blocks the release of a button that was held down in the list at the takeover (D5). The press-down was in the list window, so the main window should get only the release, and no long-click. A functional test on aplite checks that a Down held across a takeover does not delete the timer or exit.
 
@@ -343,6 +355,7 @@ The two failures in the Context are the core of this change, so each one has its
 - [The aplite heap falls below the safe floor, or aplite faults] → Measure and test on aplite before the change is done (D6). If it does not fit, trim in the D6 order in a follow-up change.
 - [Another app's wakeups are within 1 minute of our primary and both backups] → All three fail. The alarm shows at the next open (D13). Very rare, accepted.
 - [A backup rings 2 or 4 min late] → Accepted. Late is better than never, and the screen shows the real overtime.
+- [A press within 400 ms of any alarm start is dropped, even one the user meant for the running timer] → Accepted (D17). The user presses again. Existing tests that press soon after an alarm start need a wait past the window.
 - [The auto-quit timer now starts less often] → A countdown with 20 min or less left no longer auto-quits after an edit. The app stays open until the user exits. This is a small change in behavior, and it is safe, because the next-event wakeup does not depend on the app being closed.
 - [A crash, battery pull, or reboot skips `prv_terminate`] → Nothing is saved or scheduled. No design can fix this.
 - [An alarm that the user ignores is shown again after the app closes] → Only when the app closed before the alarm stopped. The alarm rings once more about 10 s later. This is correct for an alarm (D16).

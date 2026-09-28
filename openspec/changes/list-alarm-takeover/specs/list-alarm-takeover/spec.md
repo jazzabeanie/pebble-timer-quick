@@ -424,7 +424,7 @@ SHALL apply whether the "Multiple Timers" setting is on or off.
 
 On every platform except aplite, when a countdown takes over (from the Timer
 List or from the main window), the app SHALL ignore every
-button press whose press-down occurs within `WAKEUP_INPUT_GUARD_MS` (250 ms) of
+button press whose press-down occurs within `WAKEUP_INPUT_GUARD_MS` (400 ms) of
 the takeover, and every press that was already held down at the takeover. This
 uses the same rules as the wakeup input guard: an ignored press triggers no
 single-click, long-click, multi-click, or raw press-down action, and the alarm
