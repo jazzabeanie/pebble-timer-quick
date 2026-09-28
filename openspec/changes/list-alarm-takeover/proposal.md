@@ -34,7 +34,7 @@ The gap also exists when the app is closed. On exit, the app schedules a wakeup 
 - `list-alarm-takeover`: A countdown that reaches zero while it is not on screen opens its alarm screen and starts the input guard. From the Timer List, it closes the list and keeps the implicit new timer as a stopwatch. From the main window, it takes over at once, or it is held while the user is on an alarm or edit screen and takes over when the user is free.
 
 ### Modified Capabilities
-<!-- none: the Select, Back, idle, and delete behavior of the Timer List does not change, and the wakeup-input-guard capability stays off on aplite -->
+- `wakeup-input-guard`: The guard no longer applies only to wakeup launches. It also starts at an alarm takeover (from the Timer List or the main window) and at a user launch that opens straight to a due timer. It still does not start when the countdown already on screen reaches zero while the app is open. It stays off on aplite. The Select, Back, idle, and delete behavior of the Timer List does not change.
 
 ## Impact
 

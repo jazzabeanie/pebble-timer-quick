@@ -242,7 +242,7 @@ In `prv_terminate`, an ended slot whose bit is set is a held alarm (D12), even i
 
 No timer may fail to ring on any platform, so every part of this change is on aplite too, **except the input guard**. The guard only decides what a press does after the alarm has rung. Without it, a stray press can silence, snooze, or edit the alarm, but the screen has already changed and the watch has buzzed, so the alarm is not missed. The guard costs about 336 bytes, and on aplite that RAM is better spent on the code that makes alarms ring.
 
-- `WAKEUP_GUARD_FEATURE` stays 0 on aplite, as today. The `wakeup-input-guard` capability does not change.
+- `WAKEUP_GUARD_FEATURE` stays 0 on aplite, as today. The aplite rule of the `wakeup-input-guard` capability does not change. That capability's "only wakeup launches" rule is widened to cover takeovers and the D13 launch (see its delta spec). The guard still does not start when the countdown already on screen reaches zero while the app is open.
 - Only the guard calls are inside `#if WAKEUP_GUARD_FEATURE`: `prv_start_input_guard()` in `main_show_alarm()` (D5) and in the D13 launch path, and `s_restart_guard_on_alarm` (D13). All other new code is on every platform.
 - On aplite, every press counts for D16, so a stray press ends the pending state.
 - On aplite, nothing blocks the release of a button that was held down in the list at the takeover (D5). The press-down was in the list window, so the main window should get only the release, and no long-click. A functional test on aplite checks that a Down held across a takeover does not delete the timer or exit.
