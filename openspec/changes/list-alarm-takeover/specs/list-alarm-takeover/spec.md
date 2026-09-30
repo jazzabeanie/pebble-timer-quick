@@ -82,8 +82,8 @@ When the user leaves the Timer List while one or more alarms are held, a held
 alarm SHALL take over: the list closes, and the main window shows that timer as
 the active timer in Counting mode, with its alarm vibrating for its full normal
 time and its screen showing the real time since it ended. Unless a rule below
-names the timer, the held alarm that ended first SHALL take over. Each way to
-leave the list SHALL act as follows:
+names the timer, the held alarm that ended first SHALL take over. Each list
+action SHALL act as follows while an alarm is held:
 
 - Select on a held timer's row: that timer's alarm takes over.
 - Select on another existing timer's row: the held alarm takes over instead of
@@ -97,10 +97,14 @@ leave the list SHALL act as follows:
   going to the background.
 - Hold Down on the "New Timer" row: the implicit new timer is discarded, as
   before, and the held alarm takes over instead of the app exiting.
+- Select on the "Delete all" row: the hint shows and nothing is deleted, as
+  before. The list stays open, and the alarm stays held and marked.
 - Hold Down on a held timer's row: that timer and its alarm are deleted, as
   before. The list stays open, and the other held alarms stay held and marked.
-- Hold Down on the "Delete all" row: every timer is deleted, and the app exits,
-  as before.
+- Hold Down on another existing timer's row: that timer is deleted, as before.
+  The list stays open, and the held alarms stay held and marked.
+- Hold Down on the "Delete all" row: every timer is deleted, including the held
+  timers, and the app exits, as before. No alarm is left to take over.
 
 The other held alarms SHALL stay held after a takeover and take over in turn
 when the user is free.
@@ -153,6 +157,27 @@ when the user is free.
 - **AND** the user holds Down on the held timer's row
 - **THEN** that timer is deleted and its alarm does not show
 - **AND** the list stays open
+
+#### Scenario: Hold Down on another timer
+
+- **WHEN** an alarm is held in the Timer List
+- **AND** the user holds Down on a different existing timer's row
+- **THEN** that timer is deleted
+- **AND** the list stays open, and the held timer's row is still marked
+
+#### Scenario: Select on Delete all
+
+- **WHEN** an alarm is held in the Timer List
+- **AND** the user selects "Delete all"
+- **THEN** the hint shows, nothing is deleted, and the list stays open
+- **AND** the held timer's row is still marked
+
+#### Scenario: Hold Down on Delete all
+
+- **WHEN** an alarm is held in the Timer List
+- **AND** the user holds Down on "Delete all"
+- **THEN** every timer is deleted and the app exits
+- **AND** no alarm shows, and the app does not wake up for it
 
 #### Scenario: Two alarms held in the list
 
@@ -385,7 +410,8 @@ showing the real time since it ended.
 
 #### Scenario: A press that the guard ignores does not end the pending state
 
-- **WHEN** a countdown takes over and the user is already holding Back
+- **WHEN** the app runs on a platform with the input guard (not aplite)
+- **AND** a countdown takes over and the user is already holding Back
 - **AND** the guard ignores that press, and the system exit closes the app
 - **THEN** the app wakes up about 10 seconds later and shows that alarm
 
@@ -494,9 +520,10 @@ an alarm is held. Any takeover SHALL cancel the auto-quit timer.
 
 ### Requirement: A user launch holds a saved held alarm
 
-On a user launch, the app SHALL NOT open straight to a saved held alarm. It
-SHALL open as usual, and each saved held alarm SHALL be held as if it had ended
-while the app was open. If the Timer List shows, the held timers' rows are
+On a user launch, the app SHALL NOT open straight to a takeover of a saved
+held alarm. It SHALL open as usual. Each saved held alarm ended before the
+launch, but the app SHALL hold it by the same rules as a countdown that ends
+while the app is open and the user is busy. If the Timer List shows, the held timers' rows are
 marked and the watch vibrates five short pulses when the list opens.
 
 If the Timer List does not show (the "Multiple Timers" setting is off), the
@@ -532,7 +559,8 @@ overdue at open.
 - **THEN** the main window shows slot 0's alarm, vibrating for its full normal
   time (it does not auto-snooze at once)
 - **AND** its screen shows about 2:00 since it ended
-- **AND** a press 100 ms after the alarm starts is ignored
+- **AND** a press 100 ms after the alarm starts is ignored (except on aplite,
+  which has no input guard)
 
 #### Scenario: Open 3 seconds before a countdown ends
 

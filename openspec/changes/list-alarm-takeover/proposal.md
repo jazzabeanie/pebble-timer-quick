@@ -16,7 +16,7 @@ The gap also exists when the app is closed. On exit, the app schedules a wakeup 
 - The held alarm takes over when the user leaves the list: Select on any existing timer (the held alarm opens instead of the selected one), Back, the 30 s idle timeout, or hold Down on "New Timer" (these three no longer exit or background the app while an alarm is held). Select on "New Timer" opens New mode as before; the alarm stays held until the new timer is set. The list can therefore never hide an alarm for long: it shows at most 30 s after the last button press.
 - The implicit "New Timer" slot follows the usual rule of the button that left the list: Back and idle keep it as a running stopwatch; Select on an existing timer and hold Down discard it.
 - When a held alarm takes over, the input guard from `wakeup-input-guard` starts (`WAKEUP_INPUT_GUARD_MS`, now 400 ms), so the press that left the list, or one just after it, does not silence the alarm before the user has seen it.
-- When the user opens the app (a user launch), and a saved held alarm exists (for example, a countdown that ended while the app was closed and whose wakeup was missed), the app does **not** open straight to it. It opens as usual, and the alarm is held: its row is marked and the watch vibrates five short pulses when the list opens. When the alarm takes over, it vibrates for its full normal time. If the list does not show ("Multiple Timers" off), the only countdown is the timer on screen, so its alarm starts at launch and vibrates for its full normal time. A countdown that has not ended yet is watched in the same way. This covers the case in "Why" where the user opens the app just before a countdown ends.
+- When the user opens the app (a user launch), and a saved held alarm exists (for example, a countdown that ended while the app was closed and whose wakeup was missed), the app does **not** open straight to a takeover of it. It opens as usual, and the alarm is held: its row is marked and the watch vibrates five short pulses when the list opens. When the alarm takes over, it vibrates for its full normal time. If the list does not show ("Multiple Timers" off), the only countdown is the timer on screen, so its alarm starts at launch and vibrates for its full normal time. A countdown that has not ended yet is watched in the same way. This covers the case in "Why" where the user opens the app just before a countdown ends.
 - A countdown that ended before the app opened and is not a saved held alarm (for example, its alarm was silenced) is not held or marked. The list opens as before.
 - While the main window is open, the app also watches every other running countdown. When one ends while the main window shows a timer that is not alarming and not being edited (Counting mode), it takes over in the same way: it becomes the active timer, its alarm screen shows, and the input guard starts. The timer that was on screen keeps running.
 - When one ends while the user is **busy** (the Timer List is open, the timer on screen is alarming, or the main window is in New mode or an edit mode), its alarm is **held**. The timer itself is not changed. The held alarm takes over as soon as the user is no longer busy (the alarm is silenced, snoozed, or stops by itself, or the edit ends). Up on an alarm silences it and opens the edit screen; the held alarm waits until that edit ends. The alarm screen then shows the real time since the timer ended. In the main window, there is no vibration or other signal while an alarm is held; in the Timer List, the row mark and the five pulses are the signal.
@@ -39,12 +39,29 @@ The gap also exists when the app is closed. On exit, the app schedules a wakeup 
 
 ## Impact
 
-- `src/timer.c` / `timer.h`: a shared watch mask of countdown slots, kept correct by `timer_slot_delete()`; pure helpers that find an ended watched countdown and the soonest watched end time (unit-testable); a per-slot "alarm shown" offset so that a held alarm vibrates for its full time.
-- `src/timer_list.c`: add running countdowns to the watch mask when the list opens; on each 500 ms refresh, find ended watched slots, mark their rows with a new alarm icon, and vibrate five short pulses once per alarm; on Select, Back, idle, and hold Down on "New Timer", let a held alarm take over.
-- `resources/`: a new alarm icon image for the list rows.
-- `src/main.c`: while the Timer List is on top, the main window does not check or vibrate the active slot's alarm.
-- `src/main.c` / `main.h`: a new `main_show_alarm()` API. It sets Counting mode, stops the edit-expire timer, starts the input guard, and checks the alarm at once (the main refresh timer can be up to a minute away). A new main-window watch timer that fires at the soonest watched end time and does the takeover or the hold; the hold is re-checked at each event that ends "busy". The wakeup scheduling in `prv_terminate` changes to one primary (the next event of any timer) plus two backups. The auto-quit timer tests the time left, and its callback checks for alarms.
+- `src/timer.c` / `timer.h`:
+  - a shared watch mask of countdown slots (`timer_watch_add_running()`, `timer_watch_clear()`, `timer_watch_mask()`), with a compile-time check that `MAX_TIMERS <= 32`;
+  - pure helpers that the unit tests can call: `timer_running_countdown_mask()`, `timer_find_ended_countdown()`, `timer_ended_mask()`, and `timer_next_watched_end_ms()`;
+  - a per-slot "alarm shown" offset (`s_alarm_shown_slot`, `s_alarm_shown_ms`), so that a held alarm vibrates for its full time (D11);
+  - `s_alarm_rang_slot`, so that an alarm stays pending until it has rung and stopped (D16);
+  - `timer_slot_delete()` shifts the watch mask and moves the two per-slot values (D3).
+- `src/timer_list.c`:
+  - add running countdowns to the watch mask when the list opens;
+  - `prv_update_alarm_marks()`, called at window load and on each 500 ms refresh: find ended watched slots, mark their rows with the new alarm icon, and vibrate five short pulses once per alarm;
+  - on Select on an existing timer, Back, idle, and hold Down on "New Timer", pop the list and let a held alarm take over;
+  - log `timer_list_hide` in the window unload.
+- `resources/` and `package.json`: a new alarm icon image (`IMAGE_ICON_LIST_ALARM`) for the list rows.
+- `src/main.h`: `WAKEUP_INPUT_GUARD_MS` goes from 250 to 400 (D17).
+- `src/main.c` / `main.h`:
+  - a new `main_show_alarm()` API. It sets Counting mode, stops the edit-expire and auto-quit timers, starts the input guard, marks the alarm as shown, checks the alarm at once (the main refresh timer can be up to a minute away), and then re-arms the main-window watch (D5);
+  - a new `main_watch_arm()` API, which the list calls when it returns to the main window;
+  - while the Timer List is on top, the main window does not check or vibrate the active slot's alarm;
+  - a new main-window watch timer (`prv_watch_arm()`) that fires at the soonest watched end time and does the takeover or the hold. It runs at each event that ends "busy", and it clears the pending state of an alarm that has rung and stopped (D8, D9, D16);
+  - hold Down shows a held alarm instead of exiting (D14);
+  - the auto-quit timer tests the time left, and its callback checks for alarms (D15);
+  - the guard starts at every alarm start, and `s_restart_guard_on_alarm` is removed (D17).
+- `src/main.c` (`prv_terminate`, `prv_initialize`): on exit, schedule one wakeup for the next alarm event of any timer, plus backups 2 min and 4 min later, and save the pending alarms in a new persist key (`PERSIST_PENDING_MASK_KEY`). Restore them on every launch. A user launch never opens straight to a takeover (D13). No change to the saved timer data, so `PERSIST_VERSION` stays the same.
 - Builds on the `wakeup-input-guard` capability (its guard state and helpers in `src/main.c`), archived 2026-09-24; see `openspec/specs/wakeup-input-guard/spec.md`.
 - Aplite: every part of this change is on aplite too, so no timer fails to ring there. The one exception is the input guard, which stays compiled out on aplite (`WAKEUP_GUARD_FEATURE`), as today. Without it, a stray press can silence or snooze an alarm, but the alarm has still rung. The aplite heap is already below the ~1.6 KB floor, so the change is measured and tested on aplite. If it does not fit, a follow-up change trims it (see design D6).
-- Tests: unit tests in `test/test_timer_multi.c` and `test/test_main_logic.c`; a functional test in `test/functional/`.
-- `src/main.c` (`prv_terminate`, `prv_initialize`): on exit, schedule one wakeup for the next alarm event of any timer plus backups 2 min and 4 min later, and save the pending alarms in a new persist key; restore them on launch. No change to the saved timer data, so `PERSIST_VERSION` stays the same.
+- Tests: unit tests in `test/test_timer_multi.c` and `test/test_main_logic.c`; a new functional test file, `test/functional/test_list_alarm_takeover.py`; and existing tests that press a button within 400 ms of an alarm start or a wakeup launch get a wait past the guard window.
+- `docs/button-functions.md` is updated.
