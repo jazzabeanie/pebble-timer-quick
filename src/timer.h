@@ -167,3 +167,69 @@ void timer_slot_delete(uint8_t index);
 
 //! Fill out_indices with slot indices sorted by expiry (countdown soonest first, then stopwatches longest first)
 void timer_get_sorted_slots(uint8_t *out_indices, uint8_t *out_count);
+
+////////////////////////////////////////////////////////////////////////////////
+// Alarm watch
+//
+// A countdown that is not on screen must still ring. The watch mask has one
+// bit per slot: the slot was seen running with time left, and its alarm is
+// still pending (it has not rung and stopped yet). A watched slot whose
+// countdown has reached zero is an "ended" slot: its alarm must take over the
+// screen, or it is held until the user is free. The masks are slot bitmasks,
+// so MAX_TIMERS must be 32 or less.
+
+//! Get the slots that are running countdowns with time left
+//! @return A bitmask of slots
+uint32_t timer_running_countdown_mask(void);
+
+//! Get the slots of a mask whose countdown has reached zero and whose alarm
+//! can still vibrate. A paused slot, a stopwatch, and a countdown whose alarm
+//! was silenced are never "ended".
+//! @param mask The slots to check
+//! @return The ended slots of the mask
+uint32_t timer_ended_mask(uint32_t mask);
+
+//! Find the slot of a mask whose countdown reached zero first
+//! @param mask The slots to check
+//! @return The slot, or -1 if no slot of the mask has ended
+int8_t timer_find_ended_countdown(uint32_t mask);
+
+//! Find the slot of a mask that is a running countdown and ends soonest
+//! @param mask The slots to check
+//! @return The slot, or -1 if no slot of the mask has time left
+int8_t timer_next_ending_slot(uint32_t mask);
+
+//! Get the time until the soonest end among the running countdowns of a mask
+//! @param mask The slots to check
+//! @return The time in milliseconds, or -1 if no slot of the mask has time left
+int64_t timer_next_watched_end_ms(uint32_t mask);
+
+//! Add every running countdown with time left to the watch mask. A bit stays
+//! set after its countdown ends.
+void timer_watch_add_running(void);
+
+//! Remove one slot from the watch mask (its alarm has rung and stopped)
+void timer_watch_clear(uint8_t slot);
+
+//! Get the watch mask
+uint32_t timer_watch_mask(void);
+
+//! Start the watch state at launch: set the watch mask to the saved pending
+//! alarms and clear the "alarm shown" and "alarm rang" values. A bit of a slot
+//! that does not exist has no effect: only existing slots are checked.
+void timer_watch_restore(uint32_t mask);
+
+//! Remove the bit of a deleted slot from a slot mask and move the higher bits
+//! down by one, as timer_slot_delete() moves the slots
+uint32_t timer_mask_delete_bit(uint32_t mask, uint8_t index);
+
+//! Mark the active slot's alarm as shown now. Its vibration time is then
+//! counted from this moment, not from the end of the countdown, so an alarm
+//! that is shown late still vibrates for its full time.
+void timer_alarm_mark_shown(void);
+
+//! Get the slot whose alarm was marked as shown, or -1
+int8_t timer_alarm_shown_slot(void);
+
+//! Get the slot whose alarm has vibrated since it last ended, or -1
+int8_t timer_alarm_rang_slot(void);

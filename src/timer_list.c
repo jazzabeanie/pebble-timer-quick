@@ -50,11 +50,27 @@ static int16_t s_screen_h;
 static GBitmap *s_repeat_icon_dark;   //< black glyph for light (unselected) rows
 static GBitmap *s_repeat_icon_light;  //< white glyph for the black selected row
 
-// Load the repeat glyph and recolor its opaque pixels to `color`, leaving
+// Held alarms. The list is "busy": a watched countdown that reaches zero while
+// the list is open does not take the screen. Its row gets a bell icon, the
+// watch vibrates five short pulses once, and the alarm takes over when the
+// user leaves the list (see prv_alarm_take_over).
+#define ALARM_ICON_SIZE 28
+#define ALARM_ICON_X PBL_IF_ROUND_ELSE(30, 4)
+// Five pulses: unlike the single pulse of "New Timer" and the three of the
+// slot-limit warning
+#define LIST_ALARM_PULSES 5
+static bool     s_on_top;        //< true from the push until the list starts to close
+static uint32_t s_alerted_mask;  //< slots whose alarm was already signalled
+static uint32_t s_marked_mask;   //< slots whose row shows the bell icon
+// The bell, tinted like the repeat glyph. Loaded when the first row is marked.
+static GBitmap *s_alarm_icon_dark;
+static GBitmap *s_alarm_icon_light;
+
+// Load an icon and recolor its opaque pixels to `color`, leaving
 // transparent pixels untouched so GCompOpSet still composites cleanly. Handles
 // the 8-bit (color) and palettized (b&w) formats the resource loads as.
-static GBitmap *prv_create_tinted_repeat_icon(GColor color) {
-  GBitmap *bmp = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_REPEAT_ENABLE);
+static GBitmap *prv_create_tinted_icon(uint32_t resource_id, GColor color) {
+  GBitmap *bmp = gbitmap_create_with_resource(resource_id);
   if (!bmp) {
     return NULL;
   }
@@ -171,6 +187,69 @@ static void prv_update_scroll(void) {
 #endif
 }
 
+// Find the held alarms (watched countdowns that have reached zero), signal the
+// new ones with five short pulses, and mark every held timer's row. Runs when
+// the list opens (a saved held alarm) and on every refresh.
+static void prv_update_alarm_marks(void) {
+  uint32_t ended = timer_ended_mask(timer_watch_mask());
+  uint32_t fresh = ended & ~s_alerted_mask;
+  if (fresh) {
+    // On/off segments: LIST_ALARM_PULSES pulses of 100 ms, 100 ms apart
+    static const uint32_t segments[LIST_ALARM_PULSES * 2 - 1] =
+        {100, 100, 100, 100, 100, 100, 100, 100, 100};
+    vibes_enqueue_custom_pattern((VibePattern){
+      .durations = segments,
+      .num_segments = ARRAY_LENGTH(segments),
+    });
+    TEST_LOG(APP_LOG_LEVEL_DEBUG, "TEST_STATE:vibe,src=list_alarm");
+    // The row is logged too: the list sorts the timers, so a timer's row is
+    // not its slot number
+    for (int16_t row = 0; row < s_total_rows; row++) {
+      int8_t slot = prv_slot_for_row(row);
+      if (slot >= 0 && (fresh & (1u << slot))) {
+        TEST_LOG(APP_LOG_LEVEL_DEBUG, "TEST_STATE:list_alarm_held,slot=%d,row=%d",
+                 (int)slot, (int)row);
+      }
+    }
+    s_alerted_mask |= fresh;
+    // The icons use heap only from the first held alarm on
+    if (!s_alarm_icon_dark) {
+      s_alarm_icon_dark = prv_create_tinted_icon(RESOURCE_ID_IMAGE_ICON_LIST_ALARM, GColorBlack);
+      s_alarm_icon_light = prv_create_tinted_icon(RESOURCE_ID_IMAGE_ICON_LIST_ALARM, GColorWhite);
+    }
+  }
+  s_marked_mask = ended;
+}
+
+// If an alarm is held, leave the list and show it in the main window, instead
+// of what the button would do. `slot` is the held timer to show; any other
+// value shows the held alarm that ended first. The caller first keeps or
+// discards the implicit slot by the usual rule of its button.
+// Returns false when no alarm is held (the caller then goes on as usual).
+static bool prv_alarm_take_over(int8_t slot) {
+  if (!s_on_top) {
+    // The list is closing already (a second press during the pop animation):
+    // another pop would close the main window
+    return true;
+  }
+  uint32_t ended = timer_ended_mask(timer_watch_mask());
+  if (!ended) {
+    return false;
+  }
+  if (slot < 0 || !(ended & (1u << slot))) {
+    slot = timer_find_ended_countdown(ended);
+  }
+  // The slot stays in the watch mask until its alarm has rung and stopped
+  timer_set_active_slot((uint8_t)slot);
+  TEST_LOG(APP_LOG_LEVEL_DEBUG, "TEST_STATE:list_alarm_takeover,slot=%d", (int)slot);
+  // Pop first: while the list is on top, the main window does not check or
+  // start an alarm
+  s_on_top = false;
+  window_stack_pop(true);
+  main_show_alarm();
+  return true;
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Drawing
@@ -227,6 +306,8 @@ static void prv_layer_update_proc(Layer *layer, GContext *ctx) {
 
     // Existing repeating timers get a repeat glyph at the right of the name line
     bool show_repeat_icon = (slot >= 0) && timer_slots[slot].is_repeating;
+    // A held alarm gets the bell at the left, and its text moves to the right
+    bool show_alarm_icon = (slot >= 0) && (s_marked_mask & (1u << slot));
 
     if (slot == SLOT_DELETE_ALL) {
       // Pinned "Delete all" entry
@@ -252,8 +333,9 @@ static void prv_layer_update_proc(Layer *layer, GContext *ctx) {
     // Reserve room on the name line for the repeat glyph so long names don't
     // draw underneath it
     int16_t l1_right_pad = show_repeat_icon ? (REPEAT_ICON_SIZE + 6) : 0;
-    GRect l1_rect = GRect(4, row_y, w - 8 - l1_right_pad, LINE1_HEIGHT);
-    GRect l2_rect = GRect(4, row_y + LINE1_HEIGHT, w - 8, LINE2_HEIGHT);
+    int16_t text_x = show_alarm_icon ? (ALARM_ICON_X + ALARM_ICON_SIZE + 4) : 4;
+    GRect l1_rect = GRect(text_x, row_y, w - 4 - text_x - l1_right_pad, LINE1_HEIGHT);
+    GRect l2_rect = GRect(text_x, row_y + LINE1_HEIGHT, w - 4 - text_x, LINE2_HEIGHT);
 
     GTextAlignment text_align = PBL_IF_ROUND_ELSE(GTextAlignmentCenter, GTextAlignmentLeft);
     graphics_draw_text(ctx, line1, label_font, l1_rect,
@@ -269,6 +351,16 @@ static void prv_layer_update_proc(Layer *layer, GContext *ctx) {
         graphics_context_set_compositing_mode(ctx, GCompOpSet);
         graphics_draw_bitmap_in_rect(ctx, icon,
             GRect(ix, iy, REPEAT_ICON_SIZE, REPEAT_ICON_SIZE));
+      }
+    }
+
+    if (show_alarm_icon) {
+      GBitmap *icon = is_selected ? s_alarm_icon_light : s_alarm_icon_dark;
+      if (icon) {
+        graphics_context_set_compositing_mode(ctx, GCompOpSet);
+        graphics_draw_bitmap_in_rect(ctx, icon,
+            GRect(ALARM_ICON_X, row_y + (ROW_HEIGHT - ALARM_ICON_SIZE) / 2,
+                  ALARM_ICON_SIZE, ALARM_ICON_SIZE));
       }
     }
 
@@ -291,6 +383,12 @@ static void prv_layer_update_proc(Layer *layer, GContext *ctx) {
 
 static void prv_idle_callback(void *data) {
   s_idle_timer = NULL;
+  // A held alarm takes over instead of the app going to the background, so
+  // the list hides an alarm for 30 s after the last press at most. The
+  // implicit slot stays as a stopwatch, as it does without an alarm.
+  if (prv_alarm_take_over(-1)) {
+    return;
+  }
   prv_log_list_state("timer_list_idle_background");
   // Implicit slot stays in array → will be persisted on terminate
   window_stack_pop_all(true);
@@ -303,6 +401,7 @@ static void prv_restart_idle_timer(void) {
 
 static void prv_refresh_callback(void *data) {
   s_refresh_timer = NULL;
+  prv_update_alarm_marks();
   if (s_layer) layer_mark_dirty(s_layer);
   s_refresh_timer = app_timer_register(REFRESH_MS, prv_refresh_callback, NULL);
 }
@@ -377,17 +476,32 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
       // After deletion, if selected_slot > s_implicit_idx it shifted down
       if (selected_slot > s_implicit_idx) selected_slot--;
     }
+    // A held alarm opens instead: the selected timer's own alarm if it is
+    // held, else the one that ended first (the selected timer is not opened)
+    if (prv_alarm_take_over(selected_slot)) {
+      return;
+    }
     timer_set_active_slot((uint8_t)selected_slot);
     main_set_control_mode(ControlModeCounting);
     prv_log_list_state("timer_list_select_existing");
   }
 
   main_force_redraw();
+  s_on_top = false;
   window_stack_pop(true);
+  // The main window has the screen again: check its alarm and arm the watch.
+  // After "New Timer" the main window is in New mode, which is busy, so a
+  // held alarm waits there until the new timer is set.
+  main_watch_arm();
 }
 
 static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_restart_idle_timer();
+  // A held alarm takes over instead of the app exiting. The implicit slot
+  // stays as a stopwatch, as it does without an alarm.
+  if (prv_alarm_take_over(-1)) {
+    return;
+  }
   // Implicit slot stays → persisted on terminate; exit the app
   window_stack_pop_all(true);
 }
@@ -413,16 +527,24 @@ static void prv_down_long_click_handler(ClickRecognizerRef recognizer, void *ctx
 #endif
 
   if (s_implicit_idx >= 0 && s_selected_row == 0) {
-    // Hold Down on "New Timer": discard implicit slot and quit
+    // Hold Down on "New Timer": discard implicit slot and quit, or show a
+    // held alarm instead of quitting
     timer_slot_delete((uint8_t)s_implicit_idx);
     s_implicit_idx = -1;
+    s_total_rows--;  // the "New Timer" row is gone while the list closes
+    if (prv_alarm_take_over(-1)) {
+      return;
+    }
     window_stack_pop_all(true);
     return;
   }
 
-  // Hold Down on existing timer: delete it and refresh list
+  // Hold Down on existing timer: delete it and refresh list. A held timer's
+  // alarm goes with it; the other held alarms stay held and marked.
   int8_t slot_to_delete = prv_slot_for_row(s_selected_row);
   timer_slot_delete((uint8_t)slot_to_delete);
+  // The slots above it moved down (timer_slot_delete moved the watch mask)
+  s_alerted_mask = timer_mask_delete_bit(s_alerted_mask, (uint8_t)slot_to_delete);
 
   // Rebuild sorted list (implicit slot may have shifted)
   if (s_implicit_idx >= 0) {
@@ -475,6 +597,8 @@ static void prv_down_long_click_handler(ClickRecognizerRef recognizer, void *ctx
   }
 #endif
   prv_update_scroll();
+  // Move the marks with the rows
+  prv_update_alarm_marks();
 
   // Log after list is rebuilt so list_count reflects the post-deletion state
   prv_log_list_state("timer_list_delete");
@@ -498,6 +622,12 @@ static void prv_click_config_provider(void *ctx) {
 static void prv_window_load(Window *window) {
   Layer *root = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(root);
+
+  // Watch every countdown that is running with time left now. The list cannot
+  // start or resume a timer, so no other countdown can end while it is open.
+  timer_watch_add_running();
+  s_alerted_mask = 0;
+  s_marked_mask = 0;
 
   // Snapshot pre-existing sorted slots BEFORE creating implicit slot
   uint8_t preexisting_count = timer_count;
@@ -525,19 +655,23 @@ static void prv_window_load(Window *window) {
   s_scroll_y = 0;
   prv_update_scroll();
 
-  s_repeat_icon_dark = prv_create_tinted_repeat_icon(GColorBlack);
-  s_repeat_icon_light = prv_create_tinted_repeat_icon(GColorWhite);
+  s_repeat_icon_dark = prv_create_tinted_icon(RESOURCE_ID_IMAGE_ICON_REPEAT_ENABLE, GColorBlack);
+  s_repeat_icon_light = prv_create_tinted_icon(RESOURCE_ID_IMAGE_ICON_REPEAT_ENABLE, GColorWhite);
 
   s_layer = layer_create(bounds);
   layer_set_update_proc(s_layer, prv_layer_update_proc);
   layer_add_child(root, s_layer);
 
   prv_log_list_state("timer_list_show");
+  // Mark and signal a saved held alarm at once
+  prv_update_alarm_marks();
   prv_restart_idle_timer();
   s_refresh_timer = app_timer_register(REFRESH_MS, prv_refresh_callback, NULL);
 }
 
 static void prv_window_unload(Window *window) {
+  s_on_top = false;
+  prv_log_list_state("timer_list_hide");
   if (s_idle_timer) {
     app_timer_cancel(s_idle_timer);
     s_idle_timer = NULL;
@@ -561,6 +695,14 @@ static void prv_window_unload(Window *window) {
     gbitmap_destroy(s_repeat_icon_light);
     s_repeat_icon_light = NULL;
   }
+  if (s_alarm_icon_dark) {
+    gbitmap_destroy(s_alarm_icon_dark);
+    s_alarm_icon_dark = NULL;
+  }
+  if (s_alarm_icon_light) {
+    gbitmap_destroy(s_alarm_icon_light);
+    s_alarm_icon_light = NULL;
+  }
   layer_destroy(s_layer);
   s_layer = NULL;
   window_destroy(s_window);
@@ -572,7 +714,13 @@ static void prv_window_unload(Window *window) {
 // API
 //
 
+bool timer_list_is_on_top(void) {
+  return s_on_top;
+}
+
 void timer_list_window_push(void) {
+  // Set this first: the main window must not start an alarm behind the list
+  s_on_top = true;
   s_window = window_create();
   window_set_click_config_provider(s_window, prv_click_config_provider);
   window_set_window_handlers(s_window, (WindowHandlers){

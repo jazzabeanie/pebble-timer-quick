@@ -11,6 +11,7 @@ import pytest
 import time
 
 from .conftest import (
+    wait_past_input_guard,
     Button,
     EmulatorHelper,
     PLATFORMS,
@@ -350,6 +351,7 @@ class TestRestartDuringAlarm:
         assert_vibrating(state_alarm, True)
 
         # Long press Select to restart
+        wait_past_input_guard()
         emulator.hold_button(Button.SELECT)
         time.sleep(1)
         emulator.release_buttons()

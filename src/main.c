@@ -30,6 +30,12 @@
 #define BACK_BUTTON_INCREMENT_SEC_MS MSEC_IN_SEC * 60
 #define NEW_EXPIRE_TIME_MS MSEC_IN_SEC * 3
 #define BACKLIGHT_EDIT_LINGER_MS MSEC_IN_SEC
+// Wakeups scheduled at exit: a held alarm rings this long after the app
+// closes, and two backups follow the first wakeup in case it fails or is missed
+#define HELD_WAKEUP_DELAY_S 10
+#define BACKUP_WAKEUP_DELAY_S 120
+// Slot mask of the alarms that were pending at the last exit
+#define PERSIST_PENDING_MASK_KEY 59100
 
 // Main data structure
 static struct {
@@ -71,9 +77,13 @@ static uint8_t s_blocked_buttons = 0;   //< One bit per ButtonId: its current pr
 // Bit in s_blocked_buttons: the guard window may still be open. Cleared by the
 // first press-down after the window, so a wrap of the 32-bit time never reopens it.
 #define WAKEUP_GUARD_OPEN 0x80
-// True from a wakeup launch until the first alarm start, which restarts the guard
-static bool s_restart_guard_on_alarm = false;
 #endif
+
+// Alarm watch: fires when the next watched countdown (a timer that is not on
+// screen) reaches zero
+static AppTimer *s_watch_timer = NULL;
+// Slots whose hold has been logged, so each hold is logged once
+static uint32_t s_held_logged_mask = 0;
 
 #ifdef PBL_MICROPHONE
 // Voice naming: dictation session for the Up+Back chord rename gesture
@@ -104,6 +114,7 @@ static void prv_quit_callback(void *data);
 static void prv_cancel_quit_timer(void);
 static void prv_set_backlight(bool on);
 static void prv_update_backlight(void);
+static void prv_watch_arm(void);
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -160,12 +171,15 @@ static void prv_update_backlight_after_press(void) {
 }
 
 // Common epilogue for interaction handlers: redraw, refresh the backlight to
-// match the resulting mode, and log the new state for functional tests.
+// match the resulting mode, and log the new state for functional tests. The
+// handler has made all its changes by now, so this is also where a held alarm
+// takes over if the press ended an alarm or left an edit screen.
 static void prv_finish_interaction(const char *log_tag) {
   drawing_update();
   layer_mark_dirty(main_data.layer);
   prv_update_backlight_after_press();
   test_log_state(log_tag);
+  prv_watch_arm();
 }
 
 // Helper to record interaction time
@@ -250,6 +264,13 @@ static void prv_apply_edit_increment(int64_t increment_ms) {
 // Callback to quit the app
 static void prv_quit_callback(void *data) {
   main_data.quit_timer = NULL;
+  // Never quit during an alarm: one that vibrates, or another timer's alarm
+  // that waits. Let that one take over instead.
+  if (timer_is_vibrating() ||
+      timer_ended_mask(timer_watch_mask() & ~(1u << timer_get_active_slot()))) {
+    prv_watch_arm();
+    return;
+  }
   window_stack_pop(true);
 }
 
@@ -303,10 +324,15 @@ static void prv_new_expire_callback(void *data) {
     }
     test_log_state("mode_change");
 
-    // Exit if timer is longer than AUTO_BACKGROUND_TIMER_LENGTH_MS, after a delay
-    if (timer_data.length_ms > AUTO_BACKGROUND_TIMER_LENGTH_MS || (timer_is_chrono() && AUTO_BACKGROUND_CHRONO)) {
+    // Exit after a delay if the countdown has more than
+    // AUTO_BACKGROUND_TIMER_LENGTH_MS left. The test is on the time left, not
+    // the length, so the timer's own alarm cannot start before the app quits.
+    if (timer_is_chrono() ? AUTO_BACKGROUND_CHRONO
+                          : (timer_get_value_ms() > AUTO_BACKGROUND_TIMER_LENGTH_MS)) {
       main_data.quit_timer = app_timer_register(QUIT_DELAY_MS, prv_quit_callback, NULL);
     }
+    // The edit ended: a held alarm takes over
+    prv_watch_arm();
   }
 }
 
@@ -703,6 +729,114 @@ static void prv_start_input_guard(void) {
 #define prv_press_down_blocked(button) (false)
 #endif  // WAKEUP_GUARD_FEATURE
 
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Alarm Watch
+//
+// The main window checks only the timer on screen. The watch covers every
+// other countdown: when one reaches zero it takes over the screen, or it is
+// held while the user is busy (the Timer List, an alarm, or an edit screen)
+// and takes over when the user is free. See timer.h for the watch mask.
+
+// Log an alarm watch event for a slot (functional tests)
+static void prv_log_slot(const char *event, int slot) {
+  TEST_LOG(APP_LOG_LEVEL_DEBUG, "TEST_STATE:%s,slot=%d", event, slot);
+}
+
+// Show the active timer's alarm in the main window
+void main_show_alarm(void) {
+  // Counting mode (this also cancels a lap flash), with no edit in progress
+  main_set_control_mode(ControlModeCounting);
+  main_data.is_reverse_direction = false;
+  prv_stop_new_expire_timer();
+  // The app must not quit under the alarm
+  prv_cancel_quit_timer();
+#if WAKEUP_GUARD_FEATURE
+  // Start the guard here: the slot can already be elapsed, and then there is
+  // no alarm start to start it
+  prv_start_input_guard();
+#endif
+  // Count the vibration time from now
+  timer_alarm_mark_shown();
+  prv_record_interaction();
+  // Check the alarm at once: the refresh can be up to a minute away
+  if (main_data.app_timer) {
+    app_timer_cancel(main_data.app_timer);
+  }
+  prv_app_timer_callback(NULL);
+  // Only now: the alarm vibrates, so the user is busy and a second held alarm
+  // waits for its turn
+  prv_watch_arm();
+}
+
+// Check the active timer's alarm and re-arm the alarm watch
+void main_watch_arm(void) {
+  if (main_data.app_timer) {
+    app_timer_cancel(main_data.app_timer);
+  }
+  prv_app_timer_callback(NULL);
+  prv_watch_arm();
+}
+
+// Make a slot whose countdown has ended the active timer and show its alarm
+static void prv_take_over(int8_t slot) {
+  // The slot stays in the watch mask until its alarm has rung and stopped
+  timer_set_active_slot((uint8_t)slot);
+  prv_log_slot("main_alarm_takeover", slot);
+  main_show_alarm();
+}
+
+// Alarm watch timer callback: a watched countdown reached zero
+static void prv_watch_timer_callback(void *data) {
+  s_watch_timer = NULL;
+  prv_watch_arm();
+}
+
+// Re-evaluate the alarm watch. Runs at every event that can end "busy": the
+// end of each click handler, an edit that expires, an alarm that stops on its
+// own, and each time the main window gets the screen back.
+static void prv_watch_arm(void) {
+  if (s_watch_timer) {
+    app_timer_cancel(s_watch_timer);
+    s_watch_timer = NULL;
+  }
+  // The Timer List holds the alarms while it is on top
+  if (timer_list_is_on_top()) {
+    return;
+  }
+  uint8_t active = timer_get_active_slot();
+  // The active timer's alarm has rung and stopped: it is no longer pending.
+  // A press that the input guard ignored never gets here with the alarm
+  // stopped, so that alarm stays pending.
+  if (timer_alarm_rang_slot() == (int8_t)active && !timer_is_vibrating()) {
+    timer_watch_clear(active);
+  }
+  timer_watch_add_running();
+  // The main refresh checks the active slot itself
+  uint32_t mask = timer_watch_mask() & ~(1u << active);
+  uint32_t ended = timer_ended_mask(mask);
+  s_held_logged_mask &= ended;
+  if (ended) {
+    if (timer_is_vibrating() || main_data.control_mode != ControlModeCounting) {
+      // Busy: hold the alarm. Nothing is scheduled; the event that ends
+      // "busy" runs this check again. Log each hold once.
+      int8_t fresh = timer_find_ended_countdown(ended & ~s_held_logged_mask);
+      if (fresh >= 0) {
+        prv_log_slot("alarm_held", fresh);
+        s_held_logged_mask |= 1u << fresh;
+      }
+    } else {
+      prv_take_over(timer_find_ended_countdown(mask));
+    }
+    return;
+  }
+  // Wake up when the next watched countdown ends
+  int64_t next_ms = timer_next_watched_end_ms(mask);
+  if (next_ms >= 0) {
+    s_watch_timer = app_timer_register((uint32_t)next_ms, prv_watch_timer_callback, NULL);
+  }
+}
+
 // Back click handler
 static void prv_back_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   // Back has only a single click, which fires on press-down (the SDK allows no
@@ -869,6 +1003,7 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     }
     prv_update_backlight_after_press();
     test_log_state("button_select");
+    prv_watch_arm();
     return;
   }
   // change timer mode
@@ -1072,6 +1207,14 @@ static void prv_down_long_click_handler(ClickRecognizerRef recognizer, void *ctx
   timer_slot_delete(timer_get_active_slot());
   prv_update_backlight_after_press();
   test_log_state("long_press_down");
+  // A held alarm must still ring: show it instead of exiting. The delete
+  // moved the slot numbers, so each hold may be logged again.
+  s_held_logged_mask = 0;
+  int8_t held = timer_find_ended_countdown(timer_watch_mask());
+  if (held >= 0) {
+    prv_take_over(held);
+    return;
+  }
   // quit app
   window_stack_pop(true);
 }
@@ -1114,20 +1257,24 @@ static void prv_click_config_provider(void *ctx) {
 
 // AppTimer callback
 static void prv_app_timer_callback(void *data) {
+  bool was_vibrating = timer_is_vibrating();
   bool was_elapsed = timer_data.elapsed;
-  // check if timer is complete
-  timer_check_elapsed();
+  // check if timer is complete. While the Timer List is on top it holds every
+  // alarm, so the active slot's alarm must not start behind it: only keep the
+  // refresh scheduled. Every list exit to this window runs the check again.
+  if (!timer_list_is_on_top()) {
+    timer_check_elapsed();
+  }
   bool is_elapsed = timer_data.elapsed;
 
   if (!was_elapsed && is_elapsed) {
 #if WAKEUP_GUARD_FEATURE
-    // The wakeup time is rounded down to whole seconds, so the app can open up
-    // to 1s before the alarm starts: restart the guard when the alarm appears
-    if (s_restart_guard_on_alarm) {
-      s_restart_guard_on_alarm = false;
-      prv_start_input_guard();
-      test_log_state("guard_restart");
-    }
+    // Start the guard at every alarm start, so a press meant for the running
+    // timer does not silence or snooze the alarm that has just started. This
+    // also covers a wakeup launch, where the app can open up to 1s before the
+    // alarm (the wakeup time is rounded down to whole seconds).
+    prv_start_input_guard();
+    test_log_state("guard_restart");
 #endif
     prv_update_backlight();
     test_log_state("alarm_start");
@@ -1179,7 +1326,10 @@ static void prv_app_timer_callback(void *data) {
 #if REDUCE_SCREEN_UPDATES
       // Let's recalculate duration from scratch for chrono to be safe and clean.
       // Same high-refresh signal as countdown (screen-on window + Down extension).
-      bool high_refresh_chrono = main_is_interaction_active() || main_is_last_interaction_down();
+      // An alarm also needs it: each refresh sends the next vibration, and a
+      // held alarm can be shown when its overtime is already past 30 s.
+      bool high_refresh_chrono = main_is_interaction_active() || main_is_last_interaction_down() ||
+                                 timer_is_vibrating();
 
       if (high_refresh_chrono) {
          duration = MSEC_IN_SEC - (val % MSEC_IN_SEC);
@@ -1200,6 +1350,11 @@ static void prv_app_timer_callback(void *data) {
     }
 
     main_data.app_timer = app_timer_register(duration + 5, prv_app_timer_callback, NULL);
+  }
+  // The alarm stopped vibrating on its own: the user is free, so a held alarm
+  // takes over. This is the last step: a takeover runs this callback again.
+  if (was_vibrating && !timer_is_vibrating()) {
+    prv_watch_arm();
   }
 }
 
@@ -1226,14 +1381,17 @@ static void prv_initialize(void) {
   // load timer and settings
   timer_persist_read();
   uint8_t persisted_count = timer_count;
+  // Watch the alarms that were pending at the last exit. A saved slot whose
+  // countdown has ended is a held alarm; one with time left is watched.
+  timer_watch_restore((uint32_t)persist_read_int(PERSIST_PENDING_MASK_KEY));
+  persist_delete(PERSIST_PENDING_MASK_KEY);
 
   // If launched by a wakeup, restore the slot that scheduled the alarm and skip the timer list
   bool wakeup_launch = (launch_reason() == APP_LAUNCH_WAKEUP);
 #if WAKEUP_GUARD_FEATURE
-  // Wakeup input guard: on a wakeup launch, start the window now and restart
-  // it when the alarm starts (see prv_app_timer_callback)
+  // Input guard: on a wakeup launch, start the window now. It starts again
+  // when the alarm starts (see prv_app_timer_callback).
   s_blocked_buttons = 0;
-  s_restart_guard_on_alarm = wakeup_launch;
   if (wakeup_launch) {
     prv_start_input_guard();
     test_log_state("wakeup_launch");
@@ -1304,6 +1462,17 @@ static void prv_initialize(void) {
   // Skip the list on wakeup launches — go straight to the alarming timer.
   bool show_timer_list = !wakeup_launch && settings_get_multiple_timers_enabled() && persisted_count > 0;
 
+  // The main window opens on a pending alarm of its own timer (a wakeup
+  // launch, or a user launch with no list after a missed wakeup): start it as
+  // a new alarm, with its vibration time counted from this launch. With the
+  // list, a pending alarm is held there, and a user launch never opens
+  // straight to a takeover.
+  if (!show_timer_list &&
+      (timer_ended_mask(timer_watch_mask()) & (1u << timer_get_active_slot()))) {
+    timer_alarm_mark_shown();
+    timer_data.elapsed = false;
+  }
+
   // initialize window
   main_data.window = window_create();
   ASSERT(main_data.window);
@@ -1325,14 +1494,16 @@ static void prv_initialize(void) {
   drawing_initialize(main_data.layer);
   // subscribe to tick timer service
   tick_timer_service_subscribe(MINUTE_UNIT, prv_tick_timer_service_callback);
-  // start refreshing
   prv_record_interaction();
-  prv_app_timer_callback(NULL);
 
-  // Push Timer List on top when multiple timers exist and feature is enabled
+  // Push Timer List on top when multiple timers exist and feature is enabled.
+  // This comes before the first refresh, so that no alarm starts behind it.
   if (show_timer_list) {
     timer_list_window_push();
   }
+  // start refreshing, and watch the timers that are not on screen
+  prv_app_timer_callback(NULL);
+  prv_watch_arm();
 }
 
 // Terminate the program
@@ -1352,10 +1523,38 @@ static void prv_terminate(void) {
     app_timer_cancel(backlight_timer);
     backlight_timer = NULL;
   }
-  // schedule wakeup for the active countdown timer (if any)
-  if (timer_count > 0 && !timer_is_chrono() && !timer_is_paused() && !timer_data.reset_on_init) {
-    time_t wakeup_time = (epoch() + timer_get_value_ms()) / MSEC_IN_SEC;
-    wakeup_schedule(wakeup_time, (int32_t)timer_get_active_slot(), true);
+  // Schedule one wakeup for the next alarm event of any timer, and save the
+  // pending alarms so that the next launch watches the others. An ended slot
+  // that is still in the watch mask is a held alarm, also when it is the
+  // timer on screen (its alarm has not rung and stopped yet): it rings again
+  // shortly after this exit. A running countdown rings at its end.
+  uint32_t held = timer_ended_mask(timer_watch_mask());
+  uint32_t running = timer_running_countdown_mask();
+  persist_write_int(PERSIST_PENDING_MASK_KEY, (int32_t)(held | running));
+  time_t now_s = (time_t)(epoch() / MSEC_IN_SEC);
+  int8_t wakeup_slot = timer_find_ended_countdown(held);
+  time_t wakeup_time = now_s + HELD_WAKEUP_DELAY_S;
+  int8_t next_slot = timer_next_ending_slot(running);
+  if (next_slot >= 0) {
+    time_t end_s = (time_t)((epoch() + timer_next_watched_end_ms(1u << next_slot)) / MSEC_IN_SEC);
+    if (end_s <= now_s) {
+      // A wakeup cannot be scheduled in the past
+      end_s = now_s + 1;
+    }
+    if (wakeup_slot < 0 || end_s < wakeup_time) {
+      wakeup_slot = next_slot;
+      wakeup_time = end_s;
+    }
+  }
+  if (wakeup_slot >= 0) {
+    // Two backups, each scheduled even if an earlier one failed: another app's
+    // wakeup within one minute makes ours fail. Any launch cancels them.
+    for (int i = 0; i < 3; i++) {
+      int result = (int)wakeup_schedule(wakeup_time + i * BACKUP_WAKEUP_DELAY_S,
+                                        wakeup_slot, true);
+      TEST_LOG(APP_LOG_LEVEL_DEBUG, "TEST_STATE:wakeup_sched,slot=%d,in=%d,r=%d",
+               wakeup_slot, (int)(wakeup_time - now_s) + i * BACKUP_WAKEUP_DELAY_S, result);
+    }
   }
   // destroy
 #ifdef PBL_MICROPHONE

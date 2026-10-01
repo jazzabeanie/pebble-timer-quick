@@ -997,6 +997,18 @@ class LogCapture:
                 break
 
 
+# The app ignores a press that starts within WAKEUP_INPUT_GUARD_MS (400 ms) of
+# an alarm start, an alarm takeover, or a wakeup launch (src/main.h). A test
+# that presses a button after it sees one of these events waits this long
+# first. The margin covers the log delay and emulator jitter.
+INPUT_GUARD_SETTLE_S = 0.8
+
+
+def wait_past_input_guard():
+    """Wait until the app's input guard window is over."""
+    time.sleep(INPUT_GUARD_SETTLE_S)
+
+
 def parse_time(time_str: str) -> tuple[int, int]:
     """Parse a time string 'M:SS' into (minutes, seconds)."""
     parts = time_str.split(':')

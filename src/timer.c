@@ -39,6 +39,26 @@ Timer timer_slots[MAX_TIMERS];
 uint8_t timer_count = 0;
 static uint8_t s_active_slot = 0;
 
+// Alarm watch state (not saved; see timer.h). The masks hold one bit per slot.
+_Static_assert(MAX_TIMERS <= 32, "slot masks are uint32_t");
+static uint32_t s_watch_mask = 0;
+// The slot whose alarm was shown late, and its overtime when it was shown
+static int8_t s_alarm_shown_slot = -1;
+static int64_t s_alarm_shown_ms = 0;
+// The slot whose alarm has vibrated since it last ended
+static int8_t s_alarm_rang_slot = -1;
+
+// Forget the "alarm shown" and "alarm rang" values of the active slot: its
+// countdown starts again, so its next alarm is a new one
+static void prv_alarm_state_clear(void) {
+  if (s_alarm_shown_slot == (int8_t)s_active_slot) {
+    s_alarm_shown_slot = -1;
+  }
+  if (s_alarm_rang_slot == (int8_t)s_active_slot) {
+    s_alarm_rang_slot = -1;
+  }
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Active Slot Helpers
@@ -151,8 +171,13 @@ void timer_check_elapsed(void) {
       test_log_state("timer_repeat");
       return;
     }
-    // stop vibration after certain duration
-    if (timer_get_value_ms() > VIBRATION_LENGTH_MS) {
+    // stop vibration after certain duration, counted from when the alarm was
+    // shown if it was shown late (a held alarm vibrates for its full time)
+    int64_t overtime = timer_get_value_ms();
+    if (s_alarm_shown_slot == (int8_t)s_active_slot) {
+      overtime -= s_alarm_shown_ms;
+    }
+    if (overtime > VIBRATION_LENGTH_MS) {
       timer_data.can_vibrate = false;
       if (timer_data.auto_snooze_count < 5) {
         timer_data.auto_snooze_count++;
@@ -161,6 +186,7 @@ void timer_check_elapsed(void) {
     } else {
       // vibrate
       vibes_enqueue_custom_pattern(vibe_pattern);
+      s_alarm_rang_slot = s_active_slot;
     }
   }
 }
@@ -191,10 +217,12 @@ void timer_repeat_restart(void) {
     timer_data.can_vibrate = true;
   }
   timer_data.elapsed = false;
+  prv_alarm_state_clear();
 }
 
 // Increment timer value currently being edited
 void timer_increment(int64_t increment) {
+  prv_alarm_state_clear();
   timer_data.length_ms += increment;
   // Read the clock once: raw > 0 is a countdown, raw <= 0 a stopwatch
   int64_t elapsed = timer_data.is_paused ? timer_data.start_ms
@@ -288,10 +316,12 @@ void timer_restart(void) {
 
   timer_data.auto_snooze_count = 0;
   timer_data.elapsed = false;
+  prv_alarm_state_clear();
 }
 
 // Reset the timer to zero
 void timer_reset(void) {
+  prv_alarm_state_clear();
   timer_data.length_ms = 0;
   timer_data.base_length_ms = 0;
   timer_data.start_ms = 0;
@@ -502,6 +532,21 @@ int8_t timer_slot_create(void) {
   return (int8_t)idx;
 }
 
+// Remove the bit of a deleted slot from a slot mask and move the higher bits down
+uint32_t timer_mask_delete_bit(uint32_t mask, uint8_t index) {
+  uint32_t low = (1u << index) - 1;
+  return (mask & low) | ((mask >> 1) & ~low);
+}
+
+// Where a slot number points after the slot at index is deleted (-1 if it was
+// the deleted slot)
+static int8_t prv_slot_after_delete(int8_t slot, uint8_t index) {
+  if (slot == (int8_t)index) {
+    return -1;
+  }
+  return (slot > (int8_t)index) ? slot - 1 : slot;
+}
+
 // Delete the slot at index, compact the array, and clear the freed persist key
 void timer_slot_delete(uint8_t index) {
   if (index >= timer_count) return;
@@ -523,6 +568,10 @@ void timer_slot_delete(uint8_t index) {
   } else if (s_active_slot > index) {
     s_active_slot--;
   }
+  // Keep the alarm watch state in step with the slots that moved down
+  s_watch_mask = timer_mask_delete_bit(s_watch_mask, index);
+  s_alarm_shown_slot = prv_slot_after_delete(s_alarm_shown_slot, index);
+  s_alarm_rang_slot = prv_slot_after_delete(s_alarm_rang_slot, index);
 }
 
 // Helper: get elapsed ms for a slot (works for paused and running)
@@ -536,6 +585,114 @@ static int64_t prv_slot_elapsed_ms(const Timer *t) {
 // Helper: returns true if a slot is in chrono (stopwatch) mode
 static bool prv_slot_is_chrono(const Timer *t) {
   return t->length_ms - prv_slot_elapsed_ms(t) <= 0;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Alarm Watch
+//
+
+// Scan the slots of a mask for running countdowns (length set, not paused)
+// that have ended (ended == true) or that still have time left. Stores the
+// slots it finds in *found (if not NULL), and returns the one with the least
+// time left: the first that ended, or the next to end. Returns -1 for none.
+static int8_t prv_scan_countdowns(uint32_t mask, bool ended, uint32_t *found) {
+  int8_t best = -1;
+  int64_t best_remaining = 0;
+  uint32_t result = 0;
+  for (uint8_t i = 0; i < timer_count; i++) {
+    const Timer *t = &timer_slots[i];
+    if (!(mask & (1u << i)) || t->is_paused || t->length_ms <= 0) {
+      continue;
+    }
+    int64_t remaining = t->length_ms - prv_slot_elapsed_ms(t);
+    // An ended countdown that can no longer vibrate (its alarm was silenced)
+    // has no alarm left to show
+    if ((remaining <= 0) != ended || (ended && !t->can_vibrate)) {
+      continue;
+    }
+    result |= 1u << i;
+    if (best < 0 || remaining < best_remaining) {
+      best = (int8_t)i;
+      best_remaining = remaining;
+    }
+  }
+  if (found) {
+    *found = result;
+  }
+  return best;
+}
+
+// Get the slots that are running countdowns with time left
+uint32_t timer_running_countdown_mask(void) {
+  uint32_t found;
+  prv_scan_countdowns(UINT32_MAX, false, &found);
+  return found;
+}
+
+// Get the slots of a mask whose countdown has reached zero
+uint32_t timer_ended_mask(uint32_t mask) {
+  uint32_t found;
+  prv_scan_countdowns(mask, true, &found);
+  return found;
+}
+
+// Find the slot of a mask whose countdown reached zero first
+int8_t timer_find_ended_countdown(uint32_t mask) {
+  return prv_scan_countdowns(mask, true, NULL);
+}
+
+// Find the slot of a mask that is a running countdown and ends soonest
+int8_t timer_next_ending_slot(uint32_t mask) {
+  return prv_scan_countdowns(mask, false, NULL);
+}
+
+// Get the time until the soonest end among the running countdowns of a mask
+int64_t timer_next_watched_end_ms(uint32_t mask) {
+  int8_t slot = prv_scan_countdowns(mask, false, NULL);
+  if (slot < 0) {
+    return -1;
+  }
+  return timer_slots[slot].length_ms - prv_slot_elapsed_ms(&timer_slots[slot]);
+}
+
+// Add every running countdown with time left to the watch mask
+void timer_watch_add_running(void) {
+  s_watch_mask |= timer_running_countdown_mask();
+}
+
+// Remove one slot from the watch mask
+void timer_watch_clear(uint8_t slot) {
+  s_watch_mask &= ~(1u << slot);
+}
+
+// Get the watch mask
+uint32_t timer_watch_mask(void) {
+  return s_watch_mask;
+}
+
+// Start the watch state at launch
+void timer_watch_restore(uint32_t mask) {
+  s_watch_mask = mask;
+  s_alarm_shown_slot = -1;
+  s_alarm_rang_slot = -1;
+}
+
+// Mark the active slot's alarm as shown now
+void timer_alarm_mark_shown(void) {
+  int64_t overtime = prv_slot_elapsed_ms(&timer_data) - timer_data.length_ms;
+  s_alarm_shown_slot = s_active_slot;
+  s_alarm_shown_ms = (overtime > 0) ? overtime : 0;
+}
+
+// Get the slot whose alarm was marked as shown
+int8_t timer_alarm_shown_slot(void) {
+  return s_alarm_shown_slot;
+}
+
+// Get the slot whose alarm has vibrated since it last ended
+int8_t timer_alarm_rang_slot(void) {
+  return s_alarm_rang_slot;
 }
 
 #if LAP_FEATURE

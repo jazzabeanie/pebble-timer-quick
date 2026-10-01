@@ -2,8 +2,8 @@
 Test Cases: Wakeup input guard.
 
 When an alarm (wakeup event) launches the app, presses that start within
-WAKEUP_INPUT_GUARD_MS (300 ms) of launch are ignored. The emulator cannot press
-reliably inside a 300 ms window, so the timing itself is covered by the unit
+WAKEUP_INPUT_GUARD_MS (400 ms) of launch are ignored. The emulator cannot press
+reliably inside a 400 ms window, so the timing itself is covered by the unit
 tests in test/test_main_logic.c. This test drives a real wakeup launch and
 checks that the launch is detected and that a press after the window acts.
 
@@ -38,7 +38,7 @@ class TestWakeupInputGuard:
         Steps:
         1. Start a short countdown and exit the app with Back
         2. Wait for the alarm to relaunch the app (wakeup_launch)
-        3. Wait past the 300 ms guard window, then press Down
+        3. Wait past the 400 ms guard window, then press Down
         4. Verify that the alarm is snoozed (~5:00 counting down)
         """
         if emulator.platform == "aplite":

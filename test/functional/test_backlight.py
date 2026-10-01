@@ -3,6 +3,7 @@ import pytest
 import time
 
 from .conftest import (
+    wait_past_input_guard,
     Button,
     LogCapture,
     assert_mode,
@@ -133,6 +134,7 @@ class TestBacklight:
         assert_backlight(state, True)
 
         # 6. Silence alarm with Back button
+        wait_past_input_guard()
         emulator.press_back()
         state = capture.wait_for_state(event="button_back", timeout=10.0)
         assert state is not None
@@ -201,6 +203,7 @@ class TestBacklight:
         capture.wait_for_state(event="alarm_start", timeout=15.0)
 
         # 2. Press Up to silence alarm and enter edit mode
+        wait_past_input_guard()
         emulator.press_up()
         state = capture.wait_for_state(event="button_up", timeout=5.0)
         

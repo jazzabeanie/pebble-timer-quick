@@ -17,6 +17,7 @@ from PIL import Image
 import time
 
 from .conftest import (
+    wait_past_input_guard,
     Button,
     EmulatorHelper,
     PLATFORMS,
@@ -300,6 +301,7 @@ class TestSnoozeCompletedTimer:
         logger.info(f"Alarm started: {state_alarm}")
 
         # Step 3: Press Down to snooze
+        wait_past_input_guard()
         emulator.press_down()
         
         # Step 4: Wait for alarm_stop and button_down logs
@@ -351,6 +353,7 @@ class TestRepeatCompletedTimer:
         assert state_alarm is not None, "Timer did not alarm"
 
         # Step 3: Hold Up to repeat
+        wait_past_input_guard()
         emulator.hold_button(Button.UP)
         time.sleep(1.0)
         emulator.release_buttons()
@@ -405,6 +408,7 @@ class TestQuietAlarmBackButton:
         assert state_alarm is not None, "Timer did not alarm"
 
         # Step 3: Press Back to silence
+        wait_past_input_guard()
         emulator.press_back()
         
         # Step 4: Wait for logs
@@ -455,6 +459,7 @@ class TestPauseCompletedTimer:
         assert state_alarm is not None, "Timer did not alarm"
 
         # Step 3: Press Select to pause
+        wait_past_input_guard()
         emulator.press_select()
         
         # Step 4: Wait for logs
@@ -505,6 +510,7 @@ class TestEditCompletedTimer:
         assert state_alarm is not None, "Timer did not alarm"
 
         # Step 3: Press Up to enter edit mode
+        wait_past_input_guard()
         emulator.press_up()
         
         # Step 4: Wait for logs
@@ -882,6 +888,7 @@ class TestRepeatTimerDuringAlarm:
         logger.info(f"Alarm started: {state_alarm}")
 
         # Step 3: Hold Up to repeat the timer
+        wait_past_input_guard()
         emulator.hold_button(Button.UP)
         time.sleep(1.0)
         emulator.release_buttons()
@@ -967,6 +974,7 @@ class TestRepeatTimerDuringAlarm:
         logger.info(f"Alarm started: {state_alarm}")
 
         # Step 3: Hold Up to repeat the timer
+        wait_past_input_guard()
         emulator.hold_button(Button.UP)
         time.sleep(1.0)
         emulator.release_buttons()
@@ -1056,6 +1064,7 @@ class TestRepeatTimerDuringAlarm:
         logger.info(f"Alarm started: {state_alarm}")
 
         # Step 3: Hold Up to repeat the timer
+        wait_past_input_guard()
         emulator.hold_button(Button.UP)
         time.sleep(1.0)
         emulator.release_buttons()

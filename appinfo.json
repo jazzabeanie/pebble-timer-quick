@@ -114,6 +114,11 @@
         "name": "IMAGE_ICON_REPEAT_ENABLE"
       },
       {
+        "file": "images/icon_list_alarm.png",
+        "type": "bitmap",
+        "name": "IMAGE_ICON_LIST_ALARM"
+      },
+      {
         "file": "images/icon_plus_20_rep.png",
         "type": "png",
         "name": "IMAGE_ICON_PLUS_20_REP"

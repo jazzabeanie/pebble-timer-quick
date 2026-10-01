@@ -11,11 +11,13 @@
 #include <pebble.h>
 
 #define BUTTON_HOLD_RESET_MS 750
-// On an alarm (wakeup) launch, presses that start within this time are ignored
-#define WAKEUP_INPUT_GUARD_MS 250
-// The wakeup input guard (~340 bytes) does not fit in aplite's 24KB app
-// region, whose heap was already below the ~1.6KB floor, so it is compiled out
-// there and aplite handles presses immediately on every launch.
+// When an alarm shows (a wakeup launch, an alarm takeover, or an alarm start),
+// presses that start within this time are ignored
+#define WAKEUP_INPUT_GUARD_MS 400
+// The input guard (~340 bytes) does not fit in aplite's 24KB app region,
+// whose heap was already below the ~1.6KB floor, so it is compiled out there
+// and aplite handles presses immediately. Only the guard is left out: every
+// other part of the alarm takeover is on aplite too.
 #ifndef PBL_PLATFORM_APLITE
   #define WAKEUP_GUARD_FEATURE 1
 #else
@@ -69,6 +71,17 @@ void main_reset_new_expire_timer(void);
 
 //! Force a redraw of the main window layer
 void main_force_redraw(void);
+
+//! Show the active timer's alarm in the main window. Call this after the
+//! active slot is set to a countdown that has ended (an alarm takeover): it
+//! switches to Counting mode, starts the input guard, starts the alarm at
+//! once with its full vibration time, and re-arms the alarm watch. The main
+//! window must be the top window (pop the Timer List first).
+void main_show_alarm(void);
+
+//! Check the active timer's alarm and re-arm the alarm watch. The Timer List
+//! calls this when it returns to the main window without a takeover.
+void main_watch_arm(void);
 
 //! Get whether the no-phone-connected feedback icon is currently being shown
 //! @return True while the disconnected-rename feedback icon is on screen

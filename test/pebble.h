@@ -102,7 +102,11 @@ void app_timer_reschedule(AppTimer* timer, uint32_t new_timeout_ms);
 void tick_timer_service_subscribe(TimeUnits tick_units, void* handler);
 void tick_timer_service_unsubscribe(void);
 void wakeup_cancel_all(void);
-void wakeup_schedule(time_t timestamp, uint32_t cookie, bool notify_if_missed);
+
+// Status codes (values match the SDK's StatusCode)
+#define S_SUCCESS 0
+#define E_INVALID_ARGUMENT (-4)
+#define E_RANGE (-8)
 
 // --- Dictation (voice rename) ---
 // Mirrors the SDK's Dictation API; the status order matches pebble.h so tests
@@ -144,3 +148,4 @@ typedef enum {
 AppLaunchReason launch_reason(void);
 typedef int32_t WakeupId;
 bool wakeup_get_launch_event(WakeupId *wakeup_id, int32_t *cookie);
+WakeupId wakeup_schedule(time_t timestamp, int32_t cookie, bool notify_if_missed);
