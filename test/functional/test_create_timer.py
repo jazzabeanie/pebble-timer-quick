@@ -337,7 +337,12 @@ class TestCreateTimer:
         # Extract text and verify "New" is shown
         text = extract_text(img)
         logger.info(f"Initial state text: {text}")
-        assert "New" in text, f"Expected 'New' in initial screen, got: {text}"
+        # On aplite the OCR reads the 1-bit "New" header as "Nex" (seen on
+        # every run, 2026-10-01); the screen itself shows "New".
+        accepted = ("New", "Nex") if emulator.platform == "aplite" else ("New",)
+        assert any(word in text for word in accepted), (
+            f"Expected 'New' in initial screen, got: {text}"
+        )
 
     # Load-flaky: OCR read + countdown drift after 3 quick presses can miss the
     # tolerance late in a long full-suite run; passes cleanly on a fresh retry.

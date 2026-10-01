@@ -92,3 +92,53 @@ other platform, settings sync SHALL work as before.
 
 - **WHEN** the app runs on basalt and the phone sends a new value for a setting
 - **THEN** the app stores the value and uses it
+
+---
+
+### Requirement: Aplite has no button hint icons
+
+On aplite the app SHALL NOT load or draw the button hint icons: the icons at
+the screen edges that show what each button does, and the icons shown during an
+alarm. The buttons SHALL do the same as on the other platforms. The alarm icon
+of the Timer List is alarm delivery and SHALL stay on aplite. On every other
+platform the button hint icons SHALL work as before.
+
+#### Scenario: No icon loads fail on aplite
+
+- **WHEN** the app starts on aplite and the user goes through New mode, an
+  edit mode, Counting mode, and an alarm
+- **THEN** no button hint icon is drawn
+- **AND** the logs show no failed image load
+
+#### Scenario: The list alarm icon stays
+
+- **WHEN** the app runs on aplite and the Timer List shows a held alarm
+- **THEN** the held timer's row shows the alarm icon
+
+#### Scenario: Other platforms keep the icons
+
+- **WHEN** the app runs on basalt in New mode
+- **THEN** the button hint icons show as before
+
+---
+
+### Requirement: A full heap does not stop the app
+
+An animation SHALL NOT stop the app when the heap is full. If the memory for an
+animation cannot be allocated, the animated value SHALL go to its end value at
+once and the app SHALL go on. A new animation of a text field SHALL replace the
+field's running animation, so that quick screen changes do not add up heap use.
+This applies to every platform.
+
+#### Scenario: Quick screen changes on aplite
+
+- **WHEN** the app runs on aplite and the user presses buttons in quick
+  succession so that the time layout changes several times in one second
+- **THEN** the app keeps running
+- **AND** the logs show no `App fault`
+
+#### Scenario: The allocation of an animation fails
+
+- **WHEN** an animation starts and its memory cannot be allocated
+- **THEN** the animated value has its end value
+- **AND** the app keeps running

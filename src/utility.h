@@ -66,20 +66,30 @@ uint64_t epoch(void);
 //! output instead of using unreliable OCR on screenshots. Tests run
 //! `pebble logs` to capture these structured log lines.
 //!
-//! WHY WRAP APP_LOG?
-//! Currently this just calls APP_LOG, but wrapping it allows us to easily
-//! disable test logging in production builds later by changing this one macro.
+//! TEST_LOGS:
+//! The log output costs about 1.4KB of aplite's 24KB app region, which the
+//! alarm-delivery code needs. So the aplite release build has no test logs
+//! (TEST_LOGS is 0). A test build (`QT_TEST_BUILD=1 pebble build`, which
+//! defines TEST_BUILD) has them on every platform. Every other platform keeps
+//! them in the release build too. The app's behavior is the same with and
+//! without them.
 //!
-//! TO DISABLE IN PRODUCTION (Option B - zero overhead):
-//! Replace the #define below with:
-//!   #ifdef TEST_BUILD
-//!   #define TEST_LOG(level, fmt, ...) APP_LOG(level, fmt, ##__VA_ARGS__)
-//!   #else
-//!   #define TEST_LOG(level, fmt, ...) ((void)0)
-//!   #endif
-//! Then add -DTEST_BUILD to CFLAGS in wscript for emulator/test builds.
-//!
+#if defined(PBL_PLATFORM_APLITE) && !defined(TEST_BUILD)
+  #define TEST_LOGS 0
+#else
+  #define TEST_LOGS 1
+#endif
+
+#if TEST_LOGS
 #define TEST_LOG(level, fmt, ...) APP_LOG(level, fmt, ##__VA_ARGS__)
 
 // Log current app state for functional test assertions
 void test_log_state(const char *event);
+#else
+// The compiler still checks the format and counts the arguments as used, but
+// the call is never run, so the call and its strings are not in the binary
+#define TEST_LOG(level, fmt, ...) \
+  do { if (0) { APP_LOG(level, fmt, ##__VA_ARGS__); } } while (0)
+
+#define test_log_state(event) ((void)0)
+#endif

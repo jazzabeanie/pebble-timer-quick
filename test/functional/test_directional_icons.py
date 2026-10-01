@@ -45,6 +45,10 @@ def persistent_emulator(request, build_app):
         pytest.skip(
             f"Skipping test for {platform} since --platform={platform_opt} was specified."
         )
+    if platform == "aplite":
+        pytest.skip(
+            "Aplite has no button hint icons (BUTTON_ICONS_FEATURE in src/drawing.h)"
+        )
 
     save_screenshots = request.config.getoption("--save-screenshots")
     helper = EmulatorHelper(platform, save_screenshots)

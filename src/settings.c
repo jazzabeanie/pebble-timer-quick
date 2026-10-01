@@ -61,6 +61,9 @@ static int32_t prv_clamp(int32_t v, int32_t lo, int32_t hi) {
   return v;
 }
 
+static AppSettings s_settings;
+
+#if SETTINGS_SYNC_FEATURE
 // Read a signed integer tuple regardless of the byte width the phone used.
 static int32_t prv_tuple_int(const Tuple *t) {
   if (t->length >= 4) { return t->value->int32; }
@@ -68,7 +71,6 @@ static int32_t prv_tuple_int(const Tuple *t) {
   return t->value->int8;
 }
 
-static AppSettings s_settings;
 static SettingsChangeCallback s_change_callback;
 static AppTimer *s_retry_timer = NULL;
 
@@ -136,6 +138,7 @@ static void prv_inbox_received(DictionaryIterator *iterator, void *context) {
     if (s_change_callback) { s_change_callback(); }
   }
 }
+#endif  // SETTINGS_SYNC_FEATURE
 
 bool settings_get_show_increment_icons(void)    { return s_settings.show_increment_icons; }
 bool settings_get_show_direction_icon(void)     { return s_settings.show_direction_icon; }
@@ -168,7 +171,9 @@ void settings_save(void) {
 }
 
 void settings_init(SettingsChangeCallback on_change) {
+#if SETTINGS_SYNC_FEATURE
   s_change_callback = on_change;
+#endif
   s_settings = (AppSettings){
     .show_increment_icons    = true,
     .show_direction_icon     = true,
@@ -193,8 +198,10 @@ void settings_init(SettingsChangeCallback on_change) {
     persist_read_data(PERSIST_SETTINGS_KEY, &s_settings, sizeof(s_settings));
   }
   settings_save();
+#if SETTINGS_SYNC_FEATURE
   app_message_open(app_message_inbox_size_maximum(), 128);
   app_message_register_inbox_received(prv_inbox_received);
   app_message_register_outbox_failed(prv_outbox_failed);
   prv_request_settings();
+#endif
 }

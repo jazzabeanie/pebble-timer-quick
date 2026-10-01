@@ -511,6 +511,11 @@ class TestIconOverlapPrevention:
         - Verify the minimum pixel count proves flash OFF is truly empty
         - Verify variation between screenshots proves repeat counter flashing
         """
+        if persistent_emulator.platform == "aplite":
+            pytest.skip(
+                "Aplite has no button hint icons (BUTTON_ICONS_FEATURE in src/drawing.h), "
+                "and its dithered background fills the region"
+            )
         emulator = persistent_emulator
         platform = emulator.platform
 

@@ -184,8 +184,39 @@ void text_render_draw_scalable_text(GContext *ctx, char *text, GRect bounds) {
 
 // Mocks for animation.h
 // We must match signatures in animation.h
-void animation_grect_start(GRect *ptr, GRect to, uint32_t duration, uint32_t delay, InterpolationCurve interpolation) {}
-void animation_stop(void *ptr) {}
+// Count the animations that are live for each value, to check that a caller
+// does not pile them up (each one holds heap until it ends).
+#define MAX_ANIMATED_VALUES 16
+static void *g_animated_value[MAX_ANIMATED_VALUES];
+static int g_animation_live[MAX_ANIMATED_VALUES];
+static int g_animation_max_live = 0;
+static int prv_animated_index(void *ptr) {
+    for (int i = 0; i < MAX_ANIMATED_VALUES; i++) {
+        if (g_animated_value[i] == ptr || g_animated_value[i] == NULL) {
+            g_animated_value[i] = ptr;
+            return i;
+        }
+    }
+    return 0;
+}
+static void reset_animation_counts(void) {
+    memset(g_animated_value, 0, sizeof(g_animated_value));
+    memset(g_animation_live, 0, sizeof(g_animation_live));
+    g_animation_max_live = 0;
+}
+void animation_grect_start(GRect *ptr, GRect to, uint32_t duration, uint32_t delay, InterpolationCurve interpolation) {
+    int i = prv_animated_index(ptr);
+    g_animation_live[i]++;
+    if (g_animation_live[i] > g_animation_max_live) {
+        g_animation_max_live = g_animation_live[i];
+    }
+}
+void animation_stop(void *ptr) {
+    int i = prv_animated_index(ptr);
+    if (g_animation_live[i] > 0) {
+        g_animation_live[i]--;
+    }
+}
 void animation_int32_start(int32_t *ptr, int32_t to, uint32_t duration, uint32_t delay, InterpolationCurve interpolation) {}
 void animation_register_update_callback(void *callback) {}
 void animation_stop_all(void) {}
@@ -241,7 +272,9 @@ bool was_bitmap_drawn(uint32_t resource_id) {
     return false;
 }
 
+int g_bitmap_load_count = 0;
 GBitmap* gbitmap_create_with_resource(uint32_t resource_id) {
+    g_bitmap_load_count++;
     return (GBitmap*)(uintptr_t)resource_id; // Return resource ID as pointer for easy check
 }
 void gbitmap_destroy(GBitmap *bitmap) {}
@@ -444,6 +477,8 @@ static void test_repeat_counter_flash_off_phase_in_edit_repeat(void **state) {
     assert_false(prv_is_repeat_counter_visible());
 }
 
+// The button hint icons are not in the aplite build (BUTTON_ICONS_FEATURE)
+#if !defined(BUTTON_ICONS_FEATURE) || BUTTON_ICONS_FEATURE
 // #2: prv_draw_action_icons is split into per-mode helpers, each independently
 // testable. EditRepeat draws the reset-count and +5-rep icons.
 static void test_draw_edit_repeat_icons(void **state) {
@@ -475,11 +510,68 @@ static void test_draw_counting_icons(void **state) {
     assert_true(was_bitmap_drawn(RESOURCE_ID_IMAGE_ICON_DETAILS));
     assert_true(was_bitmap_drawn(RESOURCE_ID_IMAGE_ICON_EDIT));
 }
+#endif
+
+// A new text layout must replace the running text animations, not add to
+// them: on aplite a few layouts in quick succession used up the whole heap.
+static void test_text_layout_change_does_not_pile_up_animations(void **state) {
+    reset_ms_mocks();
+    reset_animation_counts();
+    mock_is_chrono = true;
+    mock_is_paused = false;
+    mock_length_ms = 600000;  // the progress ring divides by the length
+    drawing_initialize((Layer*)1);
+    for (int i = 0; i < 5; i++) {
+        // Each value has a different number of digits, so the layout changes
+        mock_hr = (i % 2) ? 12 : 0;
+        mock_min = 3 + i;
+        mock_sec = 10 + i;
+        mock_value_ms = ((int64_t)mock_hr * 3600 + mock_min * 60 + mock_sec) * 1000;
+        drawing_update();
+    }
+    drawing_terminate();
+    assert_true(g_animation_max_live >= 1);
+    assert_int_equal(g_animation_max_live, 1);
+}
+
+#ifdef PBL_PLATFORM_APLITE
+// Aplite has no button hint icons: its heap cannot hold them, and the space is
+// needed for the alarm-delivery code. Nothing is loaded and nothing is drawn,
+// in every mode and during an alarm.
+static void test_aplite_loads_and_draws_no_icons(void **state) {
+    static const ControlMode modes[] = {
+        ControlModeNew, ControlModeEditHr, ControlModeEditMin, ControlModeEditSec,
+        ControlModeCounting, ControlModeEditRepeat,
+    };
+    for (int vibrating = 0; vibrating <= 1; vibrating++) {
+        for (size_t i = 0; i < sizeof(modes) / sizeof(modes[0]); i++) {
+            reset_ms_mocks();
+            mock_control_mode = modes[i];
+            mock_is_vibrating = vibrating;
+            mock_is_paused = false;
+            mock_length_ms = 600000;
+            g_bitmap_load_count = 0;
+            draw_call_count = 0;
+            drawing_initialize((Layer*)1);
+            drawing_render((Layer*)1, (GContext*)1);
+            drawing_terminate();
+            assert_int_equal(g_bitmap_load_count, 0);
+            assert_int_equal(draw_call_count, 0);
+        }
+    }
+}
+#endif
 
 int main(void) {
     const struct CMUnitTest tests[] = {
+        cmocka_unit_test(test_text_layout_change_does_not_pile_up_animations),
+#ifdef PBL_PLATFORM_APLITE
+        cmocka_unit_test(test_aplite_loads_and_draws_no_icons),
+#endif
+#if !defined(BUTTON_ICONS_FEATURE) || BUTTON_ICONS_FEATURE
         cmocka_unit_test(test_draw_edit_repeat_icons),
         cmocka_unit_test(test_draw_counting_icons),
+#endif
         cmocka_unit_test(test_repeat_counter_hidden_when_not_repeating),
         cmocka_unit_test(test_repeat_counter_visible_counting_multiple),
         cmocka_unit_test(test_repeat_counter_hidden_counting_single),

@@ -111,7 +111,14 @@
       {
         "file": "images/icon_rep_en.png",
         "type": "png",
-        "name": "IMAGE_ICON_REPEAT_ENABLE"
+        "name": "IMAGE_ICON_REPEAT_ENABLE",
+        "targetPlatforms": ["basalt", "chalk", "diorite", "emery", "gabbro"]
+      },
+      {
+        "file": "images/icon_rep_en.png",
+        "type": "bitmap",
+        "name": "IMAGE_ICON_REPEAT_ENABLE",
+        "targetPlatforms": ["aplite"]
       },
       {
         "file": "images/icon_list_alarm.png",

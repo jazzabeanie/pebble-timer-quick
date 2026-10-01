@@ -93,8 +93,6 @@ class TestBacklight:
     def test_backlight_on_during_alarm(self, persistent_emulator):
         """Test 1: Backlight turns on when alarm starts."""
         emulator = persistent_emulator
-        if emulator.platform == "aplite":
-            pytest.xfail("Aplite frequently crashes due to memory pressure during this sequence.")
         capture = LogCapture(emulator.platform)
         capture.start()
 

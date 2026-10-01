@@ -165,6 +165,20 @@ QuickTimer versus in the default Pebble timer.
 | stopwatch    | 1          |  x                   |
 ```
 
+## Original Pebble (aplite) limits
+
+The original Pebble and Pebble Steel (aplite) have a 24KB app region for the
+code, the data, and the heap. The alarms have priority there: every part of the
+alarm delivery is in the aplite build. To make space, aplite has:
+
+- 3 timers (32 on the other watches)
+- "Timer 1", "Timer 2", "Timer 3" as timer names (no mnemonic names)
+- no button hint icons (the buttons do the same)
+- the default settings only (the phone settings page has no effect)
+- no lap stopwatch, no "Delete all" row, no input guard
+
+See "Aplite limits" in `docs/button-functions.md` for the details.
+
 ## Building
 
 - install SDK almost according to https://developer.repebble.com/sdk/
@@ -218,6 +232,13 @@ make test_timer
 
 # Run main app logic tests (including bug fixes)
 make test_main
+
+# Run the timer and drawing tests in the aplite configuration
+# (3 slots, "Timer N" names, no button hint icons)
+make test_timer_aplite test_drawing_aplite
+
+# Run the animation tests (heap use, a full heap does not stop the app)
+make test_animation
 ```
 
 To clean up test artifacts (removes the compiled binaries):
@@ -240,6 +261,14 @@ Functional tests run on the Pebble emulator to verify UI behavior and button int
 Note: The tests use EasyOCR (deep learning-based) for text recognition, which provides better accuracy for the custom LECO 7-segment style font compared to traditional OCR engines like Tesseract. EasyOCR downloads its models (~100MB) on first run.
 
 Tests are moving to inspecting logs instead of relying on OCR. App logs are read directly from the emulator's pypkjs WebSocket (see `_LogStream` in `test/functional/conftest.py`); every `install()` blocks until the app's `TEST_STATE:init` line is observed, so a test only starts once the app is confirmed running with logs flowing. See `test_log_based.py`.
+
+The functional tests make a **test build** (`QT_TEST_BUILD=1 pebble build`, set by `conftest.py`). On aplite only a test build has the `TEST_STATE` log lines; the aplite release build (a plain `pebble build`) leaves them out to save space. On every other platform the two builds are the same. The build prints which kind it is. Do not release a test build.
+
+A test session checks that its build is a test build, and at its end it makes a release build again, so `build/` does not keep the test build (set `QT_KEEP_TEST_BUILD=1` to skip that). Do not run `pebble build` or a second pytest session while a session runs: the first replaces the app under test, and the end of the second stops every emulator.
+
+`test/check_build.sh` makes both builds and checks what the aplite and basalt binaries contain. It leaves a release build in `build/`.
+
+At the end of a run, the summary "app faults and failed allocations" lists every crash, failed allocation, and failed image load that the app logged.
 
 To run functional tests (runs on basalt by default):
 

@@ -26,6 +26,8 @@ TEST_DRAWING_SRCS = test_drawing.c
 TEST_TIMER_MULTI_SRCS = test_timer_multi.c
 TEST_MNEMONIC_SRCS = test_mnemonic.c
 TEST_EPOCH_SRCS = test_epoch.c
+TEST_TIMER_APLITE_SRCS = test_timer_aplite.c
+TEST_ANIMATION_SRCS = test_animation.c
 
 # Output
 TEST_TIMER_BIN = run_test_timer
@@ -34,10 +36,13 @@ TEST_DRAWING_BIN = run_test_drawing
 TEST_TIMER_MULTI_BIN = run_test_timer_multi
 TEST_MNEMONIC_BIN = run_test_mnemonic
 TEST_EPOCH_BIN = run_test_epoch
+TEST_TIMER_APLITE_BIN = run_test_timer_aplite
+TEST_ANIMATION_BIN = run_test_animation
+TEST_DRAWING_APLITE_BIN = run_test_drawing_aplite
 
-.PHONY: all test test_timer test_main test_drawing test_timer_multi test_mnemonic test_epoch clean
+.PHONY: all test test_timer test_main test_drawing test_timer_multi test_mnemonic test_epoch test_timer_aplite test_animation test_drawing_aplite clean
 
-all: $(TEST_TIMER_BIN) $(TEST_MAIN_BIN) $(TEST_DRAWING_BIN) $(TEST_TIMER_MULTI_BIN) $(TEST_MNEMONIC_BIN) $(TEST_EPOCH_BIN)
+all: $(TEST_TIMER_BIN) $(TEST_MAIN_BIN) $(TEST_DRAWING_BIN) $(TEST_TIMER_MULTI_BIN) $(TEST_MNEMONIC_BIN) $(TEST_EPOCH_BIN) $(TEST_TIMER_APLITE_BIN) $(TEST_ANIMATION_BIN) $(TEST_DRAWING_APLITE_BIN)
 
 $(TEST_TIMER_BIN): $(TEST_TIMER_SRCS) $(TIMER_SRCS) $(MNEMONIC_SRCS)
 	$(CC) $(CFLAGS) $(INCLUDES) $^ -o $@ $(LDFLAGS) $(LIBS)
@@ -66,8 +71,24 @@ $(TEST_MNEMONIC_BIN): $(TEST_MNEMONIC_SRCS) $(MNEMONIC_SRCS)
 $(TEST_EPOCH_BIN): $(TEST_EPOCH_SRCS) $(SRC_DIR)/utility.c
 	$(CC) $(CFLAGS) $(INCLUDES) $(TEST_EPOCH_SRCS) -o $@ $(LDFLAGS) $(LIBS)
 
+# timer.c in the aplite configuration (MAX_TIMERS 3, "Timer N" names, no laps,
+# no test logs). mnemonic.c is in the list to check that it compiles to nothing
+# there: a reference to it from timer.c would still link, so the test file
+# checks the names too.
+$(TEST_TIMER_APLITE_BIN): $(TEST_TIMER_APLITE_SRCS) $(TIMER_SRCS) $(MNEMONIC_SRCS)
+	$(CC) $(CFLAGS) -DPBL_PLATFORM_APLITE $(INCLUDES) $^ -o $@ $(LDFLAGS) $(LIBS)
+
+# animation.c is #included by the test (it replaces malloc/free with a counted
+# allocator), so it is a prerequisite but must NOT be passed to gcc.
+$(TEST_ANIMATION_BIN): $(TEST_ANIMATION_SRCS) $(SRC_DIR)/animation.c
+	$(CC) $(CFLAGS) $(INCLUDES) $(TEST_ANIMATION_SRCS) -o $@ $(LDFLAGS) $(LIBS)
+
+# drawing.c in the aplite configuration (no button hint icons, no laps)
+$(TEST_DRAWING_APLITE_BIN): $(TEST_DRAWING_SRCS) $(SRC_DIR)/drawing.c
+	$(CC) $(CFLAGS) -DPBL_PLATFORM_APLITE $(INCLUDES) $(TEST_DRAWING_SRCS) -o $@ $(LDFLAGS) $(LIBS)
+
 # Run all tests
-test: test_timer test_main test_drawing test_timer_multi test_mnemonic test_epoch
+test: test_timer test_main test_drawing test_timer_multi test_mnemonic test_epoch test_timer_aplite test_animation test_drawing_aplite
 
 # Run individual tests
 test_timer: $(TEST_TIMER_BIN)
@@ -88,5 +109,14 @@ test_mnemonic: $(TEST_MNEMONIC_BIN)
 test_epoch: $(TEST_EPOCH_BIN)
 	./$(TEST_EPOCH_BIN)
 
+test_timer_aplite: $(TEST_TIMER_APLITE_BIN)
+	./$(TEST_TIMER_APLITE_BIN)
+
+test_animation: $(TEST_ANIMATION_BIN)
+	./$(TEST_ANIMATION_BIN)
+
+test_drawing_aplite: $(TEST_DRAWING_APLITE_BIN)
+	./$(TEST_DRAWING_APLITE_BIN)
+
 clean:
-	rm -f $(TEST_TIMER_BIN) $(TEST_MAIN_BIN) $(TEST_DRAWING_BIN) $(TEST_TIMER_MULTI_BIN) $(TEST_MNEMONIC_BIN) $(TEST_EPOCH_BIN)
+	rm -f $(TEST_TIMER_BIN) $(TEST_MAIN_BIN) $(TEST_DRAWING_BIN) $(TEST_TIMER_MULTI_BIN) $(TEST_MNEMONIC_BIN) $(TEST_EPOCH_BIN) $(TEST_TIMER_APLITE_BIN) $(TEST_ANIMATION_BIN) $(TEST_DRAWING_APLITE_BIN)

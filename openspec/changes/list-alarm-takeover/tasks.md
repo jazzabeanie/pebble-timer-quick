@@ -78,15 +78,16 @@
 
 - [x] 3.1 Re-run the new tests and confirm they pass
 - [x] 3.2 Run all unit tests and the full basalt functional suite (compare to the 153-test baseline; `test_timer_counts_down` is a known OCR flake)
-- [ ] 3.3 Build for aplite and record the heap (`Total footprint in RAM`) and the code size (`arm-none-eabi-size`) before and after the change, and the heap with a marked list row (the alarm icon loaded)
-- [ ] 3.4 Run the unit tests and the full functional suite on aplite, including the new tests; check the logs for `App fault` and failed allocations
+- [x] 3.3 Build for aplite and record the heap (`Total footprint in RAM`) and the code size (`arm-none-eabi-size`) before and after the change, and the heap with a marked list row (the alarm icon loaded)
+- [x] 3.4 Run the unit tests and the full functional suite on aplite, including the new tests; check the logs for `App fault` and failed allocations
 - [x] 3.5 If the aplite heap is below the ~1.6 KB floor, or aplite faults or fails tests, report the numbers and propose a trim change in the D6 order
 
 ### Verify results (2026-10-01)
 
 - 3.1 / 3.2: unit tests 188 passed (`test_timer` 32, `test_main` 99, `test_drawing` 12, `test_timer_multi` 39, `test_mnemonic` 4, `test_epoch` 2). Basalt functional suite: 172 tests, 168 passed, 4 failed. All 18 tests of `test_list_alarm_takeover.py` that apply to basalt passed. The 4 failures are icon screenshot tests that race the 3 s edit window (`test_editrepeat_select_icon`, `test_new_reverse_back_icon`, `test_new_reverse_up_icon`, `test_editrepeat_up_region_empty_during_flash_off`); they also fail intermittently on a baseline build. The basalt run used a build without aplite (see 3.3).
-- 3.3 (open): **aplite does not link.** Before: 23303 bytes of 24576 (heap 1273; text 21327, data 1288, bss 688). After: `region APP overflowed by 1192 bytes` (footprint 25768, +2465). Text growth per file on aplite: `main.c` +820, `timer.c` +776, `timer_list.c` +840. No heap figure exists, with or without a marked row, because there is no binary. A failed aplite link stops `pebble build` for every platform.
-- 3.4 (open): blocked by 3.3. The aplite-only tests (`test_no_guard_on_aplite_after_takeover`, the aplite runs of the takeover tests) have not run.
+- 3.3 (closed by `aplite-ram-trim`, 2026-10-01; see "Results" 4.1 and 4.2 in its `tasks.md`): aplite links again after the aplite trims. Release build: footprint 19416, heap 5160 (text 17988, data 956, bss 472). With a marked list row on the emulator: peak heap use 1308 of 4484 bytes, the bell icon shows, no `App fault`. The numbers of the first try follow.
+- 3.3 (first try, 2026-10-01): **aplite did not link.** Before: 23303 bytes of 24576 (heap 1273; text 21327, data 1288, bss 688). After: `region APP overflowed by 1192 bytes` (footprint 25768, +2465). Text growth per file on aplite: `main.c` +820, `timer.c` +776, `timer_list.c` +840. No heap figure exists, with or without a marked row, because there is no binary. A failed aplite link stops `pebble build` for every platform.
+- 3.4 (closed by `aplite-ram-trim`, 2026-10-01; see "Results" 3.3 / 3.4 and 4.3 in its `tasks.md`): unit tests 228 passed, also in the aplite configuration. Aplite functional suite: 110 passed, 2 failed (an OCR misread and an icon test, both then adjusted), no `App fault`; all tests of `test_list_alarm_takeover.py` passed or skipped (the "Delete all" row), including `test_no_guard_on_aplite_after_takeover`. First try: blocked by 3.3. The aplite-only tests (`test_no_guard_on_aplite_after_takeover`, the aplite runs of the takeover tests) have not run.
 - 3.5: trim options, measured on aplite in a scratch copy (D6 order):
 
   | Trim | Saves | Result |

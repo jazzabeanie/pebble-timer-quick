@@ -26,11 +26,31 @@ When reverse direction is active (toggled via long-press Up), all increments bec
 
 ---
 
+## Aplite limits
+
+Aplite (the original Pebble and Pebble Steel) has a 24KB app region for the code, the data, and the heap. The alarm-delivery code has priority there: every part of it is in the aplite build (the alarm watch, the held alarm and its takeover, the bell icon and five pulses of the Timer List, the wakeups with their backups, the pending alarm). To make space for it, these parts are not in the aplite build:
+
+| Not on aplite | What aplite does | Flag | Tests |
+|---|---|---|---|
+| More than 3 timer slots | **3 slots** (32 elsewhere). With 3 timers saved, the Timer List has no "New Timer" row. If more than 3 timers are saved by an older version, the first 3 are loaded and the others are dropped. | `MAX_TIMERS` in `src/timer.h` | `test_timer_aplite.c::test_max_timers_is_3`, `test_fourth_slot_is_refused`, `test_read_five_saved_slots_keeps_first_three`, `test_read_five_saved_slots_then_store` |
+| Mnemonic names ("dry mouse") | A new timer gets the name **"Timer N"**, with the lowest N that no other timer's name uses. A saved mnemonic name stays. | `MNEMONIC_FEATURE` in `src/timer.h` | `test_timer_aplite.c::test_first_name_is_timer_1`, `test_lowest_free_number_after_delete`, `test_no_duplicate_names_after_delete_and_create`, `test_saved_mnemonic_name_is_kept_and_not_counted`; `test_mnemonic_names.py` (expects "Timer 1" on aplite) |
+| Button hint icons | No icons at the screen edges and no icons during an alarm. The buttons do the same. The Timer List keeps its bell icon and its repeat glyph (stored for aplite in a format that needs no decode). | `BUTTON_ICONS_FEATURE` in `src/drawing.h` | `test_drawing.c::test_aplite_loads_and_draws_no_icons` |
+| Settings sync with the phone | The default of every setting. | `SETTINGS_SYNC_FEATURE` in `src/settings.h` | `test/check_build.sh` |
+| Test log output (`TEST_STATE` lines) in the release build | No test logs. A test build has them: `QT_TEST_BUILD=1 pebble build`. The functional tests make a test build. | `TEST_LOGS` in `src/utility.h` | `test/check_build.sh` |
+| Lap stopwatch, "Delete all" row, slot-limit warnings | See "Lap Stopwatch". | `LAP_FEATURE` in `src/timer.h` | |
+| Input guard | Presses act at once. See "Input Guard". | `WAKEUP_GUARD_FEATURE` in `src/main.h` | |
+
+The alarm watch helpers are tested in the aplite configuration too: `test_timer_aplite.c::test_watch_ended_mask_three_slots`, `test_watch_mask_shift_on_delete`, `test_watch_alarm_of_loaded_slot_rings`.
+
+**A full heap does not stop the app (every platform).** A new animation of a text field replaces the field's running animation, and an animation whose memory cannot be allocated sets its value to the end at once. Before this, a few quick screen changes on aplite filled the heap and the app stopped. Tests: `test_animation.c` (all tests), `test_drawing.c::test_text_layout_change_does_not_pile_up_animations`.
+
+---
+
 ## Timer List Mode (TimerList)
 
 Shown on app open when ≥1 existing timer is saved and the "Multiple Timers" setting is enabled. An implicit new stopwatch slot is created on entry; it becomes the active slot if the user selects "New Timer", and is discarded if the user selects an existing timer.
 
-Up to **32 timer slots** are supported (5 on aplite, where the additions below are compiled out for RAM). The list **scrolls** to keep the selected row visible, and a **"Delete all"** entry is pinned to the very bottom of the list regardless of the Lap Stopwatch setting. Creating a timer that leaves **3 or fewer slots free** shows an approaching-limit message ("N slots left") for 3 seconds with three short vibrations (`test_stopwatch_laps.py::TestSlotLimit::test_new_timer_near_limit_shows_warning`).
+Up to **32 timer slots** are supported (3 on aplite, where the additions below are compiled out for RAM; see "Aplite limits"). The list **scrolls** to keep the selected row visible, and a **"Delete all"** entry is pinned to the very bottom of the list regardless of the Lap Stopwatch setting. Creating a timer that leaves **3 or fewer slots free** shows an approaching-limit message ("N slots left") for 3 seconds with three short vibrations (`test_stopwatch_laps.py::TestSlotLimit::test_new_timer_near_limit_shows_warning`).
 
 | Button | Press | Action | Tests |
 |--------|-------|--------|-------|
@@ -366,6 +386,8 @@ When editing crosses from positive to negative (or vice versa), the timer type a
 
 These tests verify the correct icons are displayed beside each button in each mode.
 
+**Not on aplite:** aplite has no button hint icons (`BUTTON_ICONS_FEATURE` in `src/drawing.h`; see "Aplite limits"). The buttons do the same there. The tests in this section skip on aplite. Unit test: `test_drawing.c::test_aplite_loads_and_draws_no_icons` (in `run_test_drawing_aplite`).
+
 ### New Mode Icons
 
 | Button | Icon | Test |
@@ -450,6 +472,8 @@ the corner background is dark. Color test: `test/test_drawing.c::test_repeat_cou
 ## Settings
 
 Settings are configured via the Pebble mobile app (tap the gear icon next to the app). Changes are sent to the watch via AppMessage and persisted across launches.
+
+**Not on aplite:** the settings page has no effect on aplite. The watch cannot open the message inbox there (it needs about 8KB of heap), so the code is compiled out (`SETTINGS_SYNC_FEATURE` in `src/settings.h`) and aplite uses the default of every setting ("Multiple Timers" is on).
 
 | Setting | Default | Description |
 |---------|---------|-------------|

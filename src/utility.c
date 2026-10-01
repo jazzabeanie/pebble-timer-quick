@@ -18,6 +18,7 @@
 // Test Logging
 //
 
+#if TEST_LOGS
 // Get mode name string for logging
 static const char* prv_get_mode_name(ControlMode mode) {
   switch (mode) {
@@ -57,6 +58,7 @@ void test_log_state(const char *event) {
     (long long)timer_data.length_ms
   );
 }
+#endif  // TEST_LOGS
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -90,6 +90,8 @@ The build output is the same `build/*.pbw`. A release build is a plain `pebble b
 
 The aplite test build is the release build plus the test log output (1408 bytes). With all four trims, its heap is about 784 bytes (measured with B, D, and S applied and the logs kept). The release build is the product; the test build exists only to run the tests.
 
+**Result (2026-10-01):** the true heap is about 680 bytes less than the reported one (reported 2928 gave 2132; reported 2736 gave 2060; reported 2568 gave 1892). With the first four trims the test build had a reported heap of 668 bytes and did not start. Step 1 below could save about 550 bytes, which is not enough. The icon trim (D9) solved it: the test build has a reported heap of 2884 bytes.
+
 784 bytes is below the heap of every build that is known to run. So the first verify step is to launch the aplite test build and check for `App fault` and failed allocations. If it does not run:
 
 1. Use `test_log_state()` for the log lines of `list-alarm-takeover` that have their own format string, and shorten the `test_log_state()` format on aplite.
@@ -136,6 +138,36 @@ The functional tests set a setting with `send_app_message_int()` only for the la
 - Open the inbox with a small size on aplite so that sync works. Rejected for this change: the inbox must hold all the keys the phone sends, the size that fits is not known, and any inbox takes heap from an app that has none to spare. It can be a later change if aplite settings are wanted.
 - Leave the code in. Rejected: 848 bytes for code that always fails, on the platform where the heap is below the safe floor.
 
+### D9. No button hint icons on aplite (`BUTTON_ICONS_FEATURE`)
+
+Add `BUTTON_ICONS_FEATURE` to `src/drawing.h`: 1 everywhere, 0 on aplite. With 0, `src/drawing.c` leaves out the 35 icon bitmaps (the fields, the loads, the destroys), the icon position code, the per-mode icon draw functions, and the alarm icons block. The `no phone` icon is not part of it (it exists only on platforms with a microphone).
+
+Why: found during the work (2026-10-01).
+
+- The icons are `png` resources. On aplite a PNG decode needs more heap than the app has. One run logged 62 `PNG decoding failed` / `Failed to load PNG` lines; only the few icons that load first show. So the feature is mostly not there today.
+- Measured: the icon code is 1972 bytes of text and 136 bytes of bss. Without it the release heap is 5160 bytes and the test build heap is 2884 bytes. Without this trim the test build has 792 bytes and cannot start (see D4).
+
+The bell icon of the Timer List (`timer_list.c`) is alarm delivery and stays. It is a `bitmap` resource, which the SDK stores as PBI for aplite, so it needs no decode. The repeat glyph of the Timer List (`IMAGE_ICON_REPEAT_ENABLE`) had the same PNG fault on aplite (two failed loads at each list open). In `appinfo.json` it is now a `bitmap` resource for aplite (PBI) and stays a `png` resource for the other platforms, so it shows on aplite and the other platforms do not change.
+
+The settings that show or hide icons (`show_*_icon`) have no effect on aplite. Their get functions are dropped by the linker there.
+
+*Alternatives:*
+- Store the icons as PBI and load only the icons of the current screen. Rejected for this change: more code in the drawing module on the platform with no space, and the test build still does not fit. It can be a later change.
+- Keep the icons as they are. Rejected by the user (2026-10-01): the aplite functional suite could then not run, and the failed loads stay.
+
+### D10. An animation never stops the app
+
+Found during the work: the cause of the aplite fault at `animation.c:141`. `prv_main_text_update_state()` starts 7 text field animations at each layout change and does not stop the ones that still run. Each animation was three allocations (node, `from`, `to`), about 56 bytes before its first step. `MALLOC()` ends the app when an allocation fails. With about 1.5 KB of free heap, four layout changes inside the 140 ms animation time stop the app. Old `master` faults the same way.
+
+Changes:
+
+- `src/drawing.c`: `animation_stop()` on a text field before its new animation starts (as the progress ring already does). What the user sees does not change: with two animations of one value, the newer one already set the value last at each tick.
+- `src/animation.c`: `from` and `to` are inside the node, so an animation is one allocation. If that allocation fails, the start function sets the value to its end and returns; the app goes on without the motion. `animation_stop_all()` clears the list head and the timer. The timer callback reads the next node before a step, because a step that ends its animation frees a node.
+
+The hold-to-reset animation starts two animations of one value on purpose (shrink, then return after a delay). That still works: only the text fields stop the old animation first.
+
+This is shared code, so the binaries of the other platforms change (they get 124 bytes smaller). The motion is the same.
+
 ## Risks / Trade-offs
 
 - [An aplite user with 4 or 5 saved timers loses the last 1 or 2 at the update. A dropped running countdown does not ring.] → Only on the first launch after the update, and only for more than 3 timers on aplite. The 3 kept timers keep their alarms. The alternative (reset all, as today) loses more. See Open Questions.
@@ -145,6 +177,8 @@ The functional tests set a setting with `send_app_message_int()` only for the la
 - [No logs in the aplite release build makes a field problem on aplite harder to find] → A test build has them. `assert()` still logs.
 - [A test build is shipped by mistake] → The build prints its kind. On every platform except aplite the two builds are the same binary.
 - [Names on aplite are less easy to tell apart ("Timer 1", "Timer 2")] → Accepted. The time on the second line of each row tells them apart, and there are at most 3.
+- [An aplite user loses the few button hint icons that load today] → Accepted (user decision). `docs/button-functions.md` gives the button functions. A later change can bring the icons back with on-demand loading.
+- [The animation change alters the motion on other platforms] → The newest animation of a value already set the value last. The basalt functional suite, with its screenshot tests, runs again.
 - [The other platforms change by accident] → The basalt suite runs again, and the basalt size is compared before and after.
 
 ## Migration Plan
@@ -156,6 +190,10 @@ Rollback: revert this change. Aplite then does not link again while `list-alarm-
 ## Open Questions
 
 None.
+
+Resolved (user, 2026-10-01, during the work):
+
+- The button hint icons are compiled out on aplite. See D9.
 
 Resolved (user, 2026-10-01):
 

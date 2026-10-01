@@ -24,6 +24,9 @@
 #define PERSIST_TIMER_COUNT_KEY     59000
 #define PERSIST_TIMER_SLOTS_BASE    59001
 #define PERSIST_TIMER_SLOT_KEY(n)   (PERSIST_TIMER_SLOTS_BASE + (n))
+// The highest slot count that any platform or version saves. A saved count
+// above it is bad data.
+#define PERSIST_MAX_SAVED_TIMERS    32
 
 #define VIBRATION_LENGTH_MS 30000
 
@@ -367,7 +370,7 @@ void timer_reset_auto_snooze(void) {
 void timer_persist_read(void) {
   int version = persist_read_int(PERSIST_VERSION_KEY);
   if (version < PERSIST_VERSION) {
-    APP_LOG(APP_LOG_LEVEL_INFO, "Old version (%d), resetting data.", version);
+    TEST_LOG(APP_LOG_LEVEL_INFO, "Old version (%d), resetting data.", version);
     timer_count = 0;
     s_active_slot = 0;
     timer_reset();
@@ -382,11 +385,18 @@ void timer_persist_read(void) {
   }
 
   int32_t count = persist_read_int(PERSIST_TIMER_COUNT_KEY);
-  if (count < 0 || count > MAX_TIMERS) {
+  if (count < 0 || count > PERSIST_MAX_SAVED_TIMERS) {
     timer_count = 0;
     s_active_slot = 0;
     timer_reset();
     return;
+  }
+  // More saved slots than the limit (saved by a version with a higher limit):
+  // keep the first MAX_TIMERS slots, which keep their slot numbers, and remove
+  // the saved data of the others
+  while (count > MAX_TIMERS) {
+    count--;
+    persist_delete(PERSIST_TIMER_SLOT_KEY(count));
   }
 
   timer_count = (uint8_t)count;
@@ -416,6 +426,23 @@ void timer_assign_name(uint8_t new_idx) {
   // considered user-renamed (so a later restart may reassign again).
   timer_slots[new_idx].has_custom_name = false;
 #endif
+#if !MNEMONIC_FEATURE
+  // "Timer N": N is the lowest number from 1 that no other slot's name uses.
+  // The number is one digit: the other slots can use MAX_TIMERS - 1 numbers.
+  _Static_assert(MAX_TIMERS <= 9, "the Timer N name has one digit");
+  char *name = timer_slots[new_idx].name;
+  memcpy(name, "Timer 0", 8);
+  bool collision;
+  do {
+    name[6]++;
+    collision = false;
+    for (uint8_t i = 0; i < timer_count; i++) {
+      if (i != new_idx && strcmp(timer_slots[i].name, name) == 0) {
+        collision = true;
+      }
+    }
+  } while (collision);
+#else
   time_t t = (time_t)(timer_slots[new_idx].start_ms / 1000);
   struct tm *tm_info = localtime(&t);
   const char *adj, *noun;
@@ -450,6 +477,7 @@ void timer_assign_name(uint8_t new_idx) {
     }
     suffix++;
   } while (collision);
+#endif  // MNEMONIC_FEATURE
 }
 
 // Returns true if c is an ASCII alphanumeric character

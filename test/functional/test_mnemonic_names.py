@@ -71,6 +71,13 @@ class TestMnemonicNames:
         assert name0 != "", (
             f"name0 field is empty in timer_list_show state: {state}"
         )
+        if platform == "aplite":
+            # Aplite has no mnemonic names (MNEMONIC_FEATURE in src/timer.h):
+            # a new timer gets "Timer N" with the lowest free number
+            assert name0 == "Timer 1", (
+                f"The first timer's name on aplite is not 'Timer 1': {state}"
+            )
+            return
         assert not DURATION_PATTERN.match(name0), (
             f"Line 1 still shows a duration string '{name0}' — mnemonic name not applied. "
             f"Full state: {state}"

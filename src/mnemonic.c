@@ -1,4 +1,8 @@
 #include "mnemonic.h"
+#include "timer.h"
+
+// Not in the aplite build: see MNEMONIC_FEATURE in timer.h
+#if MNEMONIC_FEATURE
 
 // Mnemonic Major System peg words.
 // Adjective encodes the hour (00–23); noun encodes the minute (00–59).
@@ -99,3 +103,5 @@ void mnemonic_generate_name(int hour, int minute,
   *adj_out  = s_adjectives[hour];
   *noun_out = s_nouns[minute];
 }
+
+#endif  // MNEMONIC_FEATURE

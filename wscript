@@ -87,8 +87,18 @@ def build(ctx):
     build_worker = os.path.exists('worker_src')
     binaries = []
 
+    # A test build (QT_TEST_BUILD=1) defines TEST_BUILD, which keeps the test
+    # log output on aplite (see TEST_LOGS in src/utility.h). The functional
+    # tests need it. On every other platform the two builds are the same.
+    test_build = os.environ.get('QT_TEST_BUILD') == '1'
+    print("QuickTimer: {}".format(
+        "TEST BUILD (test logs on every platform; do not release)"
+        if test_build else "release build"))
+
     for p in ctx.env.TARGET_PLATFORMS:
         ctx.set_env(ctx.all_envs[p])
+        if test_build:
+            ctx.env.append_value('CFLAGS', ['-DTEST_BUILD'])
         ctx.set_group(ctx.env.PLATFORM_NAME)
         app_elf='{}/pebble-app.elf'.format(ctx.env.BUILD_DIR)
         ctx.pbl_program(source=ctx.path.ant_glob('src/**/*.c'),

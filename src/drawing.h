@@ -10,6 +10,18 @@
 #pragma once
 #include <pebble.h>
 
+// The button hint icons (the small icons at the screen edges that show what
+// each button does, and the icons shown during an alarm). Aplite has about
+// 2KB of heap: its PNG decoder cannot load most of the icons, and the icon
+// code takes about 2KB of the 24KB app region that the alarm-delivery code
+// needs. So aplite has no button hint icons. The alarm icon of the Timer List
+// is not part of this feature and stays on aplite.
+#ifndef PBL_PLATFORM_APLITE
+  #define BUTTON_ICONS_FEATURE 1
+#else
+  #define BUTTON_ICONS_FEATURE 0
+#endif
+
 //! Create bounce animation for focus layer
 //! @param upward Animate the bounce upward or downward
 void drawing_start_bounce_animation(bool upward);

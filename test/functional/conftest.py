@@ -71,13 +71,51 @@ def pytest_generate_tests(metafunc):
             metafunc.parametrize("platform", PLATFORMS)
 
 
+# Set when this session made a test build (see EmulatorHelper.build())
+_test_build_made = False
+
+
+def _restore_release_build():
+    """Make a release build, so that build/ does not keep the test build.
+
+    The functional tests need a test build (QT_TEST_BUILD=1), which on aplite
+    has the test log output. Left in build/, it could be installed on a watch
+    by mistake. Set QT_KEEP_TEST_BUILD=1 to skip this step.
+    """
+    if os.environ.get("QT_KEEP_TEST_BUILD") == "1":
+        print("\nbuild/ holds a TEST BUILD (QT_KEEP_TEST_BUILD=1). Do not release it.")
+        return
+    env = os.environ.copy()
+    env.pop("QT_TEST_BUILD", None)
+    try:
+        result = subprocess.run(
+            [str(PEBBLE_CMD), "build"], capture_output=True, text=True,
+            cwd=str(PROJECT_ROOT), env=env, timeout=300,
+        )
+        ok = result.returncode == 0 and "QuickTimer: release build" in result.stdout
+    except Exception as e:
+        logger.warning(f"Release build failed: {e}")
+        ok = False
+    if ok:
+        print("\nbuild/ holds a release build again.")
+    else:
+        print("\nWARNING: the release build failed. build/ still holds a TEST BUILD. "
+              "Run `pebble build` before you install or release the app.")
+
+
 def pytest_sessionfinish(session, exitstatus):
     """Stop log streams and kill all emulators at end of session."""
+    if session.config.getoption("collectonly", False):
+        # Nothing was started. The kill below would also stop the emulators
+        # of a test session that runs in another shell.
+        return
     for platform, stream in list(_LogStream._instances.items()):
         stream.shutdown()
     # pkill any emulator processes (ours or orphaned)
     subprocess.run(["pkill", "-f", "qemu-pebble"], capture_output=True)
     subprocess.run(["pkill", "-f", "pypkjs"], capture_output=True)
+    if _test_build_made:
+        _restore_release_build()
 
 
 class EmulatorHelper:
@@ -103,6 +141,9 @@ class EmulatorHelper:
         cmd = [str(PEBBLE_CMD)] + list(args)
         env = os.environ.copy()
         env["PEBBLE_EMULATOR"] = self.platform
+        # The tests read TEST_STATE log lines. The aplite release build has
+        # none (TEST_LOGS in src/utility.h), so the tests use a test build.
+        env["QT_TEST_BUILD"] = "1"
         result = subprocess.run(
             cmd,
             capture_output=capture_output,
@@ -164,10 +205,24 @@ class EmulatorHelper:
         logger.debug(f"[{self.platform}] Wipe complete")
 
     def build(self):
-        """Build the application."""
+        """Build the application as a test build (see _run_pebble())."""
+        global _test_build_made
+        _test_build_made = True
         result = self._run_pebble("build", timeout=300)
         if result.returncode != 0:
             raise RuntimeError(f"Build failed:\n{result.stderr}")
+        # Check that the build is a test build. Without the test log output
+        # (aplite release build), every test would time out on empty logs.
+        if "QuickTimer: TEST BUILD" not in result.stdout:
+            raise RuntimeError(
+                "The build is not a test build (QT_TEST_BUILD=1 had no effect):\n"
+                f"{result.stdout[-2000:]}"
+            )
+        aplite_bin = PROJECT_ROOT / "build" / "aplite" / "pebble-app.bin"
+        if aplite_bin.exists() and b"TEST_STATE" not in aplite_bin.read_bytes():
+            raise RuntimeError(
+                f"{aplite_bin} has no TEST_STATE log text: it is not a test build"
+            )
 
     def install(self):
         """Install and launch the app on the emulator.
@@ -699,6 +754,25 @@ import threading
 import queue
 
 
+# Log lines that show a crash or a failed allocation in the app. Aplite has
+# very little heap, so a run on it must show none of these.
+_TROUBLE_PATTERN = re.compile(
+    r"app fault|fault!|invalid pointer|out of memory|\boom\b|failed to alloc|alloc.*fail|png decoding failed|failed to load png",
+    re.IGNORECASE)
+APP_TROUBLE_LINES: list = []
+
+
+def pytest_terminal_summary(terminalreporter):
+    """Report every crash or failed allocation that the app logged."""
+    terminalreporter.section("app faults and failed allocations")
+    if not APP_TROUBLE_LINES:
+        terminalreporter.write_line("none")
+        return
+    terminalreporter.write_line(f"{len(APP_TROUBLE_LINES)} line(s):")
+    for line in APP_TROUBLE_LINES:
+        terminalreporter.write_line(f"  {line}")
+
+
 class _LogStream:
     """Reads app logs for one emulator platform directly from pypkjs.
 
@@ -868,6 +942,11 @@ class _LogStream:
         filename = body[24:40].split(b"\0")[0].decode("utf-8", "replace")
         message = body[40:40 + msg_len].decode("utf-8", "replace")
         line = f"[{filename}:{line_no}] {message}"
+        if _TROUBLE_PATTERN.search(message):
+            # A crash or a failed allocation. A test can still pass after one
+            # (the app restarts), so record it for the end-of-run summary.
+            logger.error(f"[{self.platform}] APP TROUBLE: {line}")
+            APP_TROUBLE_LINES.append(f"[{self.platform}] {line}")
         with self._sink_lock:
             sinks = list(self._sinks)
         for sink in sinks:

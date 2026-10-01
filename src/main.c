@@ -944,7 +944,7 @@ static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) 
   if (timer_is_vibrating()) {
     // Check if we have a "base" duration to restart from
     if (timer_data.base_length_ms > 0) {
-      APP_LOG(APP_LOG_LEVEL_DEBUG, "Up long press: Restarting %lld ms timer.", (long long)timer_data.base_length_ms);
+      TEST_LOG(APP_LOG_LEVEL_DEBUG, "Up long press: Restarting %lld ms timer.", (long long)timer_data.base_length_ms);
       vibes_cancel(); // Stop the alarm vibration
       if (timer_data.is_repeating) {
         // Restart the full repeating timer, repeats included
@@ -982,7 +982,7 @@ static void prv_up_long_click_handler(ClickRecognizerRef recognizer, void *ctx) 
   // In edit modes, toggle reverse direction
   main_data.is_reverse_direction = !main_data.is_reverse_direction;
   vibes_short_pulse();
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "Reverse direction: %d", main_data.is_reverse_direction);
+  TEST_LOG(APP_LOG_LEVEL_DEBUG, "Reverse direction: %d", main_data.is_reverse_direction);
 
   prv_reset_new_expire_timer();
   prv_finish_interaction("long_press_up");
@@ -1412,7 +1412,7 @@ static void prv_initialize(void) {
 #endif
 
   settings_init(prv_settings_changed);
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "Timer data: length_ms=%lld, start_ms=%lld, is_paused=%d, can_vibrate=%d",
+  TEST_LOG(APP_LOG_LEVEL_DEBUG, "Timer data: length_ms=%lld, start_ms=%lld, is_paused=%d, can_vibrate=%d",
           (long long)timer_data.length_ms, (long long)timer_data.start_ms, timer_data.is_paused, timer_data.can_vibrate);
   // set initial states
   if (timer_data.reset_on_init) {

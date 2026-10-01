@@ -9,6 +9,7 @@
 
 #include <pebble.h>
 #include "animation.h"
+#include "drawing.h"
 #include "main.h"
 #include "settings.h"
 #include "text_render.h"
@@ -74,6 +75,7 @@ static struct {
   GColor      mid_color;          //< Color of center
   GColor      ring_color;         //< Color of ring
   GColor      back_color;         //< Color behind ring
+#if BUTTON_ICONS_FEATURE
   GBitmap     *reset_icon;        //< The reset icon to show when the timer is vibrating
   GBitmap     *pause_icon;        //< The pause icon to show when the timer is vibrating
   GBitmap     *silence_icon;      //< The silence icon to show when the timer is vibrating
@@ -112,6 +114,7 @@ static struct {
   // Mode-indicator icons for swap-back-select feature
   GBitmap     *icon_edit_min;
   GBitmap     *icon_edit_sec;
+#endif  // BUTTON_ICONS_FEATURE
 #ifdef PBL_MICROPHONE
   // Feedback icon shown when a voice rename is started while disconnected
   GBitmap     *no_phone_icon;
@@ -387,8 +390,11 @@ static void prv_main_text_update_state(Layer *layer) {
     field_bounds[ii + 1].origin.x = field_bounds[ii].origin.x + field_bounds[ii].size.w;
     field_bounds[ii + 1].origin.y = total_bounds.origin.y;
   }
-  // animate to new positions
+  // animate to new positions. The running animation of a field is replaced,
+  // not added to: each animation holds heap until it ends, and a few layout
+  // changes in quick succession would otherwise fill the heap on aplite.
   for (uint8_t ii = 0; ii < TEXT_FIELD_COUNT; ii++) {
+    animation_stop(&drawing_data.text_fields[ii]);
     animation_grect_start(&drawing_data.text_fields[ii], field_bounds[ii],
       TEXT_FIELD_ANI_DURATION, 0, CurveSinEaseOut);
   }
@@ -524,6 +530,7 @@ static void prv_update_draw_state(Layer *layer) {
 // Button Action Icons
 //
 
+#if BUTTON_ICONS_FEATURE
 // Icon position constants
 #define ICON_STANDARD_SIZE 25
 #define ICON_SMALL_SIZE 15
@@ -592,12 +599,16 @@ static IconPositions prv_compute_icon_positions(GRect bounds) {
   return p;
 }
 
+#endif  // BUTTON_ICONS_FEATURE
+
+#if BUTTON_ICONS_FEATURE || defined(PBL_MICROPHONE)
 // Draw a bitmap icon at a given position
 static void prv_draw_icon(GContext *ctx, GBitmap *icon, int16_t x, int16_t y, int16_t w, int16_t h) {
   if (icon) {
     graphics_draw_bitmap_in_rect(ctx, icon, GRect(x, y, w, h));
   }
 }
+#endif
 
 // Whether the repeat counter ("<n>x") is currently shown. In EditRepeat it
 // flashes on a 1-second cycle (visible for the first half); elsewhere it shows
@@ -614,6 +625,7 @@ static bool prv_is_repeat_counter_visible(void) {
   return timer_data.repeat_count > 1;
 }
 
+#if BUTTON_ICONS_FEATURE
 // New/EditSec mode: increment/decrement icons (direction-dependent) plus the
 // direction and quit long-press icons.
 static void prv_draw_edit_icons(GContext *ctx, const IconPositions *pos, ControlMode mode,
@@ -778,6 +790,7 @@ static void prv_draw_action_icons(GContext *ctx, GRect bounds) {
       break;
   }
 }
+#endif  // BUTTON_ICONS_FEATURE
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -860,7 +873,9 @@ static void prv_render_internal(Layer *layer, GContext *ctx) {
   prv_render_footer_text(ctx, bounds);
 
   // Draw button action icons
+#if BUTTON_ICONS_FEATURE
   prv_draw_action_icons(ctx, bounds);
+#endif
 
   // Draw repeat counter
   if (prv_is_repeat_counter_visible()) {
@@ -884,6 +899,7 @@ static void prv_render_internal(Layer *layer, GContext *ctx) {
     graphics_context_set_text_color(ctx, drawing_data.fore_color);
   }
 
+#if BUTTON_ICONS_FEATURE
   if (timer_is_vibrating()) {
     // GCompOpSet respects the PNG's alpha (transparency) channel.
     // This assumes your icon resource is a PNG with a transparent background.
@@ -916,6 +932,7 @@ static void prv_render_internal(Layer *layer, GContext *ctx) {
     // affect other drawing operations.
     graphics_context_set_compositing_mode(ctx, GCompOpSet);
   }
+#endif  // BUTTON_ICONS_FEATURE
 }
 
 // Render everything to the screen
@@ -961,6 +978,7 @@ void drawing_initialize(Layer *layer) {
   drawing_data.mid_color = PBL_IF_COLOR_ELSE(GColorMintGreen, GColorWhite);
   drawing_data.ring_color = PBL_IF_COLOR_ELSE(GColorGreen, GColorWhite);
   drawing_data.back_color = PBL_IF_COLOR_ELSE(GColorLightGray, GColorBlack);
+#if BUTTON_ICONS_FEATURE
   // load alarm icons
   drawing_data.reset_icon = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_REPEAT_ICON);
   drawing_data.pause_icon = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_PAUSE_ICON);
@@ -999,6 +1017,7 @@ void drawing_initialize(Layer *layer) {
   drawing_data.icon_minus_1sec = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_MINUS_1SEC);
   drawing_data.icon_edit_min = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_EDIT_MIN);
   drawing_data.icon_edit_sec = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_ICON_EDIT_SEC);
+#endif  // BUTTON_ICONS_FEATURE
 #ifdef PBL_MICROPHONE
   drawing_data.no_phone_icon = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_NO_PHONE);
 #endif
@@ -1008,6 +1027,7 @@ void drawing_initialize(Layer *layer) {
 
 // Destroy the singleton drawing data
 void drawing_terminate(void) {
+#if BUTTON_ICONS_FEATURE
   gbitmap_destroy(drawing_data.reset_icon);
   gbitmap_destroy(drawing_data.pause_icon);
   gbitmap_destroy(drawing_data.silence_icon);
@@ -1043,6 +1063,7 @@ void drawing_terminate(void) {
   gbitmap_destroy(drawing_data.icon_minus_1sec);
   gbitmap_destroy(drawing_data.icon_edit_min);
   gbitmap_destroy(drawing_data.icon_edit_sec);
+#endif  // BUTTON_ICONS_FEATURE
 #ifdef PBL_MICROPHONE
   gbitmap_destroy(drawing_data.no_phone_icon);
 #endif

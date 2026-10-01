@@ -14,9 +14,11 @@
 // When an alarm shows (a wakeup launch, an alarm takeover, or an alarm start),
 // presses that start within this time are ignored
 #define WAKEUP_INPUT_GUARD_MS 400
-// The input guard (~340 bytes) does not fit in aplite's 24KB app region,
-// whose heap was already below the ~1.6KB floor, so it is compiled out there
-// and aplite handles presses immediately. Only the guard is left out: every
+// The input guard (~340 bytes) is compiled out on aplite, whose 24KB app
+// region holds the code, the data, and the heap (a release heap of about 5KB
+// and a test build heap of about 2.9KB after the aplite trims; the true heap
+// is about 680 bytes less than the build reports). Aplite handles presses
+// immediately. Only the guard is left out: every
 // other part of the alarm takeover is on aplite too.
 #ifndef PBL_PLATFORM_APLITE
   #define WAKEUP_GUARD_FEATURE 1

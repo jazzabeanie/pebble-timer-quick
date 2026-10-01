@@ -14,22 +14,34 @@
 #define SNOOZE_INCREMENT_MS (MSEC_IN_MIN * 5)
 
 // The stopwatch-laps feature set (lap recording, the post-lap flash,
-// slot-limit warnings, and the Timer List "Delete all" row) does not fit in
-// aplite's 24KB app region alongside the existing app (~1.7KB of headroom at
-// baseline vs ~2.8KB of new code+data), so it is compiled out there. Aplite
-// keeps the previous limits and button behavior.
+// slot-limit warnings, and the Timer List "Delete all" row) is about 2.8KB of
+// code and data. Aplite's 24KB app region holds the code, the data, and the
+// heap, and the alarm-delivery code has priority there, so the feature set is
+// compiled out on aplite, which keeps the previous button behavior.
 #ifndef PBL_PLATFORM_APLITE
   #define LAP_FEATURE 1
 #else
   #define LAP_FEATURE 0
 #endif
 
+// Mnemonic names ("dry mouse") need two lookup tables and localtime(), about
+// 1KB that aplite's 24KB app region needs for the alarm-delivery code. On
+// aplite a new timer gets the name "Timer N" instead (N is the lowest number
+// that no other timer's name uses).
+#ifndef PBL_PLATFORM_APLITE
+  #define MNEMONIC_FEATURE 1
+#else
+  #define MNEMONIC_FEATURE 0
+#endif
+
 // Maximum concurrent timer slots and stored name length. Aplite's 24KB
-// app-RAM region was already within ~1.7KB of full before the stopwatch-laps
-// feature, so it keeps the previous limits; every other platform gets the
-// full 32 slots and 39-character names.
+// app-RAM region holds the code, the data, and the heap, and the
+// alarm-delivery code has priority there, so aplite has 3 slots (56 bytes
+// each) and 19-character names; every other platform gets the full 32 slots
+// and 39-character names. Saved data with more slots than the limit is cut to
+// the first MAX_TIMERS slots (see timer_persist_read()).
 #ifdef PBL_PLATFORM_APLITE
-  #define MAX_TIMERS 5
+  #define MAX_TIMERS 3
   #define TIMER_NAME_LEN 20
 #else
   #define MAX_TIMERS 32

@@ -1,6 +1,16 @@
 #pragma once
 #include <pebble.h>
 
+// Settings sync with the phone (the AppMessage inbox). It cannot work on
+// aplite: the inbox needs about 8KB of heap and aplite has about 2KB, so
+// app_message_open() fails there. The code is left out on aplite, which runs
+// with the default settings (or with saved settings, if any exist).
+#ifndef PBL_PLATFORM_APLITE
+  #define SETTINGS_SYNC_FEATURE 1
+#else
+  #define SETTINGS_SYNC_FEATURE 0
+#endif
+
 typedef void (*SettingsChangeCallback)(void);
 
 void settings_init(SettingsChangeCallback on_change);
