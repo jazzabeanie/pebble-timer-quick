@@ -128,6 +128,20 @@ fast Select presses SHALL act as two single presses.
 - **AND** the user holds Select
 - **THEN** the stopwatch restarts and the lap session resets, as before
 
+#### Scenario: An alarm takeover disarms the double-press
+
+- **WHEN** a running lap stopwatch is on screen
+- **AND** a different countdown ends and its alarm takes over the screen
+- **THEN** the double-press is no longer recognised
+- **AND** Select acts on the alarm with no added delay
+
+#### Scenario: A double press that the input guard ignores does nothing
+
+- **WHEN** a press of a Select double-press began inside the wakeup input guard
+  window (see `wakeup-input-guard`)
+- **THEN** the double-press pauses nothing
+- **AND** no lap is recorded
+
 ### Requirement: Display freezes at Select press-down on a running lap stopwatch
 
 When the double-press is armed (the `Lap Stopwatch` setting is enabled and the
@@ -135,8 +149,9 @@ app is in Counting mode with a running stopwatch), pressing Select down SHALL
 freeze the timer display at the stopwatch value at press-down. The frozen
 display SHALL show the split main value with milliseconds and the header total
 at that same instant. The freeze SHALL end when the press resolves (single
-press, double press, or long press), when the lap-full warning is shown, or
-after a safety timeout of about 1 s, whichever comes first. The freeze SHALL
+press, double press, or long press), when the lap-full warning is shown, when
+the double-press stops being armed (for example an alarm takeover or the Timer
+List), or after a safety timeout of about 1 s, whichever comes first. The freeze SHALL
 NOT change the timer state. No haptic feedback SHALL be given on press-down.
 
 #### Scenario: Display freezes at press-down
@@ -180,6 +195,13 @@ NOT change the timer state. No haptic feedback SHALL be given on press-down.
 - **WHEN** the display is frozen after a Select press-down
 - **AND** no click handler resolves the press within about 1 s
 - **THEN** the freeze ends and the live stopwatch value is shown again
+
+#### Scenario: Alarm takeover ends the freeze
+
+- **WHEN** the display is frozen after a Select press-down
+- **AND** the alarm of a different countdown takes over the screen
+- **THEN** the freeze ends
+- **AND** the alarm screen shows the live value of the alarm timer
 
 #### Scenario: Press-down during the lap flash freezes the running stopwatch value
 

@@ -25,7 +25,9 @@ The lap feature is inside `LAP_FEATURE` and is compiled out on aplite, where RAM
 
 "Armed" means: `LAP_FEATURE`, `Lap Stopwatch` on, Counting mode, active timer is a running chrono. A helper `prv_lap_double_press_armed()` computes this. A helper `prv_refresh_click_config()` keeps a cached `select_multi_armed` flag. When the computed state differs from the flag, it calls `window_set_click_config_provider` again. The provider subscribes `window_multi_click_subscribe(BUTTON_ID_SELECT, 2, 2, 300, true, prv_select_double_click_handler)` only when armed.
 
-Call `prv_refresh_click_config()` at the end of `prv_finish_interaction`, from the settings-changed callback, after returning from the Timer List, and after the New-mode expire callback changes the mode. These are all places where the armed state can change.
+Call `prv_refresh_click_config()` at the end of `prv_finish_interaction`, from `main_show_alarm`, from the settings-changed callback, after returning from the Timer List, and after the New-mode expire callback changes the mode. These are all places where the armed state can change.
+
+In `prv_finish_interaction` the refresh comes after `prv_watch_arm()`. That call can do an alarm takeover, which changes the active timer. `main_show_alarm` also covers the takeovers that do not come from a click handler (the alarm watch timer, and the return from the Timer List).
 
 *Alternatives:*
 - Always subscribe multi-click. Rejected. It delays every Select and merges fast taps in edit modes.
@@ -45,13 +47,15 @@ Both are unit-testable in `test/test_timer_multi.c`.
 
 ### D4. Double-click handler
 
-`prv_select_double_click_handler` does the standard interaction bookkeeping. It calls `prv_flash_cancel()` and then `timer_pause_at(main_data.select_down_ms)`. It then calls `prv_finish_interaction("double_press_select")`. That call disarms the multi-click, because the stopwatch is now paused. It also logs a `TEST_STATE` for the functional tests.
+`prv_select_double_click_handler` starts with `if (prv_press_blocked(BUTTON_ID_SELECT)) return;`, like the single and long handlers. The wakeup input guard is a check in each handler, so a new handler has no protection without it. Then it does the standard interaction bookkeeping. It calls `prv_flash_cancel()` and then `timer_pause_at(main_data.select_down_ms)`. It then calls `prv_finish_interaction("double_press_select")`. That call disarms the multi-click, because the stopwatch is now paused. It also logs a `TEST_STATE` for the functional tests.
 
 ### D5. Freeze the display at press-down
 
 The single click is delayed (D1), so the lap flash starts ~300 ms after the press. To show that the lap was taken at the press, the Select raw-down handler freezes the display when armed. `drawing_set_freeze_ms(int64_t at_ms)` / `drawing_clear_freeze()` add a render-time override, like `prv_apply_slot_override`. While it is set, the draw path evaluates the active timer at `at_ms` instead of `epoch()` (the split main value and the header total) and shows the millisecond field.
 
 The freeze is cleared by the single-click handler (a new lap flash takes over), the double-click handler (the paused value is the same), the long-click handler (restart), the lap-full warning path, a 1 s safety `AppTimer`, and `prv_terminate`. Lap and pause both continue from the frozen value, so the display does not jump. Restart goes to 0:00, as the user expects. The lap-full warning and the safety timeout return to the live running value, which is correct because the stopwatch never stopped.
+
+The freeze must not stay after the armed state ends. When `prv_refresh_click_config()` goes from armed to not armed, it also clears the freeze, cancels the safety timer, and clears `select_press_pending`. This covers an alarm takeover, the Timer List, and a different button that changes the mode inside the double-press window. Without it, the frozen frame evaluates a different active timer at the frozen time.
 
 The freeze takes priority over the lap flash. On press-down during a flash, the raw-down handler stops the flash timer and clears the flash slot override, so the frozen frame shows the running stopwatch, not the lap slot. A single press then starts a new flash for the new lap (as today). A double or long press leaves the flash cancelled. When the lap-full warning or the safety timeout ends the freeze, the old flash does not continue.
 
@@ -66,7 +70,10 @@ The freeze takes priority over the lap flash. On press-down during a flash, the 
 - [The freeze stays on screen if no handler resolves the press] → A 1 s safety timer clears it; `prv_terminate` clears it too.
 - [Re-setting the click config during a handler may reset the click recognizers] → The config is only re-applied after the handler has done its work. Verify on the emulator that the recognizers work after arm and disarm.
 - [Existing functional lap tests expect the lap log right after Select] → Wait for the `lap_recorded` state, which some tests already do. Adjust the others.
-- [The double-click handler is not covered by the wakeup guard] → The `wakeup-input-guard` change must add its guard to this handler. The change that lands second does this.
+- [The double-click handler is not covered by the wakeup guard] → `wakeup-input-guard` has landed, so this change adds the `prv_press_blocked` check to the handler (D4).
+- [An alarm of a different countdown takes over while the double-press is armed or the display is frozen] → `main_show_alarm` calls `prv_refresh_click_config()`, which disarms and clears the freeze (D1, D5). The guard starts at the takeover and blocks the press in progress. Not tested on the emulator: whether the SDK resets a click sequence in progress when the click config is set again. The guard check makes the result safe in both cases.
+- [The functional harness cannot make a double press: `press_select` holds for 250 ms and then waits 300 ms] → Add a `double_press_select` helper to `conftest.py` with short holds, so that both press-downs are inside the 300 ms window.
+- [Existing tests that press Select two times in sequence on a running lap stopwatch are near the 300 ms window, and could be read as a double press] → Wait for the `lap_recorded` state between the presses.
 
 ## Migration Plan
 
