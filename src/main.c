@@ -58,6 +58,13 @@ static struct {
     uint64_t    flash_deadline_ms;    //< Epoch (ms) at which the flash stops
     bool        flash_showing_lap;    //< True while the lap slot is the rendered frame
     bool        flash_show_limit_warning; //< Show the slots-left warning in the "original" frames
+    // Select on a running lap stopwatch: a double press pauses, so a single
+    // press (a lap) is confirmed only after the double-press window. The press
+    // time is kept from press-down, and the display is frozen there.
+    int64_t     select_down_ms;       //< Epoch (ms) of the first press-down of the pending press
+    bool        select_press_pending; //< True from that press-down until the press resolves
+    bool        select_multi_armed;   //< True while Select has the double-press subscription
+    AppTimer    *freeze_timer;        //< Ends the display freeze if no click handler resolves the press
 #endif
   } main_data;
 
@@ -101,6 +108,14 @@ static AppTimer *s_no_phone_timer = NULL;
 
 // Slot-limit warning overlay ("N slots left" / "No free slots"), held 3 seconds
 #define WARNING_FEEDBACK_MS 3000
+
+// Double press on Select pauses a running lap stopwatch: the two presses must
+// come within this time
+#define SELECT_DOUBLE_PRESS_MS 300
+// Safety limit for the display freeze, about 1 s. It is longer than the
+// slowest press that still resolves: a hold just short of the long press,
+// then the double-press window.
+#define SELECT_FREEZE_TIMEOUT_MS (BUTTON_HOLD_RESET_MS + SELECT_DOUBLE_PRESS_MS + 150)
 static char s_warning_text[32];
 static bool s_show_warning = false;
 static AppTimer *s_warning_timer = NULL;
@@ -115,6 +130,13 @@ static void prv_cancel_quit_timer(void);
 static void prv_set_backlight(bool on);
 static void prv_update_backlight(void);
 static void prv_watch_arm(void);
+static void prv_click_config_provider(void *ctx);
+#if LAP_FEATURE
+static void prv_refresh_click_config(void);
+#else
+// Without the lap feature the click config never changes
+#define prv_refresh_click_config() ((void)0)
+#endif
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -180,6 +202,8 @@ static void prv_finish_interaction(const char *log_tag) {
   prv_update_backlight_after_press();
   test_log_state(log_tag);
   prv_watch_arm();
+  // Last: prv_watch_arm() can change the timer on screen (an alarm takeover)
+  prv_refresh_click_config();
 }
 
 // Helper to record interaction time
@@ -333,6 +357,7 @@ static void prv_new_expire_callback(void *data) {
     }
     // The edit ended: a held alarm takes over
     prv_watch_arm();
+    prv_refresh_click_config();
   }
 }
 
@@ -479,12 +504,13 @@ static void prv_flash_start(int8_t lap_slot) {
   main_data.flash_timer = app_timer_register(FLASH_TICK_MS, prv_flash_tick_callback, NULL);
 }
 
-// Record a lap of the active timer and start the flash; at capacity, warn and
-// leave the original running with its play/pause state unchanged
-static void prv_record_lap(void) {
+// Record a lap of the active timer at its value at at_ms (the Select
+// press-down time) and start the flash; at capacity, warn and leave the
+// original running with its play/pause state unchanged
+static void prv_record_lap(int64_t at_ms) {
   // A Select during the flash window cancels it and records the next lap
   prv_flash_cancel();
-  int8_t lap_slot = timer_slot_lap(timer_get_active_slot());
+  int8_t lap_slot = timer_slot_lap_at(timer_get_active_slot(), at_ms);
   if (lap_slot < 0) {
     TEST_LOG(APP_LOG_LEVEL_DEBUG, "TEST_STATE:lap_full,free=0,p=%d",
              timer_is_paused() ? 1 : 0);
@@ -519,6 +545,70 @@ static bool prv_flash_view_lap(void) {
   timer_set_active_slot((uint8_t)slot);
   TEST_LOG(APP_LOG_LEVEL_DEBUG, "TEST_STATE:flash_view_lap,slot=%d", (int)slot);
   return true;
+}
+
+// True when a Select double press pauses: a running lap stopwatch is shown in
+// Counting mode. An alarm is never armed: Select must act on it with no delay.
+static bool prv_lap_double_press_armed(void) {
+  return settings_get_lap_stopwatch_enabled() &&
+         main_data.control_mode == ControlModeCounting &&
+         !timer_is_paused() && timer_is_chrono() && !timer_is_vibrating();
+}
+
+// End the pending Select press and the display freeze. Returns the time of the
+// press-down, or the current time when no press was pending.
+static int64_t prv_select_press_end(void) {
+  int64_t at_ms = main_data.select_press_pending ? main_data.select_down_ms : (int64_t)epoch();
+  main_data.select_press_pending = false;
+  if (main_data.freeze_timer) {
+    app_timer_cancel(main_data.freeze_timer);
+    main_data.freeze_timer = NULL;
+  }
+  drawing_clear_freeze();
+  return at_ms;
+}
+
+// Safety: no click handler resolved the press. Show the live value again.
+static void prv_freeze_timeout_callback(void *data) {
+  main_data.freeze_timer = NULL;
+  prv_select_press_end();
+  main_force_redraw();
+}
+
+// Select press-down while the double press is armed: keep the time of the
+// first press-down and freeze the display there, so the user sees the value
+// that the lap or the pause will use. The second press-down of a double press
+// changes nothing.
+static void prv_select_press_begin(void) {
+  if (!main_data.select_multi_armed || main_data.select_press_pending) {
+    return;
+  }
+  main_data.select_down_ms = epoch();
+  main_data.select_press_pending = true;
+  // The frozen frame shows the running stopwatch, not a frame of the lap flash
+  prv_flash_cancel();
+  drawing_set_freeze_ms(main_data.select_down_ms);
+  main_data.freeze_timer = app_timer_register(SELECT_FREEZE_TIMEOUT_MS,
+                                              prv_freeze_timeout_callback, NULL);
+  main_force_redraw();
+}
+
+// Subscribe or unsubscribe the Select double press when the armed state
+// changed. The multi-click subscription delays every single click, so Select
+// has it only while a double press can pause. Call this after every event that
+// can change the armed state, and only when the handler has done its work:
+// setting the click config again resets the click recognizers.
+static void prv_refresh_click_config(void) {
+  bool armed = prv_lap_double_press_armed();
+  if (armed == main_data.select_multi_armed) {
+    return;
+  }
+  main_data.select_multi_armed = armed;
+  if (!armed) {
+    // A press in progress no longer belongs to a running lap stopwatch
+    prv_select_press_end();
+  }
+  window_set_click_config_provider(main_data.window, prv_click_config_provider);
 }
 #else
 // Without the lap feature there is never a flash to cancel or a lap to view
@@ -747,6 +837,8 @@ static void prv_log_slot(const char *event, int slot) {
 void main_show_alarm(void) {
   // Counting mode (this also cancels a lap flash), with no edit in progress
   main_set_control_mode(ControlModeCounting);
+  // An alarm is on screen: no Select double press, and no display freeze
+  prv_refresh_click_config();
   main_data.is_reverse_direction = false;
   prv_stop_new_expire_timer();
   // The app must not quit under the alarm
@@ -776,6 +868,8 @@ void main_watch_arm(void) {
   }
   prv_app_timer_callback(NULL);
   prv_watch_arm();
+  // The Timer List can change the timer on screen
+  prv_refresh_click_config();
 }
 
 // Make a slot whose countdown has ended the active timer and show its alarm
@@ -997,6 +1091,10 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
+#if LAP_FEATURE
+  // The press resolved as a single press: end the display freeze
+  int64_t press_ms = prv_select_press_end();
+#endif
   if (prv_handle_alarm()) {
     if (main_data.control_mode == ControlModeCounting) {
       timer_toggle_play_pause();
@@ -1004,6 +1102,7 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     prv_update_backlight_after_press();
     test_log_state("button_select");
     prv_watch_arm();
+    prv_refresh_click_config();
     return;
   }
   // change timer mode
@@ -1024,11 +1123,13 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *ctx) {
     case ControlModeCounting:
 #if LAP_FEATURE
       // Lap Stopwatch: Select on a running stopwatch records a lap instead of
-      // pausing (a Select during the flash window re-laps immediately). Laps are
-      // a stopwatch-only behavior; a running countdown still toggles play/pause.
+      // pausing (a Select during the flash window records the next lap). The
+      // lap value is the value at press-down: the single click comes after
+      // the double-press window. Laps are a stopwatch-only behavior; a running
+      // countdown still toggles play/pause.
       if (settings_get_lap_stopwatch_enabled() && !timer_is_paused() &&
           timer_is_chrono()) {
-        prv_record_lap();
+        prv_record_lap(press_ms);
         break;
       }
 #endif
@@ -1054,10 +1155,34 @@ static void prv_select_raw_click_handler(ClickRecognizerRef recognizer, void *ct
   timer_reset_auto_snooze();
   // stop vibration
   prv_handle_alarm();
+#if LAP_FEATURE
+  prv_select_press_begin();
+#endif
   // animate and refresh
   drawing_start_reset_animation();
   layer_mark_dirty(main_data.layer);
 }
+
+#if LAP_FEATURE
+// Select double click handler: pause a running lap stopwatch at the time of
+// the first press-down. No lap is recorded for either press. Subscribed only
+// while the double press is armed (see prv_refresh_click_config).
+static void prv_select_double_click_handler(ClickRecognizerRef recognizer, void *ctx) {
+  if (prv_press_blocked(BUTTON_ID_SELECT)) {
+    return;
+  }
+  prv_record_interaction();
+  prv_cancel_quit_timer();
+  prv_reset_new_expire_timer();
+  timer_reset_auto_snooze();
+  int64_t press_ms = prv_select_press_end();
+  prv_flash_cancel();
+  if (prv_lap_double_press_armed()) {
+    timer_pause_at(press_ms);
+  }
+  prv_finish_interaction("double_press_select");
+}
+#endif
 
 // Select long click handler
 static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *ctx) {
@@ -1068,6 +1193,10 @@ static void prv_select_long_click_handler(ClickRecognizerRef recognizer, void *c
   prv_cancel_quit_timer();
   prv_reset_new_expire_timer();
   timer_reset_auto_snooze();
+#if LAP_FEATURE
+  // The press resolved as a long press: end the display freeze
+  prv_select_press_end();
+#endif
 
   // EditSec: toggle to New mode (or add time if swap is on)
   if (main_data.control_mode == ControlModeEditSec) {
@@ -1250,6 +1379,14 @@ static void prv_click_config_provider(void *ctx) {
   window_raw_click_subscribe(BUTTON_ID_SELECT, prv_select_raw_click_handler, NULL, NULL);
   window_long_click_subscribe(BUTTON_ID_SELECT, BUTTON_HOLD_RESET_MS, prv_select_long_click_handler,
     NULL);
+#if LAP_FEATURE
+  // Double press pauses a running lap stopwatch. This delays the single click
+  // until the double-press window is over, so it is subscribed only while armed.
+  if (main_data.select_multi_armed) {
+    window_multi_click_subscribe(BUTTON_ID_SELECT, 2, 2, SELECT_DOUBLE_PRESS_MS, true,
+                                 prv_select_double_click_handler);
+  }
+#endif
   window_single_click_subscribe(BUTTON_ID_DOWN, prv_down_click_handler);
   window_raw_click_subscribe(BUTTON_ID_DOWN, prv_down_raw_down_handler, NULL, NULL); // POC
   window_long_click_subscribe(BUTTON_ID_DOWN, BUTTON_HOLD_RESET_MS, prv_down_long_click_handler, NULL);
@@ -1355,6 +1492,7 @@ static void prv_app_timer_callback(void *data) {
   // takes over. This is the last step: a takeover runs this callback again.
   if (was_vibrating && !timer_is_vibrating()) {
     prv_watch_arm();
+    prv_refresh_click_config();
   }
 }
 
@@ -1370,6 +1508,8 @@ static void prv_tick_timer_service_callback(struct tm *tick_time, TimeUnits unit
 //
 
 static void prv_settings_changed(void) {
+  // The Lap Stopwatch setting can arm or disarm the Select double press
+  prv_refresh_click_config();
   drawing_update();
   layer_mark_dirty(main_data.layer);
 }
@@ -1476,6 +1616,9 @@ static void prv_initialize(void) {
   // initialize window
   main_data.window = window_create();
   ASSERT(main_data.window);
+#if LAP_FEATURE
+  main_data.select_multi_armed = prv_lap_double_press_armed();
+#endif
   window_set_click_config_provider(main_data.window, prv_click_config_provider);
   Layer *window_root = window_get_root_layer(main_data.window);
   GRect window_bounds = layer_get_bounds(window_root);
@@ -1513,6 +1656,7 @@ static void prv_terminate(void) {
   // stop any active lap flash and warning overlay
   prv_flash_cancel();
 #if LAP_FEATURE
+  prv_select_press_end();
   if (s_warning_timer) {
     app_timer_cancel(s_warning_timer);
     s_warning_timer = NULL;

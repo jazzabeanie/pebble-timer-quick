@@ -39,6 +39,17 @@ void drawing_set_slot_override(int8_t slot);
 //! @return The overridden slot index, or -1 when no override is set
 int8_t drawing_get_slot_override(void);
 
+//! Freeze the display of the running active timer at a given time (used from
+//! Select press-down on a running lap stopwatch until the press resolves).
+//! While set, the render path draws the timer as it was at that time, with
+//! the millisecond field. The timer itself is not changed. A lap flash frame
+//! (slot override) and a paused timer are drawn as usual.
+//! @param at_ms The epoch time (ms) to show the timer at
+void drawing_set_freeze_ms(int64_t at_ms);
+
+//! End the display freeze
+void drawing_clear_freeze(void);
+
 //! Render everything to the screen
 //! @param layer The layer being rendered onto
 //! @param ctx The layer's drawing context

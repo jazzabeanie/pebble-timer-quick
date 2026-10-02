@@ -378,6 +378,8 @@ static void test_lap_returns_minus1_at_capacity(void **state) {
   }
   assert_int_equal(timer_count, MAX_TIMERS);
 
+  // timer_slot_lap reads the clock before it checks the capacity
+  will_return(epoch, EPOCH_14_30_UTC + 40 * MSEC_IN_MIN);
   int8_t lap = timer_slot_lap(0);
   assert_int_equal(lap, -1);
   assert_int_equal(timer_count, MAX_TIMERS);
@@ -398,6 +400,48 @@ static void test_lap_original_keeps_running(void **state) {
   timer_set_active_slot(0);
   will_return(epoch, EPOCH_14_30_UTC + 9000);
   assert_int_equal(timer_get_value_ms(), 9000);
+}
+
+// timer_slot_lap_at takes the snapshot and the lap boundary at the given time,
+// not at the current time (no clock read)
+static void test_lap_at_uses_given_time(void **state) {
+  will_return(epoch, EPOCH_14_30_UTC);
+  timer_slot_create();
+
+  int8_t lap = timer_slot_lap_at(0, EPOCH_14_30_UTC + 5000);
+
+  assert_int_equal(lap, 1);
+  assert_true(timer_slots[1].is_paused);
+  assert_int_equal(timer_slots[1].start_ms, 5000);
+  assert_int_equal(timer_slots[0].last_lap_ms, 5000);
+  assert_int_equal(timer_slots[0].lap_count, 1);
+  assert_false(timer_slots[0].is_paused);
+}
+
+// timer_pause_at pauses the running active timer as if paused at the given time
+static void test_pause_at_uses_given_time(void **state) {
+  will_return(epoch, EPOCH_14_30_UTC);
+  timer_slot_create();
+  timer_set_active_slot(0);
+
+  timer_pause_at(EPOCH_14_30_UTC + 5000);
+
+  assert_true(timer_data.is_paused);
+  assert_int_equal(timer_data.start_ms, 5000);
+  assert_int_equal(timer_get_value_ms(), 5000);
+}
+
+// timer_pause_at leaves a paused timer as it is
+static void test_pause_at_on_paused_timer_does_nothing(void **state) {
+  will_return(epoch, EPOCH_14_30_UTC);
+  timer_slot_create();
+  timer_set_active_slot(0);
+  timer_pause_at(EPOCH_14_30_UTC + 5000);
+
+  timer_pause_at(EPOCH_14_30_UTC + 9000);
+
+  assert_true(timer_data.is_paused);
+  assert_int_equal(timer_data.start_ms, 5000);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -794,6 +838,9 @@ int main(void) {
     cmocka_unit_test_setup_teardown(test_lap_long_name_trimmed, setup_utc, teardown),
     cmocka_unit_test_setup_teardown(test_lap_returns_minus1_at_capacity, setup_utc, teardown),
     cmocka_unit_test_setup_teardown(test_lap_original_keeps_running, setup_utc, teardown),
+    cmocka_unit_test_setup_teardown(test_lap_at_uses_given_time, setup_utc, teardown),
+    cmocka_unit_test_setup_teardown(test_pause_at_uses_given_time, setup_utc, teardown),
+    cmocka_unit_test_setup_teardown(test_pause_at_on_paused_timer_does_nothing, setup_utc, teardown),
     cmocka_unit_test_setup_teardown(test_running_countdown_mask, setup_fixed, teardown),
     cmocka_unit_test_setup_teardown(test_find_ended_none, setup_fixed, teardown),
     cmocka_unit_test_setup_teardown(test_find_ended_slot0, setup_fixed, teardown),

@@ -158,8 +158,15 @@ bool mock_is_vibrating = false;
 bool mock_is_chrono = false;
 bool mock_is_paused = true;
 
+// The slot state the draw path saw at its last read of the time parts (the
+// display freeze shows the slot as paused for the length of one draw call)
+bool g_seen_paused = false;
+int64_t g_seen_start_ms = 0;
+
 void timer_get_time_parts(uint16_t *hr, uint16_t *min, uint16_t *sec) {
   *hr = mock_hr; *min = mock_min; *sec = mock_sec;
+  g_seen_paused = timer_slots[0].is_paused;
+  g_seen_start_ms = timer_slots[0].start_ms;
 }
 uint16_t timer_get_ms_part(void) { return mock_ms; }
 int64_t timer_get_value_ms(void) { return mock_value_ms; }
@@ -534,6 +541,76 @@ static void test_text_layout_change_does_not_pile_up_animations(void **state) {
     assert_int_equal(g_animation_max_live, 1);
 }
 
+#if LAP_FEATURE
+// Display freeze: for the length of each draw call the running active slot is
+// shown as paused at the freeze time, and it is put back before the call returns
+static void test_freeze_shows_running_slot_paused_at_freeze_time(void **state) {
+    reset_ms_mocks();
+    mock_is_chrono = true;
+    mock_is_paused = false;
+    mock_length_ms = 600000;
+    memset(&timer_slots[0], 0, sizeof(timer_slots[0]));
+    timer_slots[0].is_paused = false;
+    timer_slots[0].start_ms = 1000;       // started at epoch 1000
+    drawing_initialize((Layer*)1);
+
+    drawing_set_freeze_ms(6000);
+    g_seen_paused = false;
+    drawing_update();
+    assert_true(g_seen_paused);
+    assert_int_equal(g_seen_start_ms, 5000);
+    assert_false(timer_slots[0].is_paused);
+    assert_int_equal(timer_slots[0].start_ms, 1000);
+
+    g_seen_paused = false;
+    drawing_render((Layer*)1, (GContext*)1);
+    assert_true(g_seen_paused);
+    assert_int_equal(g_seen_start_ms, 5000);
+    assert_false(timer_slots[0].is_paused);
+    assert_int_equal(timer_slots[0].start_ms, 1000);
+
+    // Cleared: the slot is drawn as it is
+    drawing_clear_freeze();
+    drawing_update();
+    assert_false(g_seen_paused);
+    assert_int_equal(g_seen_start_ms, 1000);
+
+    // A paused slot is never changed by a freeze
+    timer_slots[0].is_paused = true;
+    timer_slots[0].start_ms = 4000;
+    drawing_set_freeze_ms(6000);
+    drawing_update();
+    assert_int_equal(g_seen_start_ms, 4000);
+    assert_int_equal(timer_slots[0].start_ms, 4000);
+    drawing_clear_freeze();
+    drawing_terminate();
+    memset(&timer_slots[0], 0, sizeof(timer_slots[0]));
+}
+
+#if BUTTON_ICONS_FEATURE
+// The frozen frame keeps the icons of a running stopwatch (the pause icon),
+// though the slot reads as paused during the draw call
+static void test_freeze_keeps_running_icons(void **state) {
+    reset_ms_mocks();
+    mock_control_mode = ControlModeCounting;
+    mock_is_chrono = true;
+    mock_is_paused = true;                // what the frozen slot reads as
+    mock_length_ms = 600000;
+    memset(&timer_slots[0], 0, sizeof(timer_slots[0]));
+    timer_slots[0].start_ms = 1000;
+    drawing_initialize((Layer*)1);
+    drawing_set_freeze_ms(6000);
+    draw_call_count = 0;
+    drawing_render((Layer*)1, (GContext*)1);
+    drawing_clear_freeze();
+    drawing_terminate();
+
+    assert_true(was_bitmap_drawn(RESOURCE_ID_IMAGE_PAUSE_ICON));
+    assert_false(was_bitmap_drawn(RESOURCE_ID_IMAGE_PLAY_ICON));
+}
+#endif
+#endif  // LAP_FEATURE
+
 #ifdef PBL_PLATFORM_APLITE
 // Aplite has no button hint icons: its heap cannot hold them, and the space is
 // needed for the alarm-delivery code. Nothing is loaded and nothing is drawn,
@@ -565,6 +642,12 @@ static void test_aplite_loads_and_draws_no_icons(void **state) {
 int main(void) {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_text_layout_change_does_not_pile_up_animations),
+#if LAP_FEATURE
+        cmocka_unit_test(test_freeze_shows_running_slot_paused_at_freeze_time),
+#if BUTTON_ICONS_FEATURE
+        cmocka_unit_test(test_freeze_keeps_running_icons),
+#endif
+#endif
 #ifdef PBL_PLATFORM_APLITE
         cmocka_unit_test(test_aplite_loads_and_draws_no_icons),
 #endif

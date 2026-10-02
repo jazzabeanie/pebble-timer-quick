@@ -29,6 +29,8 @@ Call `prv_refresh_click_config()` at the end of `prv_finish_interaction`, from `
 
 In `prv_finish_interaction` the refresh comes after `prv_watch_arm()`. That call can do an alarm takeover, which changes the active timer. `main_show_alarm` also covers the takeovers that do not come from a click handler (the alarm watch timer, and the return from the Timer List).
 
+Found during implementation: two more places can change the armed state, and each also calls the refresh. They are the Select click on an alarm (that path returns before `prv_finish_interaction`) and the refresh callback when an alarm stops on its own. The armed test also excludes a vibrating alarm: an alarm is a running "chrono" by the timer's own test, and Select must act on it with no delay.
+
 *Alternatives:*
 - Always subscribe multi-click. Rejected. It delays every Select and merges fast taps in edit modes.
 - Record the lap at once and undo it on a second press. Rejected by the user. It shows a short lap flash that then goes away, and it needs more code.
@@ -53,7 +55,11 @@ Both are unit-testable in `test/test_timer_multi.c`.
 
 The single click is delayed (D1), so the lap flash starts ~300 ms after the press. To show that the lap was taken at the press, the Select raw-down handler freezes the display when armed. `drawing_set_freeze_ms(int64_t at_ms)` / `drawing_clear_freeze()` add a render-time override, like `prv_apply_slot_override`. While it is set, the draw path evaluates the active timer at `at_ms` instead of `epoch()` (the split main value and the header total) and shows the millisecond field.
 
-The freeze is cleared by the single-click handler (a new lap flash takes over), the double-click handler (the paused value is the same), the long-click handler (restart), the lap-full warning path, a 1 s safety `AppTimer`, and `prv_terminate`. Lap and pause both continue from the frozen value, so the display does not jump. Restart goes to 0:00, as the user expects. The lap-full warning and the safety timeout return to the live running value, which is correct because the stopwatch never stopped.
+The freeze is cleared by the single-click handler (a new lap flash takes over), the double-click handler (the paused value is the same), the long-click handler (restart), the lap-full warning path, a safety `AppTimer` of about 1 s (see below), and `prv_terminate`. Lap and pause both continue from the frozen value, so the display does not jump. Restart goes to 0:00, as the user expects. The lap-full warning and the safety timeout return to the live running value, which is correct because the stopwatch never stopped.
+
+Implementation: the freeze uses the same window as the slot override. For the length of one synchronous draw call, the draw path shows the running active timer as paused at `at_ms` (it swaps `start_ms` and `is_paused`, and puts them back before the call returns). A paused stopwatch already draws its stored value with milliseconds, so no second display path is necessary. The icon code is told that the frame is frozen, so the icons stay those of a running stopwatch.
+
+The safety timeout is `BUTTON_HOLD_RESET_MS + SELECT_DOUBLE_PRESS_MS + 150` = 1200 ms, not exactly 1 s. A hold just short of the long press (750 ms) and then the double-press window (300 ms) is a legal single press that resolves after 1050 ms. A 1000 ms timeout would end the freeze and drop the press time before that lap is recorded.
 
 The freeze must not stay after the armed state ends. When `prv_refresh_click_config()` goes from armed to not armed, it also clears the freeze, cancels the safety timer, and clears `select_press_pending`. This covers an alarm takeover, the Timer List, and a different button that changes the mode inside the double-press window. Without it, the frozen frame evaluates a different active timer at the frozen time.
 

@@ -267,6 +267,18 @@ void timer_toggle_play_pause(void) {
   }
 }
 
+#if LAP_FEATURE
+// Pause the running active timer as if it was paused at at_ms
+void timer_pause_at(int64_t at_ms) {
+  if (timer_data.is_paused) {
+    return;
+  }
+  // Pause: store elapsed time in start_ms
+  timer_data.start_ms = at_ms - timer_data.start_ms;
+  timer_data.is_paused = true;
+}
+#endif
+
 //! Rewind the timer back to its original value
 void timer_rewind(void) {
   timer_data.start_ms = 0;
@@ -725,15 +737,15 @@ int8_t timer_alarm_rang_slot(void) {
 
 #if LAP_FEATURE
 // Record a lap: copy the source into a free slot as a paused snapshot frozen at
-// the source's current value, then advance the source's lap boundary
-int8_t timer_slot_lap(uint8_t src_idx) {
+// the source's value at at_ms, then advance the source's lap boundary
+int8_t timer_slot_lap_at(uint8_t src_idx, int64_t at_ms) {
   if (src_idx >= timer_count || timer_count >= MAX_TIMERS) {
     return -1;
   }
   uint8_t idx = timer_count;
   timer_count++;
   Timer *src = &timer_slots[src_idx];
-  int64_t snapshot_ms = prv_slot_elapsed_ms(src);
+  int64_t snapshot_ms = src->is_paused ? src->start_ms : at_ms - src->start_ms;
   Timer *copy = &timer_slots[idx];
   *copy = *src;
   // Paused slot stores its elapsed time in start_ms, freezing the value at the
@@ -758,6 +770,11 @@ int8_t timer_slot_lap(uint8_t src_idx) {
   }
   src->lap_count = n;
   return (int8_t)idx;
+}
+
+// Record a lap at the source's current value
+int8_t timer_slot_lap(uint8_t src_idx) {
+  return timer_slot_lap_at(src_idx, epoch());
 }
 #endif  // LAP_FEATURE
 

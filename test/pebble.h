@@ -96,6 +96,8 @@ void layer_mark_dirty(Layer *layer);
 void window_single_click_subscribe(ButtonId button_id, ClickHandler handler);
 void window_raw_click_subscribe(ButtonId button_id, void* down_handler, void* up_handler, void* context);
 void window_long_click_subscribe(ButtonId button_id, uint16_t delay_ms, ClickHandler handler, void* context);
+void window_multi_click_subscribe(ButtonId button_id, uint8_t min_clicks, uint8_t max_clicks,
+                                  uint16_t timeout, bool last_click_only, ClickHandler handler);
 AppTimer* app_timer_register(uint32_t timeout_ms, AppTimerCallback callback, void* callback_data);
 void app_timer_cancel(AppTimer* timer);
 void app_timer_reschedule(AppTimer* timer, uint32_t new_timeout_ms);

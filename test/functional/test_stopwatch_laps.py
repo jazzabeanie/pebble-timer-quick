@@ -488,3 +488,208 @@ class TestLongPressRestart:
         assert int(laps_after[0].get("free", -1)) == MAX_TIMERS - 4, (
             f"Previously recorded lap slots were not preserved: {laps_after[0]}"
         )
+
+
+def _display_to_ms(text):
+    """'M:SS.mmm' -> milliseconds (the paused/frozen stopwatch display)."""
+    minutes, _, rest = text.lstrip("-").partition(":")
+    seconds, _, millis = rest.partition(".")
+    return (int(minutes) * 60 + int(seconds)) * 1000 + int(millis or 0)
+
+
+class TestDoublePressPause:
+    """lap-double-press-pause: double-press Select pauses a running lap
+    stopwatch; a single press still records a lap."""
+
+    def test_double_press_pauses_without_lap(self, emulator):
+        _skip_if_no_lap_feature(emulator)
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        _enable_lap_setting(emulator)
+        _wait_for_counting_stopwatch(emulator, capture)
+
+        capture.clear_state_queue()
+        emulator.double_press_select()
+        state = capture.wait_for_state(event="double_press_select", timeout=5.0)
+        assert state is not None, (
+            f"No double_press_select event. Logs: {capture.get_all_logs()[-10:]}"
+        )
+        assert_mode(state, "Counting")
+        assert state.get("p") == "1", f"Double press did not pause: {state}"
+
+        # No lap is recorded for either press, also not after the window
+        time.sleep(1.0)
+        events = [s["event"] for s in capture.get_state_logs()]
+        assert "lap_recorded" not in events, f"A lap was recorded: {events}"
+
+        # The stopwatch stays paused
+        capture.clear_state_queue()
+        emulator.press_down()
+        down = capture.wait_for_state(event="button_down", timeout=5.0)
+        capture.stop()
+        assert down is not None
+        assert down.get("p") == "1", f"Stopwatch is not paused: {down}"
+
+    def test_double_press_during_flash_pauses(self, emulator):
+        _skip_if_no_lap_feature(emulator)
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        _enable_lap_setting(emulator)
+        _wait_for_counting_stopwatch(emulator, capture)
+
+        laps = _record_laps(emulator, capture, 1, delay=0.6)
+        assert int(laps[0].get("free", -1)) == MAX_TIMERS - 2
+
+        # Inside the 5s flash window
+        capture.clear_state_queue()
+        emulator.double_press_select()
+        state = capture.wait_for_state(event="double_press_select", timeout=5.0)
+        assert state is not None, (
+            f"No double_press_select event. Logs: {capture.get_all_logs()[-10:]}"
+        )
+        assert state.get("p") == "1", f"Double press did not pause: {state}"
+        time.sleep(1.5)
+        events = [s["event"] for s in capture.get_state_logs()]
+        capture.stop()
+        assert "lap_recorded" not in events, f"A second lap was recorded: {events}"
+        assert "flash_phase" not in events, f"The flash was not cancelled: {events}"
+
+    def test_single_select_resumes_after_double_press(self, emulator):
+        _skip_if_no_lap_feature(emulator)
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        _enable_lap_setting(emulator)
+        _wait_for_counting_stopwatch(emulator, capture)
+
+        capture.clear_state_queue()
+        emulator.double_press_select()
+        paused = capture.wait_for_state(event="double_press_select", timeout=5.0)
+        assert paused is not None and paused.get("p") == "1", f"Not paused: {paused}"
+        time.sleep(0.5)
+
+        # A single press resumes, and records no lap
+        capture.clear_state_queue()
+        emulator.press_select()
+        state = capture.wait_for_state(event="button_select", timeout=5.0)
+        assert state is not None, "No button_select event after the pause"
+        assert state.get("p") == "0", f"Single Select did not resume: {state}"
+        events = [s["event"] for s in capture.get_state_logs()]
+        assert "lap_recorded" not in events, f"A lap was recorded on resume: {events}"
+
+        # Running again: a single press records a lap as before
+        time.sleep(0.5)
+        laps = _record_laps(emulator, capture, 1)
+        capture.stop()
+        assert laps[0].get("name", "").startswith("Lap 1: "), laps
+
+    def test_edit_mode_double_tap_adds_two_increments(self, emulator):
+        """In New mode the double press is not armed: two fast Select presses
+        are two single presses (+5 min each)."""
+        _skip_if_no_lap_feature(emulator)
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        _enable_lap_setting(emulator)
+
+        capture.clear_state_queue()
+        emulator.double_press_select()
+        states = []
+        deadline = time.time() + 3.0
+        while time.time() < deadline and len(states) < 2:
+            state = capture.wait_for_state(event="button_select", timeout=0.5)
+            if state is not None:
+                states.append(state)
+        events = [s["event"] for s in capture.get_state_logs()]
+        capture.stop()
+        assert len(states) == 2, (
+            f"Expected two single presses in New mode, got {states}"
+        )
+        assert_mode(states[1], "New")
+        assert states[1].get("tl") == str(10 * 60 * 1000), (
+            f"Expected 10:00 after two +5 min presses: {states[1]}"
+        )
+        assert "double_press_select" not in events
+
+    def test_long_press_restarts_after_arm_and_disarm(self, emulator):
+        """The click config is set again at each arm and disarm. The long press
+        must still work after that: pause (disarm), resume (arm), then hold."""
+        _skip_if_no_lap_feature(emulator)
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        _enable_lap_setting(emulator)
+        _wait_for_counting_stopwatch(emulator, capture)
+        time.sleep(2.0)
+
+        capture.clear_state_queue()
+        emulator.double_press_select()
+        paused = capture.wait_for_state(event="double_press_select", timeout=5.0)
+        assert paused is not None and paused.get("p") == "1", f"Not paused: {paused}"
+        time.sleep(0.5)
+        emulator.press_select()
+        resumed = capture.wait_for_state(event="button_select", timeout=5.0)
+        assert resumed is not None and resumed.get("p") == "0", f"Not resumed: {resumed}"
+        time.sleep(0.5)
+
+        capture.clear_state_queue()
+        emulator.hold_button(Button.SELECT)
+        time.sleep(1.0)
+        emulator.release_buttons()
+        state = capture.wait_for_state(event="long_press_select", timeout=5.0)
+        assert state is not None, (
+            f"No long_press_select event. Logs: {capture.get_all_logs()[-10:]}"
+        )
+        assert state.get("p") == "0", f"Stopwatch is not running after restart: {state}"
+        minutes, _, seconds = state.get("t", "9:99").partition(":")
+        assert int(minutes) * 60 + int(seconds) <= 2, (
+            f"Stopwatch did not restart from zero: {state}"
+        )
+        # The hold records no lap and does not pause
+        time.sleep(1.0)
+        events = [s["event"] for s in capture.get_state_logs()]
+        capture.stop()
+        assert "lap_recorded" not in events, f"A lap was recorded: {events}"
+        assert "double_press_select" not in events
+
+
+class TestPressDownFreeze:
+    """lap-double-press-pause: the display freezes at Select press-down."""
+
+    def test_frozen_value_equals_recorded_lap(self, emulator):
+        _skip_if_no_lap_feature(emulator)
+        capture = LogCapture(emulator.platform)
+        capture.start()
+        _enable_lap_setting(emulator)
+        _wait_for_counting_stopwatch(emulator, capture)
+        time.sleep(1.0)
+
+        # Press Select down and keep it down for a short time (less than the
+        # long-press time): the display must freeze with milliseconds
+        capture.clear_state_queue()
+        emulator.hold_button(Button.SELECT)
+        frozen = None
+        deadline = time.time() + 2.0
+        while time.time() < deadline:
+            state = capture.wait_for_state(event="display", timeout=0.2)
+            if state is not None and "." in state.get("disp", ""):
+                frozen = state
+                break
+        emulator.release_buttons()
+        assert frozen is not None, (
+            f"No frozen display frame after press-down. Logs: {capture.get_all_logs()[-10:]}"
+        )
+        assert frozen.get("slot") == "0", f"Frozen frame is not the stopwatch: {frozen}"
+
+        # The single press then records the lap at the same value
+        lap = capture.wait_for_state(event="lap_recorded", timeout=5.0)
+        assert lap is not None, "No lap recorded after the press"
+        lap_frame = None
+        deadline = time.time() + 3.0
+        while time.time() < deadline:
+            state = capture.wait_for_state(event="display", timeout=0.5)
+            if state is not None and state.get("slot") == lap.get("slot"):
+                lap_frame = state
+                break
+        capture.stop()
+        assert lap_frame is not None, "No display frame for the lap slot"
+        assert _display_to_ms(lap_frame["disp"]) == _display_to_ms(frozen["disp"]), (
+            f"Lap value {lap_frame['disp']} differs from the frozen value {frozen['disp']}"
+        )

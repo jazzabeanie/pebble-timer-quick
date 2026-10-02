@@ -164,6 +164,19 @@ int8_t timer_slot_create(void);
 //! @return The new lap slot index, or -1 when no slot is free
 int8_t timer_slot_lap(uint8_t src_idx);
 
+//! Record a lap as timer_slot_lap() does, with the snapshot and the lap
+//! boundary taken at a given time (the Select press-down time) and not at the
+//! current time.
+//! @param src_idx The slot index to record a lap of
+//! @param at_ms The epoch time (ms) of the snapshot
+//! @return The new lap slot index, or -1 when no slot is free
+int8_t timer_slot_lap_at(uint8_t src_idx, int64_t at_ms);
+
+//! Pause the running active timer as if it was paused at a given time. A
+//! paused timer is not changed.
+//! @param at_ms The epoch time (ms) at which the timer stops
+void timer_pause_at(int64_t at_ms);
+
 //! Assign (or reassign) a mnemonic name to an existing slot; call after start_ms is set
 void timer_assign_name(uint8_t idx);
 

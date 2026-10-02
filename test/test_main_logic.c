@@ -55,7 +55,6 @@ uint64_t epoch(void) {
 // Window
 Window* window_create(void) { return (Window*)1; }
 void window_destroy(Window* window) {}
-void window_set_click_config_provider(Window *window, ClickConfigProvider click_config_provider) {}
 Layer* window_get_root_layer(Window *window) { return (Layer*)1; }
 GRect layer_get_bounds(Layer *layer) { return (GRect){{0,0},{144,168}}; }
 void window_stack_push(Window *window, bool animated) {}
@@ -79,6 +78,20 @@ void window_raw_click_subscribe(ButtonId button_id, void* down_handler, void* up
 void window_long_click_subscribe(ButtonId button_id, uint16_t delay_ms, ClickHandler handler, void* context) {
   s_sub_long[button_id] = handler;
   s_sub_long_delay[button_id] = delay_ms;
+}
+// Multi-click subscriptions. A button with one is "armed" for a double press.
+static ClickHandler s_sub_multi[SIM_BUTTON_COUNT];
+static uint16_t s_sub_multi_timeout[SIM_BUTTON_COUNT];
+void window_multi_click_subscribe(ButtonId button_id, uint8_t min_clicks, uint8_t max_clicks,
+                                  uint16_t timeout, bool last_click_only, ClickHandler handler) {
+  s_sub_multi[button_id] = handler;
+  s_sub_multi_timeout[button_id] = timeout;
+}
+// As the SDK does for a visible window: drop the old subscriptions and call
+// the provider at once
+void window_set_click_config_provider(Window *window, ClickConfigProvider click_config_provider) {
+  memset(s_sub_multi, 0, sizeof(s_sub_multi));
+  click_config_provider(window);
 }
 
 // Layer
@@ -328,8 +341,13 @@ void drawing_render(Layer *layer, GContext *ctx) {}
 void drawing_update(void) {}
 void drawing_initialize(Layer *layer) {}
 void drawing_terminate(void) {}
-void drawing_set_slot_override(int8_t slot) {}
-int8_t drawing_get_slot_override(void) { return -1; }
+static int8_t s_mock_slot_override = -1;
+void drawing_set_slot_override(int8_t slot) { s_mock_slot_override = slot; }
+int8_t drawing_get_slot_override(void) { return s_mock_slot_override; }
+// Display freeze: the time the display is frozen at, or -1 when not frozen
+static int64_t s_mock_freeze_ms = -1;
+void drawing_set_freeze_ms(int64_t at_ms) { s_mock_freeze_ms = at_ms; }
+void drawing_clear_freeze(void) { s_mock_freeze_ms = -1; }
 
 // Utility Mocks
 void assert(void *ptr, const char *file, int line) {
@@ -437,6 +455,9 @@ static void prv_reset_app_statics(void) {
     s_window_pop_count = 0;
     s_mock_list_on_top = false;
     s_timer_list_push_count = 0;
+    s_mock_slot_override = -1;
+    s_mock_freeze_ms = -1;
+    memset(s_sub_multi, 0, sizeof(s_sub_multi));
 }
 
 // --- Test Case ---
@@ -2742,6 +2763,353 @@ static void test_sim_press_held_across_alarm_start_ignored(void **state) {
     assert_int_equal(timer_data.length_ms, 30000);
 }
 
+// --- Lap stopwatch: double-press Select to pause, display freeze ------------
+// The handlers are called directly in the order the SDK fires them: raw-down
+// on each press, then the multi-click handler (a double press), or the single
+// click handler after the double-press window (a single press), or the long
+// click handler. A button is "armed" when it has a multi-click subscription.
+
+#define LAP_TEST_T0 30000000
+
+// A running lap stopwatch in slot 0 that has counted elapsed_ms, shown in
+// Counting mode with the Lap Stopwatch setting on
+static void prv_setup_lap_stopwatch(int64_t elapsed_ms) {
+    prv_fake_timers_clear();
+    prv_log_clear();
+    prv_reset_app_statics();
+    main_data.window = (Window *)1;
+    main_data.flash_lap_slot = -1;
+    main_data.control_mode = ControlModeCounting;
+    s_mock_lap_stopwatch_enabled = true;
+    s_mock_epoch = LAP_TEST_T0;
+    memset(timer_slots, 0, sizeof(timer_slots));
+    timer_count = 0;
+    timer_set_active_slot(0);
+    prv_slot_chrono(0, elapsed_ms);
+    prv_refresh_click_config();
+}
+
+static int prv_lap_teardown(void **state) {
+    s_mock_lap_stopwatch_enabled = false;
+    prv_fake_timers_clear();
+    return prv_sim_teardown(state);
+}
+
+static void prv_lap_at(uint64_t ms_after_t0) {
+    s_mock_epoch = LAP_TEST_T0 + ms_after_t0;
+}
+
+static bool prv_select_is_armed(void) {
+    return s_sub_multi[BUTTON_ID_SELECT] != NULL;
+}
+
+// 1.3: a double press pauses at the first press-down time and records no lap
+static void test_double_press_pauses_at_first_press_down(void **state) {
+    prv_setup_lap_stopwatch(5000);
+    assert_true(prv_select_is_armed());
+
+    prv_select_raw_click_handler(NULL, NULL);       // first press-down at 5.000 s
+    prv_lap_at(150);
+    prv_select_raw_click_handler(NULL, NULL);       // second press-down
+    prv_lap_at(200);
+    s_sub_multi[BUTTON_ID_SELECT](NULL, NULL);      // the double press is recognised
+
+    assert_true(timer_is_paused());
+    assert_int_equal(timer_get_value_ms(), 5000);
+    assert_int_equal(timer_count, 1);
+    assert_int_equal(prv_log_count("TEST_STATE:lap_recorded"), 0);
+    assert_int_equal(prv_log_count("TEST_STATE:double_press_select"), 1);
+    // Paused: the double press is no longer armed
+    assert_false(prv_select_is_armed());
+}
+
+// 1.3: a double press during the lap flash cancels the flash and pauses
+static void test_double_press_during_flash_pauses(void **state) {
+    prv_setup_lap_stopwatch(5000);
+    prv_select_raw_click_handler(NULL, NULL);
+    prv_lap_at(350);
+    prv_select_click_handler(NULL, NULL);           // lap 1, the flash starts
+    assert_int_equal(timer_count, 2);
+    assert_int_equal(main_data.flash_lap_slot, 1);
+
+    prv_lap_at(2000);
+    prv_select_raw_click_handler(NULL, NULL);       // first press-down at 7.000 s
+    prv_lap_at(2150);
+    prv_select_raw_click_handler(NULL, NULL);
+    prv_lap_at(2200);
+    s_sub_multi[BUTTON_ID_SELECT](NULL, NULL);
+
+    assert_int_equal(main_data.flash_lap_slot, -1);
+    assert_int_equal(timer_get_active_slot(), 0);
+    assert_true(timer_is_paused());
+    assert_int_equal(timer_get_value_ms(), 7000);
+    assert_int_equal(timer_count, 2);
+}
+
+// The lap value is the stopwatch value at press-down, not at the delayed
+// single click
+static void test_single_press_lap_uses_press_down_time(void **state) {
+    prv_setup_lap_stopwatch(5000);
+
+    prv_select_raw_click_handler(NULL, NULL);       // press-down at 5.000 s
+    prv_lap_at(350);                                // the double-press window is over
+    prv_select_click_handler(NULL, NULL);
+
+    assert_int_equal(timer_count, 2);
+    assert_true(timer_slots[1].is_paused);
+    assert_int_equal(timer_slots[1].start_ms, 5000);
+    assert_int_equal(timer_slots[0].last_lap_ms, 5000);
+    assert_false(timer_slots[0].is_paused);
+}
+
+// 1.4: multi-click is subscribed only for a running lap stopwatch in Counting
+static void test_multi_click_subscribed_only_while_armed(void **state) {
+    prv_setup_lap_stopwatch(5000);
+    assert_true(prv_select_is_armed());
+    assert_int_equal(s_sub_multi_timeout[BUTTON_ID_SELECT], 300);
+    assert_null(s_sub_multi[BUTTON_ID_UP]);
+    assert_null(s_sub_multi[BUTTON_ID_DOWN]);
+    assert_null(s_sub_multi[BUTTON_ID_BACK]);
+
+    // Edit modes
+    main_data.control_mode = ControlModeNew;
+    prv_refresh_click_config();
+    assert_false(prv_select_is_armed());
+    main_data.control_mode = ControlModeEditSec;
+    prv_refresh_click_config();
+    assert_false(prv_select_is_armed());
+
+    // Back to Counting: armed again
+    main_data.control_mode = ControlModeCounting;
+    prv_refresh_click_config();
+    assert_true(prv_select_is_armed());
+
+    // Paused stopwatch
+    timer_toggle_play_pause();
+    prv_refresh_click_config();
+    assert_false(prv_select_is_armed());
+    timer_toggle_play_pause();
+    prv_refresh_click_config();
+    assert_true(prv_select_is_armed());
+
+    // Setting off
+    s_mock_lap_stopwatch_enabled = false;
+    prv_refresh_click_config();
+    assert_false(prv_select_is_armed());
+    s_mock_lap_stopwatch_enabled = true;
+
+    // Running countdown
+    prv_slot_countdown(0, 5 * MIN_MS, 4 * MIN_MS);
+    prv_refresh_click_config();
+    assert_false(prv_select_is_armed());
+}
+
+// 1.4: the handlers keep the subscription in step: Up (to New mode) disarms,
+// and a single Select that resumes a paused stopwatch arms
+static void test_handlers_refresh_the_click_config(void **state) {
+    prv_setup_lap_stopwatch(5000);
+
+    prv_up_click_handler(NULL, NULL);
+    assert_int_equal(main_data.control_mode, ControlModeNew);
+    assert_false(prv_select_is_armed());
+
+    prv_run_until(s_mock_epoch + 3100);             // the edit expires
+    assert_int_equal(main_data.control_mode, ControlModeCounting);
+    assert_true(prv_select_is_armed());
+
+    timer_toggle_play_pause();
+    prv_refresh_click_config();
+    assert_false(prv_select_is_armed());
+    prv_select_raw_click_handler(NULL, NULL);
+    prv_select_click_handler(NULL, NULL);           // resumes at once: no lap
+    assert_false(timer_is_paused());
+    assert_int_equal(timer_count, 1);
+    assert_true(prv_select_is_armed());
+}
+
+// 1.4: an alarm takeover disarms the double press
+static void test_alarm_takeover_disarms_double_press(void **state) {
+    prv_setup_lap_stopwatch(5000);
+    prv_slot_countdown(1, 30000, -1000);
+    assert_true(prv_select_is_armed());
+
+    prv_take_over(1);
+
+    prv_assert_alarm_showing(1);
+    assert_false(prv_select_is_armed());
+}
+
+// 1.6: press-down while armed freezes the display at the press time
+static void test_press_down_while_armed_freezes_display(void **state) {
+    prv_setup_lap_stopwatch(5000);
+    prv_lap_at(40);
+    prv_select_raw_click_handler(NULL, NULL);
+    assert_int_equal(s_mock_freeze_ms, LAP_TEST_T0 + 40);
+    // The timer state is not changed
+    assert_false(timer_is_paused());
+}
+
+// 1.6: no freeze when the double press is not armed
+static void test_press_down_when_not_armed_does_not_freeze(void **state) {
+    prv_setup_lap_stopwatch(5000);
+    timer_toggle_play_pause();                      // paused
+    prv_refresh_click_config();
+    prv_select_raw_click_handler(NULL, NULL);
+    assert_int_equal(s_mock_freeze_ms, -1);
+
+    prv_setup_lap_stopwatch(5000);
+    main_data.control_mode = ControlModeNew;        // edit mode
+    prv_refresh_click_config();
+    prv_select_raw_click_handler(NULL, NULL);
+    assert_int_equal(s_mock_freeze_ms, -1);
+
+    prv_setup_lap_stopwatch(5000);
+    s_mock_lap_stopwatch_enabled = false;           // setting off
+    prv_refresh_click_config();
+    prv_select_raw_click_handler(NULL, NULL);
+    assert_int_equal(s_mock_freeze_ms, -1);
+}
+
+// 1.6: the single, double, and long handlers each end the freeze
+static void test_click_handlers_clear_the_freeze(void **state) {
+    prv_setup_lap_stopwatch(5000);
+    prv_select_raw_click_handler(NULL, NULL);
+    assert_true(s_mock_freeze_ms >= 0);
+    prv_lap_at(350);
+    prv_select_click_handler(NULL, NULL);
+    assert_int_equal(s_mock_freeze_ms, -1);
+
+    prv_setup_lap_stopwatch(5000);
+    prv_select_raw_click_handler(NULL, NULL);
+    prv_lap_at(150);
+    prv_select_raw_click_handler(NULL, NULL);
+    // The second press-down keeps the freeze of the first one
+    assert_int_equal(s_mock_freeze_ms, LAP_TEST_T0);
+    s_sub_multi[BUTTON_ID_SELECT](NULL, NULL);
+    assert_int_equal(s_mock_freeze_ms, -1);
+
+    prv_setup_lap_stopwatch(5000);
+    prv_select_raw_click_handler(NULL, NULL);
+    prv_lap_at(BUTTON_HOLD_RESET_MS);
+    assert_true(s_mock_freeze_ms >= 0);             // frozen while the button is held
+    prv_select_long_click_handler(NULL, NULL);
+    assert_int_equal(s_mock_freeze_ms, -1);
+    assert_int_equal(timer_get_value_ms(), 0);      // restarted
+}
+
+// 1.6: the lap-full warning ends the freeze
+static void test_lap_full_clears_the_freeze(void **state) {
+    prv_setup_lap_stopwatch(5000);
+    for (uint8_t i = 1; i < MAX_TIMERS; i++) {
+        prv_slot_chrono(i, 1000);
+        timer_slots[i].is_paused = true;
+        timer_slots[i].start_ms = 1000;
+    }
+    assert_int_equal(timer_count, MAX_TIMERS);
+
+    prv_select_raw_click_handler(NULL, NULL);
+    assert_true(s_mock_freeze_ms >= 0);
+    prv_lap_at(350);
+    prv_select_click_handler(NULL, NULL);
+
+    assert_int_equal(s_mock_freeze_ms, -1);
+    assert_int_equal(prv_log_count("TEST_STATE:lap_full"), 1);
+    assert_int_equal(timer_count, MAX_TIMERS);
+    assert_false(timer_is_paused());
+}
+
+// 1.6: with no click handler, the freeze ends after about 1 s and changes nothing
+static void test_freeze_safety_timeout(void **state) {
+    prv_setup_lap_stopwatch(5000);
+    prv_select_raw_click_handler(NULL, NULL);
+    // Still frozen at the end of the slowest press that resolves: a hold just
+    // short of the long press, then the double-press window
+    prv_run_until(LAP_TEST_T0 + BUTTON_HOLD_RESET_MS + 300);
+    assert_int_equal(s_mock_freeze_ms, LAP_TEST_T0);
+    prv_run_until(LAP_TEST_T0 + 1250);
+    assert_int_equal(s_mock_freeze_ms, -1);
+    assert_false(timer_is_paused());
+    assert_int_equal(timer_count, 1);
+    // The next press is a new press: it gets its own press-down time
+    prv_lap_at(3000);
+    prv_select_raw_click_handler(NULL, NULL);
+    assert_int_equal(s_mock_freeze_ms, LAP_TEST_T0 + 3000);
+}
+
+// 1.6: a press-down during the lap flash cancels the flash and freezes the
+// running stopwatch; a flash tick that is due before the press resolves does
+// not change the frozen display
+static void test_press_down_during_flash_freezes_running_stopwatch(void **state) {
+    prv_setup_lap_stopwatch(5000);
+    prv_select_raw_click_handler(NULL, NULL);
+    prv_lap_at(350);
+    prv_select_click_handler(NULL, NULL);           // lap 1: flash tick due at +1350
+    assert_int_equal(s_mock_slot_override, 1);
+
+    prv_run_until(LAP_TEST_T0 + 1250);
+    assert_int_equal(s_mock_slot_override, 1);
+    prv_select_raw_click_handler(NULL, NULL);       // press-down during the flash
+    assert_int_equal(s_mock_slot_override, -1);
+    assert_int_equal(main_data.flash_lap_slot, -1);
+    assert_int_equal(s_mock_freeze_ms, LAP_TEST_T0 + 1250);
+
+    prv_run_until(LAP_TEST_T0 + 1450);              // past the old flash tick
+    assert_int_equal(s_mock_slot_override, -1);
+    assert_int_equal(s_mock_freeze_ms, LAP_TEST_T0 + 1250);
+    assert_int_equal(prv_log_count("TEST_STATE:flash_phase"), 0);
+
+    // A single press then starts a new flash for the new lap
+    prv_run_until(LAP_TEST_T0 + 1600);
+    prv_select_click_handler(NULL, NULL);
+    assert_int_equal(timer_count, 3);
+    assert_int_equal(s_mock_slot_override, 2);
+    assert_int_equal(timer_slots[2].start_ms, 6250);
+    assert_int_equal(s_mock_freeze_ms, -1);
+}
+
+// 1.9: a double press that the wakeup input guard blocks does nothing
+static void test_double_press_blocked_by_input_guard(void **state) {
+    prv_setup_lap_stopwatch(5000);
+    prv_start_input_guard();
+
+    prv_lap_at(100);
+    prv_select_raw_click_handler(NULL, NULL);       // press-down inside the window
+    prv_lap_at(250);
+    prv_select_raw_click_handler(NULL, NULL);
+    prv_lap_at(300);
+    s_sub_multi[BUTTON_ID_SELECT](NULL, NULL);
+
+    assert_false(timer_is_paused());
+    assert_int_equal(timer_count, 1);
+    assert_int_equal(s_mock_freeze_ms, -1);
+    assert_int_equal(prv_log_count("TEST_STATE:double_press_select"), 0);
+    assert_true(prv_log_count("TEST_STATE:input_blocked") > 0);
+    s_blocked_buttons = 0;
+}
+
+// 1.10: an alarm takeover with the display frozen ends the freeze and the
+// pending press
+static void test_alarm_takeover_clears_the_freeze(void **state) {
+    prv_setup_lap_stopwatch(5000);
+    prv_slot_countdown(1, 30000, -1000);
+    prv_select_raw_click_handler(NULL, NULL);
+    assert_true(s_mock_freeze_ms >= 0);
+    assert_true(main_data.select_press_pending);
+
+    prv_lap_at(100);
+    prv_take_over(1);
+
+    prv_assert_alarm_showing(1);
+    assert_int_equal(s_mock_freeze_ms, -1);
+    assert_false(main_data.select_press_pending);
+    // The press in progress does not act on the alarm
+    prv_lap_at(350);
+    prv_select_click_handler(NULL, NULL);
+    prv_assert_alarm_showing(1);
+    assert_int_equal(timer_count, 2);
+    s_blocked_buttons = 0;
+}
+
 int main(void) {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_sim_no_alarm_on_stopwatch_after_edit_increment),
@@ -2844,6 +3212,21 @@ int main(void) {
         cmocka_unit_test_teardown(test_sim_alarm_start_on_user_launch_guarded, prv_sim_teardown),
         cmocka_unit_test_teardown(test_sim_snoozed_alarm_is_guarded, prv_sim_teardown),
         cmocka_unit_test_teardown(test_sim_press_held_across_alarm_start_ignored, prv_sim_teardown),
+        // lap-double-press-pause: these also change the slots, so they run last
+        cmocka_unit_test_teardown(test_double_press_pauses_at_first_press_down, prv_lap_teardown),
+        cmocka_unit_test_teardown(test_double_press_during_flash_pauses, prv_lap_teardown),
+        cmocka_unit_test_teardown(test_single_press_lap_uses_press_down_time, prv_lap_teardown),
+        cmocka_unit_test_teardown(test_multi_click_subscribed_only_while_armed, prv_lap_teardown),
+        cmocka_unit_test_teardown(test_handlers_refresh_the_click_config, prv_lap_teardown),
+        cmocka_unit_test_teardown(test_alarm_takeover_disarms_double_press, prv_lap_teardown),
+        cmocka_unit_test_teardown(test_press_down_while_armed_freezes_display, prv_lap_teardown),
+        cmocka_unit_test_teardown(test_press_down_when_not_armed_does_not_freeze, prv_lap_teardown),
+        cmocka_unit_test_teardown(test_click_handlers_clear_the_freeze, prv_lap_teardown),
+        cmocka_unit_test_teardown(test_lap_full_clears_the_freeze, prv_lap_teardown),
+        cmocka_unit_test_teardown(test_freeze_safety_timeout, prv_lap_teardown),
+        cmocka_unit_test_teardown(test_press_down_during_flash_freezes_running_stopwatch, prv_lap_teardown),
+        cmocka_unit_test_teardown(test_double_press_blocked_by_input_guard, prv_lap_teardown),
+        cmocka_unit_test_teardown(test_alarm_takeover_clears_the_freeze, prv_lap_teardown),
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }

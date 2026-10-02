@@ -139,25 +139,61 @@ int8_t drawing_get_slot_override(void) {
   return s_slot_override;
 }
 
+// When >= 0, the render path shows the running active timer as it was at this
+// epoch time (ms). Used from Select press-down on a running lap stopwatch
+// until the press resolves, so the display shows the value the lap or the
+// pause will use.
+static int64_t s_freeze_ms = -1;
+// The active timer's real start_ms while the freeze is applied (see below)
+static int64_t s_freeze_saved_start_ms;
+static bool s_freeze_applied = false;
+
+void drawing_set_freeze_ms(int64_t at_ms) {
+  s_freeze_ms = at_ms;
+}
+
+void drawing_clear_freeze(void) {
+  s_freeze_ms = -1;
+}
+
 // Point the timer module's slot indirection at the override for the duration
 // of one synchronous render/update call. The app is single-threaded, so the
 // swap cannot be observed by button handlers: it is always restored before
 // the render call returns, and only the drawing code performs it.
+//
+// The freeze uses the same window: it shows the running active timer as
+// paused at the freeze time. A paused timer draws its stored value with
+// milliseconds, which is the frozen frame. A lap flash frame (slot override)
+// and a paused timer are left as they are.
 static uint8_t prv_apply_slot_override(void) {
   uint8_t saved = timer_get_active_slot();
   if (s_slot_override >= 0) {
     timer_set_active_slot((uint8_t)s_slot_override);
+  } else if (s_freeze_ms >= 0 && !timer_data.is_paused) {
+    s_freeze_saved_start_ms = timer_data.start_ms;
+    timer_data.start_ms = s_freeze_ms - timer_data.start_ms;
+    timer_data.is_paused = true;
+    s_freeze_applied = true;
   }
   return saved;
 }
 
 static void prv_restore_slot(uint8_t saved) {
+  if (s_freeze_applied) {
+    timer_data.start_ms = s_freeze_saved_start_ms;
+    timer_data.is_paused = false;
+    s_freeze_applied = false;
+  }
   timer_set_active_slot(saved);
 }
+
+// True while a frozen frame is drawn: the timer reads as paused, but it runs
+#define prv_is_frozen_frame() (s_freeze_applied)
 #else
 // Without the lap feature there is no render override
 #define prv_apply_slot_override() 0
 #define prv_restore_slot(saved) ((void)(saved))
+#define prv_is_frozen_frame() (false)
 #endif  // LAP_FEATURE
 
 
@@ -780,8 +816,9 @@ static void prv_draw_action_icons(GContext *ctx, GRect bounds) {
       prv_draw_edit_icons(ctx, &pos, mode, repeat_counter_visible);
       break;
     case ControlModeCounting:
-      prv_draw_counting_icons(ctx, &pos, timer_is_paused(), timer_is_chrono(),
-                              repeat_counter_visible);
+      // A frozen frame keeps the icons of the running stopwatch
+      prv_draw_counting_icons(ctx, &pos, timer_is_paused() && !prv_is_frozen_frame(),
+                              timer_is_chrono(), repeat_counter_visible);
       break;
     case ControlModeEditRepeat:
       prv_draw_edit_repeat_icons(ctx, &pos);

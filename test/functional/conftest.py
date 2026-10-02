@@ -493,6 +493,35 @@ class EmulatorHelper:
         logger.debug(f"[{self.platform}] Pressing DOWN button")
         self._send_button(Button.DOWN)
 
+    def double_press_select(self, hold: float = 0.06, gap: float = 0.06):
+        """Press Select two times in quick succession (a double press).
+
+        press_select() holds for 0.25s and then waits 0.3s, so two calls can
+        never land inside the app's 300 ms double-press window. This sends
+        press/release/press/release with short holds, so the second press-down
+        comes about `hold + gap` seconds after the first.
+        """
+        QEMU_COMMAND_OPCODE = 0x0b
+        BUTTON_PROTOCOL = 0x08
+        press_data = bytearray([QEMU_COMMAND_OPCODE, BUTTON_PROTOCOL, Button.SELECT])
+        release_data = bytearray([QEMU_COMMAND_OPCODE, BUTTON_PROTOCOL, 0])
+
+        logger.debug(f"[{self.platform}] Double-pressing SELECT button")
+        if self._ws is None:
+            if self._pypkjs_port is None:
+                self._connect_transport()
+            else:
+                self._ensure_websocket()
+        self._ws.send_binary(press_data)
+        time.sleep(hold)
+        self._ws.send_binary(release_data)
+        time.sleep(gap)
+        self._ws.send_binary(press_data)
+        time.sleep(hold)
+        self._ws.send_binary(release_data)
+        # Wait for display to update
+        time.sleep(0.3)
+
     def press_up_back_chord(self):
         """Press the Up+Back chord (Up held first, then Back) used for voice rename.
 
